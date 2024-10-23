@@ -4,33 +4,29 @@ import { IDatabaseService } from '@/lib/domain/services/IDatabaseService';
 import { ISessionService } from '@/lib/domain/services/ISessionService';
 import { FirebaseDatabaseService } from '@/lib/infrastructure/services/FirebaseDatabaseService';
 import { FirebaseSessionService } from '@/lib/infrastructure/services/FirebaseSessionService';
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 
 // Dependency Injection (can be replaced in the future)
 const databaseService: IDatabaseService = new FirebaseDatabaseService();
 const sessionService: ISessionService = new FirebaseSessionService();
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method === 'GET') {
-        const token = req.headers.authorization?.split('Bearer ')[1]; // Extract the token from Authorization header
+export async function GET(req: Request) {
+    const token = req.headers.get('authorization')?.split('Bearer ')[1]; // Extract the token from Authorization header
 
-        if (!token) {
-            return res.status(401).json({ error: 'No token provided' });
-        }
+    if (!token) {
+        return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    }
 
-        try {
-            // Validate the session
-            const decodedToken = await sessionService.validateSession(token);
+    try {
+        // Validate the session
+        const decodedToken = await sessionService.validateSession(token);
 
-            // Access Firestore using the user ID from the decoded token
-            const userData = await databaseService.getUserData(decodedToken.uid);
+        // Access Firestore using the user ID from the decoded token
+        const userData = await databaseService.getUserData(decodedToken.uid);
 
-            return res.status(200).json({ user: userData });
-        } catch (error) {
-            const errorMessage = (error instanceof Error) ? error.message : 'An unknown error occurred';
-            return res.status(401).json({ error: errorMessage });
-        }
-    } else {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return NextResponse.json({ user: userData }, { status: 200 });
+    } catch (error) {
+        const errorMessage = (error instanceof Error) ? error.message : 'An unknown error occurred';
+        return NextResponse.json({ error: errorMessage }, { status: 401 });
     }
 }
