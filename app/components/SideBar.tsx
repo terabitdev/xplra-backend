@@ -31,9 +31,8 @@ export default function Sidebar() {
             <div>
                 <h2>Xplra</h2> {/* Logo */}
                 <nav className="nav flex-column">
-                    <a className="nav-link" href="#">Quests</a>
+                    <a className="nav-link" href="/quests">Quests</a>
                     <a className="nav-link" href="/adventures">Adventures</a>
-                    <a className="nav-link" href="#">Featured Adventures</a>
                 </nav>
             </div>
             <div className="logout-button">

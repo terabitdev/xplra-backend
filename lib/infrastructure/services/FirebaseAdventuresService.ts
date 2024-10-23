@@ -33,6 +33,7 @@ export class FirebaseAdventureService implements IAdventureService {
 
     async createAdventure(adventure: Adventure): Promise<Adventure> {
         const docRef = await addDoc(collection(db, 'adventures'), adventure);
+        await updateDoc(docRef, { id: docRef.id });
         return { ...adventure, id: docRef.id };
     }
 
