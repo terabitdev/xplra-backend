@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -63,6 +64,12 @@ export default function SignUp() {
           />
         </div>
         <button type="submit" className="btn btn-primary w-100">Sign Up</button>
+
+        {error && <div className="alert alert-danger mt-3">{error}</div>}
+
+        <p className="mt-3">
+          Already have an account? <Link href="/signin"><a>Sign in</a></Link>
+        </p>
       </form>
     </div>
   );
