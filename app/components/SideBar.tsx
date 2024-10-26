@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, EarthEuropeAfrica, Logout, ChevronRight, ChevronLeft } from '@carbon/icons-react';
-import styles from './sidebar.module.css';
+import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
     const router = useRouter();
