@@ -1,0 +1,74 @@
+/* sidebar.module.css */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    transition: width 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.sidebarContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 1rem;
+}
+
+.expandedSideBar {
+    width: 250px;
+    transition: width 0.3s ease;
+}
+
+.collapsedSideBar {
+    width: 60px;
+    transition: width 0.3s ease;
+}
+
+.logo {
+    font-size: 1.5em;
+    margin: 1em 0;
+    transition: opacity 0.3s ease;
+}
+
+.toggleButton {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-bottom: 1em;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    margin: 0.5em 0;
+    white-space: nowrap;
+    width: 100%;
+    padding: 0.5em;
+    text-align: left;
+    gap: 10px;
+    justify-content: center;
+    transition: opacity 0.3s ease;
+}
+
+.icon {
+    display: inline-block;
+}
+
+
+.logoutButton {
+    margin-top: auto;
+    padding: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}

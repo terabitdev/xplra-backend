@@ -68,7 +68,7 @@ export default function SignUp() {
         {error && <div className="alert alert-danger mt-3">{error}</div>}
 
         <p className="mt-3">
-          Already have an account? <Link href="/signin"><a>Sign in</a></Link>
+          Already have an account? <Link href="/signin">Sign in</Link>
         </p>
       </form>
     </div>

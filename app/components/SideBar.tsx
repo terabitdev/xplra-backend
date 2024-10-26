@@ -1,9 +1,21 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Home, EarthEuropeAfrica, Logout, ChevronRight, ChevronLeft } from '@carbon/icons-react';
+import styles from './sidebar.module.css';
 
 export default function Sidebar() {
     const router = useRouter();
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
+    useEffect(() => {
+        // Retrieve saved state from localStorage when component mounts
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState) {
+            setIsCollapsed(JSON.parse(savedState));
+        }
+    }, []);
 
     const handleLogout = async () => {
         try {
@@ -15,7 +27,6 @@ export default function Sidebar() {
             });
 
             if (res.ok) {
-                // Clear token and redirect to sign-in page
                 localStorage.removeItem('token');
                 router.push('/signin');
             } else {
@@ -26,18 +37,35 @@ export default function Sidebar() {
         }
     };
 
+    const toggleSidebar = () => {
+        // Toggle state and save to localStorage
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
+    };
+
     return (
-        <div className="sidebar">
-            <div>
-                <h2>Xplra</h2> {/* Logo */}
-                <nav className="nav flex-column">
-                    <a className="nav-link" href="/quests">Quests</a>
-                    <a className="nav-link" href="/adventures">Adventures</a>
+        <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsedSideBar : styles.expandedSideBar}`}>
+            <div className={styles.sidebarContent}>
+                <button onClick={toggleSidebar} className={styles.toggleButton}>
+                    {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                </button>
+                <h2 className={styles.logo}>{isCollapsed ? 'X' : 'Xplra'}</h2>
+                <nav className={styles.nav}>
+                    <a className={styles.navLink} href="/quests">
+                        <Home size={20} className={styles.icon} />
+                        {!isCollapsed && <span>Quests</span>}
+                    </a>
+                    <a className={styles.navLink} href="/adventures">
+                        <EarthEuropeAfrica size={20} className={styles.icon} />
+                        {!isCollapsed && <span>Adventures</span>}
+                    </a>
                 </nav>
             </div>
-            <div className="logout-button">
+            <div className={styles.logoutButton}>
                 <button className="btn btn-danger" onClick={handleLogout}>
-                    Logout
+                    <Logout size={20} className={styles.icon} />
+                    {!isCollapsed && <span>Logout</span>}
                 </button>
             </div>
         </div>

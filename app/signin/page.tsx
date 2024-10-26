@@ -69,7 +69,7 @@ export default function SignIn() {
         {error && <div className="alert alert-danger mt-3">{error}</div>}
 
         <p className="mt-3">
-          Don't have an account? <Link href="/signup"><a>Sign up</a></Link>
+          Don't have an account? <Link href="/signup">Sign up</Link>
         </p>
       </form>
     </div>

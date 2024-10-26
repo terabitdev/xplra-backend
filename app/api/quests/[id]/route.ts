@@ -20,10 +20,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
     const questId = params.id;
-    const updatedData = await req.json();
+    const formData = await req.formData();
+    const updatedData = JSON.parse(formData.get('quest') as string);
+    const imageFile = formData.get('image') as File | null;
 
     try {
-        await questService.updateQuest(questId, updatedData);
+        await questService.updateQuest(questId, updatedData, imageFile || undefined);
         return NextResponse.json({ message: 'Quest updated successfully' });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

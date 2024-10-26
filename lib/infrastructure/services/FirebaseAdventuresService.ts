@@ -1,21 +1,13 @@
-import { Adventure } from '@/lib/domain/models/adventures';
-import { IAdventureService } from '@/lib/domain/services/IAdventuresService';
+import { getFirestore, doc, collection, addDoc, updateDoc, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp } from 'firebase/app';
-import {
-    getFirestore,
-    collection,
-    getDocs,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    doc,
-    getDoc,
-} from 'firebase/firestore';
+import { IAdventureService } from '@/lib/domain/services/IAdventuresService';
+import { Adventure } from '@/lib/domain/models/adventures';
 
 const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
-
 initializeApp(firebaseConfig);
 const db = getFirestore();
+const storage = getStorage();
 
 export class FirebaseAdventureService implements IAdventureService {
     async getById(id: string): Promise<Adventure | null> {
@@ -31,15 +23,36 @@ export class FirebaseAdventureService implements IAdventureService {
         return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Adventure));
     }
 
-    async createAdventure(adventure: Adventure): Promise<Adventure> {
-        const docRef = await addDoc(collection(db, 'adventures'), adventure);
-        await updateDoc(docRef, { id: docRef.id });
-        return { ...adventure, id: docRef.id };
-    }
+    async createAdventure(adventure: Adventure, imageFile?: File): Promise<Adventure> {
+        // Handle image upload if present
+        let imageUrl = adventure.imageUrl;
+        if (imageFile) {
+            const storageRef = ref(storage, `adventures/${Date.now()}_${imageFile.name}`);
+            const snapshot = await uploadBytes(storageRef, imageFile);
+            imageUrl = await getDownloadURL(snapshot.ref);
+        }
 
-    async updateAdventure(id: string, adventure: Partial<Adventure>): Promise<void> {
-        const docRef = doc(db, 'adventures', id);
-        await updateDoc(docRef, adventure);
+        // Save adventure data with the image URL in Firestore
+        const newAdventureRef = await addDoc(collection(db, 'adventures'), { ...adventure, imageUrl });
+        await updateDoc(doc(db, 'adventures', newAdventureRef.id), { adventureId: newAdventureRef.id });
+
+        return { ...adventure, adventureId: newAdventureRef.id, imageUrl };
+    }
+    // Removed the unused method
+
+    async updateAdventure(id: string, updatedAdventure: Partial<Adventure>, imageFile?: File): Promise<void> {
+        // Handle image upload if present
+        let updatedData = { ...updatedAdventure };
+        if (imageFile) {
+            const storageRef = ref(storage, `adventures/${Date.now()}_${imageFile.name}`);
+            const snapshot = await uploadBytes(storageRef, imageFile);
+            const imageUrl = await getDownloadURL(snapshot.ref);
+            updatedData.imageUrl = imageUrl;
+        }
+
+        // Update adventure document with the new data, including the image URL if updated
+        const adventureDoc = doc(db, 'adventures', id);
+        await updateDoc(adventureDoc, updatedData);
     }
 
     async deleteAdventure(id: string): Promise<void> {

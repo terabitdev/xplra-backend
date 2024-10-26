@@ -18,6 +18,8 @@ export default function QuestFormPage() {
         timeInSeconds: 0,
         userId: null,
     });
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const { id } = useParams();
 
@@ -28,25 +30,41 @@ export default function QuestFormPage() {
                 const res = await fetch(`/api/quests/${id}`);
                 const data = await res.json();
                 setQuest(data);
+                setImagePreview(data.imageUrl); // Set current image URL as preview if it exists
             };
-
             fetchQuest();
         }
     }, [id]);
 
-    // Handle form submission for both creating and updating
+    // Update preview when a new file is selected
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files ? e.target.files[0] : null;
+        setImageFile(file);
+
+        if (file) {
+            const fileReader = new FileReader();
+            fileReader.onload = () => {
+                setImagePreview(fileReader.result as string);
+            };
+            fileReader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const formData = new FormData();
+        formData.append('quest', JSON.stringify(quest));
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
 
         const url = id === 'create' ? '/api/quests/create' : `/api/quests/${id}`;
         const method = id === 'create' ? 'POST' : 'PATCH';
 
         const res = await fetch(url, {
             method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(quest),
+            body: formData,
         });
 
         if (res.ok) {
@@ -149,14 +167,21 @@ export default function QuestFormPage() {
                     </select>
                 </div>
                 <div className="form-group mb-3">
-                    <label htmlFor="imageUrl">Image URL</label>
+                    {imagePreview && (
+                        <div className="mb-3">
+                            <label>Current Image Preview:</label>
+                            <div>
+                                <img src={imagePreview} alt="Quest Image Preview" className="img-fluid" style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} />
+                            </div>
+                        </div>
+                    )}
+                    <label htmlFor="image">Upload New Image</label>
                     <input
-                        type="url"
+                        type="file"
                         className="form-control"
-                        id="imageUrl"
-                        value={quest.imageUrl}
-                        onChange={(e) => setQuest({ ...quest, imageUrl: e.target.value })}
-                        required
+                        id="image"
+                        accept="image/*"
+                        onChange={handleImageChange}
                     />
                 </div>
                 <button type="submit" className="btn btn-primary">

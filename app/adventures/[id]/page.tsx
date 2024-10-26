@@ -17,35 +17,54 @@ export default function AdventureFormPage() {
         adventureId: '',
         userId: '',
     });
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const { id } = useParams();
 
-    // Fetch adventure data if we're in update mode
+    // Fetch adventure data if in edit mode
     useEffect(() => {
         if (id !== 'create') {
             const fetchAdventure = async () => {
                 const res = await fetch(`/api/adventures/${id}`);
                 const data = await res.json();
-                setAdventure(data); // Pre-fill the form with adventure data
+                setAdventure(data);
+                setImagePreview(data.imageUrl); // Set existing image URL as preview if available
             };
-
             fetchAdventure();
         }
     }, [id]);
 
-    // Handle form submission for both creating and updating
+    // Handle image selection and preview update
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files ? e.target.files[0] : null;
+        setImageFile(file);
+
+        if (file) {
+            const fileReader = new FileReader();
+            fileReader.onload = () => {
+                setImagePreview(fileReader.result as string);
+            };
+            fileReader.readAsDataURL(file);
+        }
+    };
+
+    // Handle form submission for both creating and updating adventures
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const formData = new FormData();
+        formData.append('adventure', JSON.stringify(adventure));
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
 
         const url = id === 'create' ? '/api/adventures/create' : `/api/adventures/update/${id}`;
         const method = id === 'create' ? 'POST' : 'PATCH';
 
         const res = await fetch(url, {
             method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(adventure),
+            body: formData,
         });
 
         if (res.ok) {
@@ -89,15 +108,23 @@ export default function AdventureFormPage() {
                         required
                     />
                 </div>
+                {/* Image Preview Section */}
                 <div className="mb-3">
-                    <label htmlFor="imageUrl" className="form-label">Image URL</label>
+                    {imagePreview && (
+                        <div className="mb-3">
+                            <label>Current Image Preview:</label>
+                            <div>
+                                <img src={imagePreview} alt="Adventure Image Preview" className="img-fluid" style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} />
+                            </div>
+                        </div>
+                    )}
+                    <label htmlFor="image">Upload New Image</label>
                     <input
-                        type="text"
+                        type="file"
                         className="form-control"
-                        id="imageUrl"
-                        value={adventure.imageUrl}
-                        onChange={(e) => setAdventure({ ...adventure, imageUrl: e.target.value })}
-                        required
+                        id="image"
+                        accept="image/*"
+                        onChange={handleImageChange}
                     />
                 </div>
                 <div className="mb-3">

@@ -10,6 +10,7 @@
     "lint:fix": "next lint --fix"
   },
   "dependencies": {
+    "@carbon/icons-react": "^11.52.0",
     "bootstrap": "^5.3.3",
     "firebase": "^11.0.1",
     "firebase-admin": "^12.6.0",

@@ -34,7 +34,6 @@ body {
 
 /* Adjust the content area to leave space for the sidebar */
 .container-fluid {
-  margin-left: 250px !important;
   /* Ensure the main content is offset by the sidebar width */
   padding: 2rem;
   /* Add padding for a clean layout */
