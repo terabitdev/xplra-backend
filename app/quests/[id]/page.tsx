@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Quest } from '@/lib/domain/models/quest';
+import { ChevronLeft } from '@carbon/icons-react';
 
 export default function QuestFormPage() {
     const [quest, setQuest] = useState<Partial<Quest>>({
@@ -23,20 +24,18 @@ export default function QuestFormPage() {
     const router = useRouter();
     const { id } = useParams();
 
-    // Fetch quest data if we're in edit mode
     useEffect(() => {
         if (id !== 'create') {
             const fetchQuest = async () => {
                 const res = await fetch(`/api/quests/${id}`);
                 const data = await res.json();
                 setQuest(data);
-                setImagePreview(data.imageUrl); // Set current image URL as preview if it exists
+                setImagePreview(data.imageUrl);
             };
             fetchQuest();
         }
     }, [id]);
 
-    // Update preview when a new file is selected
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files ? e.target.files[0] : null;
         setImageFile(file);
@@ -74,7 +73,13 @@ export default function QuestFormPage() {
 
     return (
         <div className="container mt-5">
-            <h1>{id === 'create' ? 'Create Quest' : 'Edit Quest'}</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center' }}>
+                <ChevronLeft
+                    onClick={() => router.push('/quests')}
+                    width={32}
+                    height={32} />
+                {id === 'create' ? 'Create Quest' : 'Edit Quest'}
+            </h1>
             <form onSubmit={handleSubmit}>
                 <div className="form-group mb-3">
                     <label htmlFor="title">Title</label>
@@ -131,25 +136,50 @@ export default function QuestFormPage() {
                         required
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="stepLatitude">Step Latitude</label>
-                    <input
-                        type="number"
-                        className="form-control"
-                        id="stepLatitude"
-                        value={quest.stepLatitude}
-                        onChange={(e) => setQuest({ ...quest, stepLatitude: parseFloat(e.target.value) })}
-                        required
-                    />
-                </div>
+                <input
+                    type="text" // Keep type as "text" to allow "-" and "."
+                    className="form-control"
+                    id="stepLatitude"
+                    value={quest.stepLatitude}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow "-" and "." as part of the input without converting immediately
+                        if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
+                            setQuest({ ...quest, stepLatitude: value });
+                        }
+                    }}
+                    onBlur={() => {
+                        // Convert to number when the input loses focus
+                        if (quest.stepLatitude === '-' || quest.stepLatitude === '' || isNaN(Number(quest.stepLatitude))) {
+                            setQuest({ ...quest, stepLatitude: 0 });
+                        } else {
+                            setQuest({ ...quest, stepLatitude: parseFloat(quest.stepLatitude as string) });
+                        }
+                    }}
+                    required
+                />
                 <div className="form-group mb-3">
                     <label htmlFor="stepLongitude">Step Longitude</label>
                     <input
-                        type="number"
+                        type="text" // Keep type as "text" to allow "-" and "."
                         className="form-control"
                         id="stepLongitude"
                         value={quest.stepLongitude}
-                        onChange={(e) => setQuest({ ...quest, stepLongitude: parseFloat(e.target.value) })}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow "-" and "." as part of the input without converting immediately
+                            if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
+                                setQuest({ ...quest, stepLongitude: value });
+                            }
+                        }}
+                        onBlur={() => {
+                            // Convert to number when the input loses focus
+                            if (quest.stepLongitude === '-' || quest.stepLongitude === '' || isNaN(Number(quest.stepLongitude))) {
+                                setQuest({ ...quest, stepLongitude: 0 });
+                            } else {
+                                setQuest({ ...quest, stepLongitude: parseFloat(quest.stepLongitude as string) });
+                            }
+                        }}
                         required
                     />
                 </div>

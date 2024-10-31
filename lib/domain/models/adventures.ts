@@ -5,8 +5,9 @@ export interface Adventure {
     shortDescription: string;
     longDescription: string;
     imageUrl: string;
-    latitude: number;
-    longitude: number;
+    featuredImages: string[]; // Added to hold multiple images
+    latitude: number | any;
+    longitude: number | any;
     experience: number;
     featured: boolean;
     userId: string;

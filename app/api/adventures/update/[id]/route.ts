@@ -9,8 +9,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         const formData = await req.formData();
         const adventureData = JSON.parse(formData.get('adventure') as string);
         const imageFile = formData.get('image') as File | null;
+        const imageFiles = formData.getAll('featuredImages') as File[];
 
-        await adventureService.updateAdventure(params.id, adventureData, imageFile || undefined);
+        await adventureService.updateAdventure(params.id, adventureData, imageFile || undefined, imageFiles);
         return NextResponse.json({ message: 'Adventure updated successfully' });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 400 });

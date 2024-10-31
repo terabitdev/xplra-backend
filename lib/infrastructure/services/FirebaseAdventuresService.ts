@@ -23,13 +23,24 @@ export class FirebaseAdventureService implements IAdventureService {
         return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Adventure));
     }
 
-    async createAdventure(adventure: Adventure, imageFile?: File): Promise<Adventure> {
+    async createAdventure(adventure: Adventure, imageFile?: File, imageFiles?: File[]): Promise<Adventure> {
         // Handle image upload if present
         let imageUrl = adventure.imageUrl;
         if (imageFile) {
             const storageRef = ref(storage, `adventures/${Date.now()}_${imageFile.name}`);
             const snapshot = await uploadBytes(storageRef, imageFile);
             imageUrl = await getDownloadURL(snapshot.ref);
+        }
+
+        if (imageFiles) {
+            const imageUrls = await Promise.all(
+                imageFiles.map(async (file) => {
+                    const storageRef = ref(storage, `adventures/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    return await getDownloadURL(snapshot.ref);
+                })
+            );
+            adventure.featuredImages = imageUrls;
         }
 
         // Save adventure data with the image URL in Firestore
@@ -40,7 +51,7 @@ export class FirebaseAdventureService implements IAdventureService {
     }
     // Removed the unused method
 
-    async updateAdventure(id: string, updatedAdventure: Partial<Adventure>, imageFile?: File): Promise<void> {
+    async updateAdventure(id: string, updatedAdventure: Partial<Adventure>, imageFile?: File, imageFiles?: File[]): Promise<void> {
         // Handle image upload if present
         let updatedData = { ...updatedAdventure };
         if (imageFile) {
@@ -48,6 +59,17 @@ export class FirebaseAdventureService implements IAdventureService {
             const snapshot = await uploadBytes(storageRef, imageFile);
             const imageUrl = await getDownloadURL(snapshot.ref);
             updatedData.imageUrl = imageUrl;
+        }
+
+        if (imageFiles) {
+            const imageUrls = await Promise.all(
+                imageFiles.map(async (file) => {
+                    const storageRef = ref(storage, `adventures/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    return await getDownloadURL(snapshot.ref);
+                })
+            );
+            updatedData.featuredImages = imageUrls;
         }
 
         // Update adventure document with the new data, including the image URL if updated
