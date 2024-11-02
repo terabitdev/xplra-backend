@@ -21,16 +21,20 @@ export default function QuestFormPage() {
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [dataLoading, setDataLoading] = useState(false);
     const router = useRouter();
     const { id } = useParams();
 
     useEffect(() => {
         if (id !== 'create') {
+            setDataLoading(true);
             const fetchQuest = async () => {
                 const res = await fetch(`/api/quests/${id}`);
                 const data = await res.json();
                 setQuest(data);
                 setImagePreview(data.imageUrl);
+                setDataLoading(false);
             };
             fetchQuest();
         }
@@ -51,25 +55,42 @@ export default function QuestFormPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('quest', JSON.stringify(quest));
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
 
-        const formData = new FormData();
-        formData.append('quest', JSON.stringify(quest));
-        if (imageFile) {
-            formData.append('image', imageFile);
-        }
+            const url = id === 'create' ? '/api/quests/create' : `/api/quests/${id}`;
+            const method = id === 'create' ? 'POST' : 'PATCH';
 
-        const url = id === 'create' ? '/api/quests/create' : `/api/quests/${id}`;
-        const method = id === 'create' ? 'POST' : 'PATCH';
+            const res = await fetch(url, {
+                method,
+                body: formData,
+            });
 
-        const res = await fetch(url, {
-            method,
-            body: formData,
-        });
-
-        if (res.ok) {
-            router.push('/quests');
+            if (res.ok) {
+                router.push('/quests');
+            } else {
+                // Handle errors here if needed
+            }
+        } finally {
+            setLoading(false);
         }
     };
+
+    if (dataLoading) {
+        // Show a centered loader when data is being fetched
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mt-5">
@@ -77,7 +98,8 @@ export default function QuestFormPage() {
                 <ChevronLeft
                     onClick={() => router.push('/quests')}
                     width={32}
-                    height={32} />
+                    height={32}
+                />
                 {id === 'create' ? 'Create Quest' : 'Edit Quest'}
             </h1>
             <form onSubmit={handleSubmit}>
@@ -90,6 +112,7 @@ export default function QuestFormPage() {
                         value={quest.title}
                         onChange={(e) => setQuest({ ...quest, title: e.target.value })}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-group mb-3">
@@ -99,8 +122,11 @@ export default function QuestFormPage() {
                         className="form-control"
                         id="shortDescription"
                         value={quest.shortDescription}
-                        onChange={(e) => setQuest({ ...quest, shortDescription: e.target.value })}
+                        onChange={(e) =>
+                            setQuest({ ...quest, shortDescription: e.target.value })
+                        }
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-group mb-3">
@@ -110,8 +136,11 @@ export default function QuestFormPage() {
                         id="longDescription"
                         rows={3}
                         value={quest.longDescription}
-                        onChange={(e) => setQuest({ ...quest, longDescription: e.target.value })}
+                        onChange={(e) =>
+                            setQuest({ ...quest, longDescription: e.target.value })
+                        }
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-group mb-3">
@@ -121,8 +150,11 @@ export default function QuestFormPage() {
                         className="form-control"
                         id="experience"
                         value={quest.experience}
-                        onChange={(e) => setQuest({ ...quest, experience: parseInt(e.target.value) })}
+                        onChange={(e) =>
+                            setQuest({ ...quest, experience: parseInt(e.target.value) })
+                        }
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-group mb-3">
@@ -134,53 +166,69 @@ export default function QuestFormPage() {
                         value={quest.stepCode}
                         onChange={(e) => setQuest({ ...quest, stepCode: e.target.value })}
                         required
+                        disabled={loading}
                     />
                 </div>
-                <input
-                    type="text" // Keep type as "text" to allow "-" and "."
-                    className="form-control"
-                    id="stepLatitude"
-                    value={quest.stepLatitude}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow "-" and "." as part of the input without converting immediately
-                        if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
-                            setQuest({ ...quest, stepLatitude: value });
-                        }
-                    }}
-                    onBlur={() => {
-                        // Convert to number when the input loses focus
-                        if (quest.stepLatitude === '-' || quest.stepLatitude === '' || isNaN(Number(quest.stepLatitude))) {
-                            setQuest({ ...quest, stepLatitude: 0 });
-                        } else {
-                            setQuest({ ...quest, stepLatitude: parseFloat(quest.stepLatitude as string) });
-                        }
-                    }}
-                    required
-                />
+                <div className="form-group mb-3">
+                    <label htmlFor="stepLatitude">Step Latitude</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        id="stepLatitude"
+                        value={quest.stepLatitude}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
+                                setQuest({ ...quest, stepLatitude: value });
+                            }
+                        }}
+                        onBlur={() => {
+                            if (
+                                quest.stepLatitude === '-' ||
+                                quest.stepLatitude === '' ||
+                                isNaN(Number(quest.stepLatitude))
+                            ) {
+                                setQuest({ ...quest, stepLatitude: 0 });
+                            } else {
+                                setQuest({
+                                    ...quest,
+                                    stepLatitude: parseFloat(quest.stepLatitude as string),
+                                });
+                            }
+                        }}
+                        required
+                        disabled={loading}
+                    />
+                </div>
                 <div className="form-group mb-3">
                     <label htmlFor="stepLongitude">Step Longitude</label>
                     <input
-                        type="text" // Keep type as "text" to allow "-" and "."
+                        type="text"
                         className="form-control"
                         id="stepLongitude"
                         value={quest.stepLongitude}
                         onChange={(e) => {
                             const value = e.target.value;
-                            // Allow "-" and "." as part of the input without converting immediately
                             if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
                                 setQuest({ ...quest, stepLongitude: value });
                             }
                         }}
                         onBlur={() => {
-                            // Convert to number when the input loses focus
-                            if (quest.stepLongitude === '-' || quest.stepLongitude === '' || isNaN(Number(quest.stepLongitude))) {
+                            if (
+                                quest.stepLongitude === '-' ||
+                                quest.stepLongitude === '' ||
+                                isNaN(Number(quest.stepLongitude))
+                            ) {
                                 setQuest({ ...quest, stepLongitude: 0 });
                             } else {
-                                setQuest({ ...quest, stepLongitude: parseFloat(quest.stepLongitude as string) });
+                                setQuest({
+                                    ...quest,
+                                    stepLongitude: parseFloat(quest.stepLongitude as string),
+                                });
                             }
                         }}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-group mb-3">
@@ -190,6 +238,7 @@ export default function QuestFormPage() {
                         id="stepType"
                         value={quest.stepType}
                         onChange={(e) => setQuest({ ...quest, stepType: e.target.value })}
+                        disabled={loading}
                     >
                         <option value="qr">QR</option>
                         <option value="location">Location</option>
@@ -201,7 +250,16 @@ export default function QuestFormPage() {
                         <div className="mb-3">
                             <label>Current Image Preview:</label>
                             <div>
-                                <img src={imagePreview} alt="Quest Image Preview" className="img-fluid" style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} />
+                                <img
+                                    src={imagePreview}
+                                    alt="Quest Image Preview"
+                                    className="img-fluid"
+                                    style={{
+                                        maxWidth: '200px',
+                                        maxHeight: '200px',
+                                        objectFit: 'cover',
+                                    }}
+                                />
                             </div>
                         </div>
                     )}
@@ -212,11 +270,20 @@ export default function QuestFormPage() {
                         id="image"
                         accept="image/*"
                         onChange={handleImageChange}
+                        disabled={loading}
                     />
                 </div>
-                <button type="submit" className="btn btn-primary">
-                    {id === 'create' ? 'Create Quest' : 'Update Quest'}
-                </button>
+                {loading ? (
+                    <div className="d-flex justify-content-center">
+                        <div className="spinner-border" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                ) : (
+                    <button type="submit" className="btn btn-primary">
+                        {id === 'create' ? 'Create Quest' : 'Update Quest'}
+                    </button>
+                )}
             </form>
         </div>
     );

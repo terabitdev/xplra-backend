@@ -17,23 +17,27 @@ export default function AdventureFormPage() {
         featured: false,
         adventureId: '',
         userId: '',
-        featuredImages: [], // Added to hold multiple images
+        featuredImages: [],
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [multiImageFiles, setMultiImageFiles] = useState<File[]>([]); // Array for multiple files
-    const [multiImagePreviews, setMultiImagePreviews] = useState<string[]>([]); // Previews for multiple images
+    const [multiImageFiles, setMultiImageFiles] = useState<File[]>([]);
+    const [multiImagePreviews, setMultiImagePreviews] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false); // For form submission
+    const [dataLoading, setDataLoading] = useState(false); // For data fetching
     const router = useRouter();
     const { id } = useParams();
 
     useEffect(() => {
         if (id !== 'create') {
+            setDataLoading(true);
             const fetchAdventure = async () => {
                 const res = await fetch(`/api/adventures/${id}`);
                 const data = await res.json();
                 setAdventure(data);
                 setImagePreview(data.imageUrl);
-                setMultiImagePreviews(data.featuredImages || []); // Load existing featured images if any
+                setMultiImagePreviews(data.featuredImages || []);
+                setDataLoading(false);
             };
             fetchAdventure();
         }
@@ -42,15 +46,14 @@ export default function AdventureFormPage() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (adventure.featured) {
             const files = e.target.files ? Array.from(e.target.files) : [];
-            console.log(files);
             setMultiImageFiles(prevFiles => [...prevFiles, ...files]);
-            console.log(multiImageFiles);
 
-            const previews = files.map(file => {
+            files.forEach(file => {
                 const reader = new FileReader();
+                reader.onload = () => {
+                    setMultiImagePreviews(prev => [...prev, reader.result as string]);
+                };
                 reader.readAsDataURL(file);
-                reader.onload = () => setMultiImagePreviews(prev => [...prev, reader.result as string]);
-                return '';
             });
         } else {
             const file = e.target.files ? e.target.files[0] : null;
@@ -70,40 +73,53 @@ export default function AdventureFormPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
         const formData = new FormData();
 
-        // Append other form data if needed
         formData.append('adventure', JSON.stringify(adventure));
 
-        // Append each image file with a unique key
-        console.log(multiImageFiles);
-        multiImageFiles.forEach((file, index) => {
-            formData.append(`featuredImages`, file);
-        });
+        if (adventure.featured) {
+            multiImageFiles.forEach((file) => {
+                formData.append('featuredImages', file);
+            });
+        } else if (imageFile) {
+            formData.append('image', imageFile);
+        }
 
         try {
-            const response = await fetch(`/api/adventures/update/${adventure.id}`, {
-                method: 'PATCH',
+            const url = id === 'create' ? '/api/adventures/create' : `/api/adventures/update/${adventure.id}`;
+            const method = id === 'create' ? 'POST' : 'PATCH';
+
+            const response = await fetch(url, {
+                method,
                 body: formData,
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to update adventure');
-            }
-
-            const result = await response.json();
-            console.log(result.message);
-            /* if (result.ok) {
+            if (response.ok) {
                 router.push('/adventures');
-            } */
+            } else {
+                throw new Error('Failed to save adventure');
+            }
         } catch (error) {
             if (error instanceof Error) {
                 console.error(error.message);
             } else {
                 console.error('An unknown error occurred');
             }
+        } finally {
+            setLoading(false);
         }
     };
+
+    if (dataLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mt-5">
@@ -121,6 +137,7 @@ export default function AdventureFormPage() {
                         value={adventure.title}
                         onChange={(e) => setAdventure({ ...adventure, title: e.target.value })}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="mb-3">
@@ -132,6 +149,7 @@ export default function AdventureFormPage() {
                         value={adventure.shortDescription}
                         onChange={(e) => setAdventure({ ...adventure, shortDescription: e.target.value })}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="mb-3">
@@ -142,6 +160,7 @@ export default function AdventureFormPage() {
                         value={adventure.longDescription}
                         onChange={(e) => setAdventure({ ...adventure, longDescription: e.target.value })}
                         required
+                        disabled={loading}
                     />
                 </div>
 
@@ -156,12 +175,33 @@ export default function AdventureFormPage() {
                                 accept="image/*"
                                 onChange={handleImageChange}
                                 multiple
+                                disabled={loading}
                             />
                             <div className="mt-3">
                                 {multiImagePreviews.map((preview, index) => (
                                     <div key={index} style={{ position: 'relative', display: 'inline-block', marginRight: '10px' }}>
                                         <img src={preview} alt={`Featured Image ${index + 1}`} className="img-fluid" style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'cover' }} />
-                                        <button type="button" onClick={() => handleRemoveImage(index)} style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'red', color: 'white' }}>X</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                right: 0,
+                                                backgroundColor: 'red',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '50%',
+                                                width: '20px',
+                                                height: '20px',
+                                                textAlign: 'center',
+                                                padding: '0',
+                                                lineHeight: '20px',
+                                            }}
+                                            disabled={loading}
+                                        >
+                                            ×
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -175,6 +215,7 @@ export default function AdventureFormPage() {
                                 id="image"
                                 accept="image/*"
                                 onChange={handleImageChange}
+                                disabled={loading}
                             />
                             {imagePreview && (
                                 <div className="mt-3">
@@ -209,6 +250,7 @@ export default function AdventureFormPage() {
                             }
                         }}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="mb-3">
@@ -232,6 +274,7 @@ export default function AdventureFormPage() {
                             }
                         }}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="mb-3">
@@ -243,6 +286,7 @@ export default function AdventureFormPage() {
                         value={adventure.experience}
                         onChange={(e) => setAdventure({ ...adventure, experience: parseInt(e.target.value) })}
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="form-check mb-3">
@@ -252,15 +296,31 @@ export default function AdventureFormPage() {
                         id="featured"
                         checked={adventure.featured}
                         onChange={(e) => setAdventure({ ...adventure, featured: e.target.checked })}
+                        disabled={loading}
                     />
                     <label className="form-check-label" htmlFor="featured">Featured</label>
                 </div>
-                <button type="submit" className="btn btn-primary">
-                    {id === 'create' ? 'Create Adventure' : 'Update Adventure'}
-                </button>
-                <button type="button" className="btn btn-secondary mx-2" onClick={() => router.push('/adventures')}>
-                    Cancel
-                </button>
+                <div className="d-flex align-items-center">
+                    {loading ? (
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                    ) : (
+                        <>
+                            <button type="submit" className="btn btn-primary">
+                                {id === 'create' ? 'Create Adventure' : 'Update Adventure'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary mx-2"
+                                onClick={() => router.push('/adventures')}
+                                disabled={loading}
+                            >
+                                Cancel
+                            </button>
+                        </>
+                    )}
+                </div>
             </form>
         </div>
     );
