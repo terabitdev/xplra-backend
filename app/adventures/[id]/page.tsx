@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Adventure } from '@/lib/domain/models/adventures';
 import { ChevronLeft } from '@carbon/icons-react';
+import Image from 'next/image';
 
 export default function AdventureFormPage() {
-    const [adventure, setAdventure] = useState<Partial<Adventure>>({
+    const [adventure, setAdventure] = useState<Adventure>({
+        id: '',
         title: '',
         shortDescription: '',
         longDescription: '',
@@ -18,6 +20,7 @@ export default function AdventureFormPage() {
         adventureId: '',
         userId: '',
         featuredImages: [],
+        timeInSeconds: 0,
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -180,7 +183,7 @@ export default function AdventureFormPage() {
                             <div className="mt-3">
                                 {multiImagePreviews.map((preview, index) => (
                                     <div key={index} style={{ position: 'relative', display: 'inline-block', marginRight: '10px' }}>
-                                        <img src={preview} alt={`Featured Image ${index + 1}`} className="img-fluid" style={{ maxWidth: '100px', maxHeight: '100px', objectFit: 'cover' }} />
+                                        <Image src={preview} alt={`Featured Image ${index + 1}`} width={100} height={100} className="img-fluid" style={{ objectFit: 'cover' }} />
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveImage(index)}
@@ -221,7 +224,7 @@ export default function AdventureFormPage() {
                                 <div className="mt-3">
                                     <label>Current Image Preview:</label>
                                     <div>
-                                        <img src={imagePreview} alt="Adventure Image Preview" className="img-fluid" style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} />
+                                        <Image src={imagePreview} alt="Adventure Image Preview" width={200} height={200} className="img-fluid" style={{ objectFit: 'cover' }} />
                                     </div>
                                 </div>
                             )}
@@ -235,7 +238,7 @@ export default function AdventureFormPage() {
                         type="text"
                         className="form-control"
                         id="latitude"
-                        value={adventure.latitude}
+                        value={adventure.latitude as number}
                         onChange={(e) => {
                             const value = e.target.value;
                             if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
@@ -259,7 +262,7 @@ export default function AdventureFormPage() {
                         type="text"
                         className="form-control"
                         id="longitude"
-                        value={adventure.longitude}
+                        value={adventure.longitude as number}
                         onChange={(e) => {
                             const value = e.target.value;
                             if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
@@ -289,6 +292,18 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
+                <div className="mb-3">
+                    <label htmlFor="timeInSeconds" className="form-label">Time in Seconds</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="timeInSeconds"
+                        value={adventure.timeInSeconds}
+                        onChange={(e) => setAdventure({ ...adventure, timeInSeconds: parseInt(e.target.value) })}
+                        required
+                        disabled={loading}
+                    />
+                </div>
                 <div className="form-check mb-3">
                     <input
                         type="checkbox"
@@ -300,6 +315,7 @@ export default function AdventureFormPage() {
                     />
                     <label className="form-check-label" htmlFor="featured">Featured</label>
                 </div>
+
                 <div className="d-flex align-items-center">
                     {loading ? (
                         <div className="spinner-border text-primary" role="status">
@@ -321,7 +337,7 @@ export default function AdventureFormPage() {
                         </>
                     )}
                 </div>
-            </form>
-        </div>
+            </form >
+        </div >
     );
 }

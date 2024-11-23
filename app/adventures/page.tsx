@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Adventure } from '@/lib/domain/models/adventures';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/SideBar';
+import Image from 'next/image';
 
 export default function AdventuresPage() {
     const [adventures, setAdventures] = useState<Adventure[]>([]);
@@ -61,6 +62,7 @@ export default function AdventuresPage() {
                                 <th>Longitude</th>
                                 <th>Image</th>
                                 <th>Featured</th>
+                                <th>Time In Seconds</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -70,12 +72,13 @@ export default function AdventuresPage() {
                                     <td>{adventure.title}</td>
                                     <td>{adventure.shortDescription}</td>
                                     <td>{adventure.experience}</td>
-                                    <td>{adventure.latitude}</td>
-                                    <td>{adventure.longitude}</td>
+                                    <td>{adventure.latitude as number}</td>
+                                    <td>{adventure.longitude as number}</td>
                                     <td>
-                                        <img src={adventure.imageUrl} alt={adventure.title} width="80" />
+                                        <Image src={adventure.imageUrl} alt={adventure.title} width={80} height={80} />
                                     </td>
                                     <td>{adventure.featured ? 'Yes' : 'No'}</td>
+                                    <td>{adventure.timeInSeconds}</td>
                                     <td>
                                         <button
                                             className="btn btn-secondary btn-sm mx-2"

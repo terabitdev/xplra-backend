@@ -14,6 +14,7 @@ export default function QuestsPage() {
         const fetchQuests = async () => {
             const res = await fetch('/api/quests/list');
             const data = await res.json();
+            
             setQuests(data);
         };
 

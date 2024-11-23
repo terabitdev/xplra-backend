@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Quest } from '@/lib/domain/models/quest';
 import { ChevronLeft } from '@carbon/icons-react';
+import Image from 'next/image';
 
 export default function QuestFormPage() {
     const [quest, setQuest] = useState<Partial<Quest>>({
@@ -23,6 +24,7 @@ export default function QuestFormPage() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [dataLoading, setDataLoading] = useState(false);
+    const [imageLoading, setImageLoading] = useState(false);
     const router = useRouter();
     const { id } = useParams();
 
@@ -41,6 +43,7 @@ export default function QuestFormPage() {
     }, [id]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setImageLoading(true);
         const file = e.target.files ? e.target.files[0] : null;
         setImageFile(file);
 
@@ -51,6 +54,7 @@ export default function QuestFormPage() {
             };
             fileReader.readAsDataURL(file);
         }
+        setImageLoading(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -175,7 +179,7 @@ export default function QuestFormPage() {
                         type="text"
                         className="form-control"
                         id="stepLatitude"
-                        value={quest.stepLatitude}
+                        value={quest.stepLatitude as number}
                         onChange={(e) => {
                             const value = e.target.value;
                             if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
@@ -206,7 +210,7 @@ export default function QuestFormPage() {
                         type="text"
                         className="form-control"
                         id="stepLongitude"
-                        value={quest.stepLongitude}
+                        value={quest.stepLongitude as number}
                         onChange={(e) => {
                             const value = e.target.value;
                             if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
@@ -246,17 +250,28 @@ export default function QuestFormPage() {
                     </select>
                 </div>
                 <div className="form-group mb-3">
+                    <label htmlFor="timeInSeconds" className="form-label">Time In Seconds</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="timeInSeconds"
+                        value={quest.timeInSeconds}
+                        onChange={(e) => setQuest({ ...quest, timeInSeconds: parseInt(e.target.value) })}
+                        required
+                        disabled={loading}
+                    />
+                </div>
+                <div className="form-group mb-3">
                     {imagePreview && (
                         <div className="mb-3">
                             <label>Current Image Preview:</label>
                             <div>
-                                <img
+                                <Image
                                     src={imagePreview}
                                     alt="Quest Image Preview"
-                                    className="img-fluid"
+                                    width={200}
+                                    height={200}
                                     style={{
-                                        maxWidth: '200px',
-                                        maxHeight: '200px',
                                         objectFit: 'cover',
                                     }}
                                 />
@@ -270,7 +285,7 @@ export default function QuestFormPage() {
                         id="image"
                         accept="image/*"
                         onChange={handleImageChange}
-                        disabled={loading}
+                        disabled={loading || imageLoading}
                     />
                 </div>
                 {loading ? (
