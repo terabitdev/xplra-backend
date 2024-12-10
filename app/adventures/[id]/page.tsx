@@ -15,6 +15,7 @@ export default function AdventureFormPage() {
         imageUrl: '',
         latitude: 0,
         longitude: 0,
+        distance: 0,
         experience: 0,
         featured: false,
         adventureId: '',
@@ -276,6 +277,18 @@ export default function AdventureFormPage() {
                                 setAdventure({ ...adventure, longitude: parseFloat(adventure.longitude as string) });
                             }
                         }}
+                        required
+                        disabled={loading}
+                    />
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="distance" className="form-label">Distance</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="distance"
+                        value={(adventure.distance || 30) as number}
+                        onChange={(e) => setAdventure({ ...adventure, distance: parseFloat(e.target.value) })}
                         required
                         disabled={loading}
                     />

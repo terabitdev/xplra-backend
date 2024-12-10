@@ -236,6 +236,18 @@ export default function QuestFormPage() {
                     />
                 </div>
                 <div className="form-group mb-3">
+                    <label htmlFor="distance">Distance</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="distance"
+                        value={(quest.distance || 0) as number}
+                        onChange={(e) => setQuest({ ...quest, distance: parseInt(e.target.value) })}
+                        required
+                        disabled={loading}
+                    />
+                </div>
+                <div className="form-group mb-3">
                     <label htmlFor="stepType">Step Type</label>
                     <select
                         className="form-control"
