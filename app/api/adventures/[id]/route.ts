@@ -12,7 +12,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         } else {
             return NextResponse.json({ error: 'Adventure not found' }, { status: 404 });
         }
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        } else {
+            return NextResponse.json({ error: 'An unknown error occurred' }, { status: 400 });
+        }
     }
 }

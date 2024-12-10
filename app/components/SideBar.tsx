@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, EarthEuropeAfrica, Logout, ChevronRight, ChevronLeft } from '@carbon/icons-react';
+import { Home, EarthEuropeAfrica, Logout, ChevronRight, ChevronLeft, Trophy } from '@carbon/icons-react';
 import styles from './SideBar.module.css';
 
 export default function Sidebar() {
@@ -60,6 +60,11 @@ export default function Sidebar() {
                         <EarthEuropeAfrica size={20} className={styles.icon} />
                         {!isCollapsed && <span>Adventures</span>}
                     </a>
+                    <a className={styles.navLink} href="/achievements">
+                        <Trophy size={20} className={styles.icon} />
+                        {!isCollapsed && <span>Achievements</span>}
+                    </a>
+
                 </nav>
             </div>
             <div className={styles.logoutButton}>

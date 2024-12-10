@@ -23,6 +23,7 @@ export async function POST(req: Request) {
         stepType: questData.stepType,
         timeInSeconds: questData.timeInSeconds,
         userId: questData.userId || null,
+        distance: undefined
     };
 
     try {

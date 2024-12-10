@@ -53,7 +53,7 @@ export class FirebaseAdventureService implements IAdventureService {
 
     async updateAdventure(id: string, updatedAdventure: Partial<Adventure>, imageFile?: File, imageFiles?: File[]): Promise<void> {
         // Handle image upload if present
-        let updatedData = { ...updatedAdventure };
+        const updatedData = { ...updatedAdventure };
         if (imageFile) {
             const storageRef = ref(storage, `adventures/${Date.now()}_${imageFile.name}`);
             const snapshot = await uploadBytes(storageRef, imageFile);
