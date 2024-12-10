@@ -71,8 +71,8 @@ export default function QuestsPage() {
                                     <td>{quest.title}</td>
                                     <td>{quest.shortDescription}</td>
                                     <td>{quest.experience}</td>
-                                    <td>{quest.stepLatitude}</td>
-                                    <td>{quest.stepLongitude}</td>
+                                    <td>{quest.stepLatitude as number}</td>
+                                    <td>{quest.stepLongitude as number}</td>
                                     <td>
                                         <img src={quest.imageUrl} alt={quest.title} width="80" />
                                     </td>
