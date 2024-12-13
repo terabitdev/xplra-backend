@@ -311,8 +311,8 @@ export default function AdventureFormPage() {
                         type="number"
                         className="form-control"
                         id="hoursToComplete"
-                        value={adventure.hoursToComplete || 0}
-                        onChange={(e) => setAdventure({ ...adventure, hoursToComplete: parseInt(e.target.value) })}
+                        value={adventure.hoursToCompleteAgain || 0}
+                        onChange={(e) => setAdventure({ ...adventure, hoursToCompleteAgain: parseInt(e.target.value) })}
                         required
                         disabled={loading}
                     />
