@@ -12,4 +12,6 @@ export interface Quest {
     stepType: string; // e.g., qr, gps, etc.
     timeInSeconds: number;
     userId: string | null; // Could be null
+    completedAt?: string; // ISO string for date time
+    hoursToCompleteAgain?: number; // Number for hours to complete again
 }

@@ -13,4 +13,6 @@ export interface Adventure {
     featured: boolean;
     userId: string;
     timeInSeconds: number;
+    completedAt?: string; // ISO string for date time
+    hoursToCompleteAgain?: number; // Number for hours to complete again
 }

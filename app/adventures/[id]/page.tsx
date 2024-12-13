@@ -306,6 +306,18 @@ export default function AdventureFormPage() {
                     />
                 </div>
                 <div className="mb-3">
+                    <label htmlFor="hoursToComplete" className="form-label">Hours to Complete</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="hoursToComplete"
+                        value={adventure.hoursToComplete || 0}
+                        onChange={(e) => setAdventure({ ...adventure, hoursToComplete: parseInt(e.target.value) })}
+                        required
+                        disabled={loading}
+                    />
+                </div>
+                <div className="mb-3">
                     <label htmlFor="timeInSeconds" className="form-label">Time in Seconds</label>
                     <input
                         type="number"

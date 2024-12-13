@@ -161,6 +161,21 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
+
+                <div className="form-group mb-3">
+                    <label htmlFor="experience">Hours to complete again</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="experience"
+                        value={quest.hoursToCompleteAgain}
+                        onChange={(e) =>
+                            setQuest({ ...quest, hoursToCompleteAgain: parseInt(e.target.value) })
+                        }
+                        required
+                        disabled={loading}
+                    />
+                </div>
                 <div className="form-group mb-3">
                     <label htmlFor="stepCode">Step Code</label>
                     <input
