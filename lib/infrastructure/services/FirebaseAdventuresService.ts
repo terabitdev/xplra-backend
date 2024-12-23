@@ -20,7 +20,9 @@ export class FirebaseAdventureService implements IAdventureService {
     }
     async getAllAdventures(): Promise<Adventure[]> {
         const querySnapshot = await getDocs(collection(db, 'adventures'));
-        return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Adventure));
+        return querySnapshot.docs.map((doc) => {
+            return ({ ...doc.data(), id: doc.id } as Adventure);
+        });
     }
 
     async createAdventure(adventure: Adventure, imageFile?: File, imageFiles?: File[]): Promise<Adventure> {

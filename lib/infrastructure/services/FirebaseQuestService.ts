@@ -25,19 +25,19 @@ export class FirebaseQuestService implements IQuestService {
         const newQuestRef = await addDoc(this.questsCollection, { ...quest, imageUrl });
         await updateDoc(doc(db, 'quests', newQuestRef.id), { id: newQuestRef.id });
 
-        const { id, ...questData } = quest;
-        return { id: newQuestRef.id, ...questData, imageUrl };
+        const { ...questData } = quest;
+        return { ...questData, imageUrl };
     }
 
     async getQuestById(id: string): Promise<Quest | null> {
         const questDoc = doc(db, 'quests', id);
         const questSnap = await getDoc(questDoc);
-        return questSnap.exists() ? { id: questSnap.id, ...questSnap.data() } as Quest : null;
+        return questSnap.exists() ? { ...questSnap.data(), id: questSnap.id } as Quest : null;
     }
 
     async getAllQuests(): Promise<Quest[]> {
         const querySnapshot = await getDocs(this.questsCollection);
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quest));
+        return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quest));
     }
 
     async updateQuest(id: string, updatedQuest: Partial<Quest>, imageFile?: File): Promise<void> {

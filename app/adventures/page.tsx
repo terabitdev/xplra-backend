@@ -34,6 +34,7 @@ export default function AdventuresPage() {
 
     // Redirect to create/update page
     const handleEditAdventure = (id: string) => {
+        console.log(id);
         router.push(`/adventures/${id}`);
     };
 
