@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         const imageFiles = formData.getAll('featuredImages') as File[];
 
         const adventure: Adventure = {
-            ...adventureData,
+            ...adventureData,   
             imageUrl: '', // Default value; FirebaseAdventureService will update this if an image is uploaded
             featuredImages: [], // Default value; FirebaseAdventureService will update this if images are uploaded
         };

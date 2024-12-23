@@ -7,7 +7,6 @@ const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
 initializeApp(firebaseConfig);
 const db = getFirestore();
 
-
 export class FirebaseAchievementsService implements IAchievementsService {
     async getById(id: string): Promise<Achievement | null> {
         const docRef = doc(db, 'achievements', id);
