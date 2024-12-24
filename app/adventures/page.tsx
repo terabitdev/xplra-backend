@@ -35,7 +35,7 @@ export default function AdventuresPage() {
 
     // Handle delete adventure
     const handleDeleteAdventure = async (id: string) => {
-        const res = await fetch(`/api/adventures/delete/${id}`, {
+        const res = await fetch(`/api/adventures/${id}`, {
             method: 'DELETE',
         });
 
