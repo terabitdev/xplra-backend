@@ -1,5 +1,6 @@
 export interface Adventure {
     id: string;
+    category?: string;
     adventureId: string;
     title: string;
     shortDescription: string;

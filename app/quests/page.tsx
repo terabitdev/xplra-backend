@@ -4,17 +4,29 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/SideBar';
 import { Quest } from '@/lib/domain/models/quest';
+import { Category } from '@/lib/domain/models/category';
 
 export default function QuestsPage() {
+    const [categories, setCategories] = useState<Category[]>([]);
     const [quests, setQuests] = useState<Quest[]>([]);
     const router = useRouter();
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            setCategories(data);
+        };
+
+        fetchCategories();
+    }, []);
 
     // Fetch quests when the page loads
     useEffect(() => {
         const fetchQuests = async () => {
             const res = await fetch('/api/quests/list');
             const data = await res.json();
-            
+
             setQuests(data);
         };
 
@@ -57,6 +69,7 @@ export default function QuestsPage() {
                             <tr>
                                 <th>Title</th>
                                 <th>Short Description</th>
+                                <th>Category</th>
                                 <th>Experience</th>
                                 <th>Latitude</th>
                                 <th>Longitude</th>
@@ -70,6 +83,9 @@ export default function QuestsPage() {
                                 <tr key={quest.id}>
                                     <td>{quest.title}</td>
                                     <td>{quest.shortDescription}</td>
+                                    <td>{
+                                        categories?.find((category: Category) => category.id === quest.category)?.name || '-'
+                                    }</td>
                                     <td>{quest.experience}</td>
                                     <td>{quest.stepLatitude as number}</td>
                                     <td>{quest.stepLongitude as number}</td>

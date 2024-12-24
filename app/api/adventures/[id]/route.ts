@@ -20,3 +20,29 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
     }
 }
+
+
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+    try {
+        const formData = await req.formData();
+        const adventureData = JSON.parse(formData.get('adventure') as string);
+        const imageFile = formData.get('image') as File | null;
+        const imageFiles = formData.getAll('featuredImages') as File[];
+
+        await adventureService.updateAdventure(params.id, adventureData, imageFile || undefined, imageFiles);
+        return NextResponse.json({ message: 'Adventure updated successfully' });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'An error occurred' }, { status: 400 });
+    }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+    try {
+        await adventureService.deleteAdventure(params.id);
+        return NextResponse.json({ message: 'Adventure deleted successfully' });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'An error occurred' }, { status: 400 });
+    }
+}
+

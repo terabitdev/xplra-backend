@@ -5,8 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { Adventure } from '@/lib/domain/models/adventures';
 import { ChevronLeft } from '@carbon/icons-react';
 import Image from 'next/image';
+import { Category } from '@/lib/domain/models/category';
 
 export default function AdventureFormPage() {
+    const [categories, setCategories] = useState<Category[]>([]);
     const [adventure, setAdventure] = useState<Adventure>({
         id: '',
         title: '',
@@ -31,6 +33,15 @@ export default function AdventureFormPage() {
     const [dataLoading, setDataLoading] = useState(false); // For data fetching
     const router = useRouter();
     const { id } = useParams();
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            setCategories(data);
+        };
+        fetchCategories();
+    }, []);
 
     useEffect(() => {
         if (id !== 'create') {
@@ -91,7 +102,7 @@ export default function AdventureFormPage() {
         }
 
         try {
-            const url = id === 'create' ? '/api/adventures/create' : `/api/adventures/update/${adventure.id}`;
+            const url = id === 'create' ? '/api/adventures' : `/api/adventures/${id}`;
             const method = id === 'create' ? 'POST' : 'PATCH';
 
             const response = await fetch(url, {
@@ -166,6 +177,25 @@ export default function AdventureFormPage() {
                         required
                         disabled={loading}
                     />
+                </div>
+
+                <div className="mb-3">
+                    <label htmlFor="categories" className="form-label">Category</label>
+                    <select
+                        className="form-select"
+                        id="categories"
+                        value={adventure.category || ''}
+                        onChange={(e) => setAdventure({ ...adventure, category: e.target.value })}
+                        disabled={loading}
+                        required
+                    >
+                        <option value="">Select a category</option>
+                        {categories.map(category => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="mb-3">

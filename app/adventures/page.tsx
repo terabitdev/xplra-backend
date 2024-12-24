@@ -5,10 +5,22 @@ import { Adventure } from '@/lib/domain/models/adventures';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/SideBar';
 import Image from 'next/image';
+import { Category } from '@/lib/domain/models/category';
 
 export default function AdventuresPage() {
+    const [categories, setCategories] = useState<Category[]>([]);
     const [adventures, setAdventures] = useState<Adventure[]>([]);
     const router = useRouter();
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            setCategories(data);
+        };
+
+        fetchCategories();
+    }, []);
 
     // Fetch adventures when the page loads
     useEffect(() => {
@@ -58,6 +70,7 @@ export default function AdventuresPage() {
                             <tr>
                                 <th>Title</th>
                                 <th>Short Description</th>
+                                <th>Category</th>
                                 <th>Experience</th>
                                 <th>Latitude</th>
                                 <th>Longitude</th>
@@ -72,6 +85,9 @@ export default function AdventuresPage() {
                                 <tr key={adventure.id}>
                                     <td>{adventure.title}</td>
                                     <td>{adventure.shortDescription}</td>
+                                    <td>{
+                                        categories?.find((category: Category) => category.id === adventure.category)?.name || '-'
+                                    }</td>
                                     <td>{adventure.experience}</td>
                                     <td>{adventure.latitude as number}</td>
                                     <td>{adventure.longitude as number}</td>

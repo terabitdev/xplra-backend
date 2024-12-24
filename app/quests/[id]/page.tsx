@@ -5,8 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { Quest } from '@/lib/domain/models/quest';
 import { ChevronLeft } from '@carbon/icons-react';
 import Image from 'next/image';
+import { Category } from '@/lib/domain/models/category';
 
 export default function QuestFormPage() {
+    const [categories, setCategories] = useState<Category[]>([]);
     const [quest, setQuest] = useState<Partial<Quest>>({
         title: '',
         shortDescription: '',
@@ -28,6 +30,15 @@ export default function QuestFormPage() {
     const router = useRouter();
     const { id } = useParams();
 
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            setCategories(data);
+        };
+        fetchCategories();
+    }, []);
     useEffect(() => {
         if (id !== 'create') {
             setDataLoading(true);
@@ -147,6 +158,26 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
+
+                <div className="mb-3">
+                    <label htmlFor="categories" className="form-label">Category</label>
+                    <select
+                        className="form-select"
+                        id="categories"
+                        value={quest.category || ''}
+                        onChange={(e) => setQuest({ ...quest, category: e.target.value })}
+                        disabled={loading}
+                        required
+                    >
+                        <option value="">Select a category</option>
+                        {categories.map(category => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <div className="form-group mb-3">
                     <label htmlFor="experience">Experience</label>
                     <input

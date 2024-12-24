@@ -1,5 +1,6 @@
 export interface Quest {
     id: string;
+    category?: string;
     title: string;
     shortDescription: string;
     longDescription: string;
