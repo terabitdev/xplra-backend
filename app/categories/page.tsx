@@ -49,7 +49,7 @@ export default function CategoriesPage() {
                 <h1 className="mt-5">Category</h1>
 
                 <button className="btn btn-primary mb-4" onClick={handleCreateCategory}>
-                    Create New Adventure
+                    Create New Category
                 </button>
 
                 <div className="table-wrapper">
