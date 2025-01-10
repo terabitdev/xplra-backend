@@ -14,7 +14,7 @@ export class FirebaseAdventureService implements IAdventureService {
         const docRef = doc(db, 'adventures', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Adventure;
+            return { ...docSnap.data(), id: docSnap.id } as Adventure;
         }
         return null;
     }

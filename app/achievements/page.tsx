@@ -33,6 +33,7 @@ export default function AchivementsPage() {
 
     // Redirect to create/update page
     const handleEditAchievement = (id: string) => {
+        console.log(id);
         router.push(`/achievements/${id}`);
     };
 
@@ -64,7 +65,7 @@ export default function AchivementsPage() {
                         </thead>
                         <tbody>
                             {achievements.map((achievement) => (
-                                <tr key={achievement.id}>
+                                <tr key={achievement.id + achievement.title}>
                                     <td>{achievement.title}</td>
                                     <td>{achievement.description}</td>
                                     <td>{achievement.icon}</td>

@@ -16,7 +16,7 @@ export class FirebaseICategoryService implements ICategoryService {
         const docRef = doc(db, 'categories', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Category;
+            return { ...docSnap.data(), id: docSnap.id } as Category;
         }
         return null;
     }

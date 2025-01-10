@@ -12,13 +12,13 @@ export class FirebaseAchievementsService implements IAchievementsService {
         const docRef = doc(db, 'achievements', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Achievement;
+            return { ...docSnap.data(), id: docSnap.id, } as Achievement;
         }
         return null;
     }
     async getAllAchievements(): Promise<Achievement[]> {
         const querySnapshot = await getDocs(collection(db, 'achievements'));
-        return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Achievement));
+        return querySnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Achievement));
     }
     async createAchievement(achievement: Achievement): Promise<Achievement> {
         // Handle image upload if present
