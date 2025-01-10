@@ -5,8 +5,7 @@ import { NextResponse } from 'next/server';
 const achievementsService: IAchievementsService = new FirebaseAchievementsService();
 
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const id = req.url.split('/').pop();
 
     if (!id) {
         return NextResponse.json({ error: 'ID is required' }, { status: 400 });
