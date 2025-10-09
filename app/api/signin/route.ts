@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+
+// Initialize Firebase client app if not already initialized
+if (!getApps().length) {
+  const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+  initializeApp(firebaseConfig);
+}
+
+const auth = getAuth();
 
 export async function POST(req: Request) {
   try {
@@ -12,16 +21,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify user credentials using Admin SDK
-    const user = await adminAuth.getUserByEmail(email);
-
-    // Create a custom token for the user
-    const customToken = await adminAuth.createCustomToken(user.uid);
+    // Sign in with Firebase client SDK to get ID token
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const idToken = await userCredential.user.getIdToken();
 
     return NextResponse.json({
-      token: customToken,
-      uid: user.uid,
-      email: user.email
+      token: idToken,
+      uid: userCredential.user.uid,
+      email: userCredential.user.email
     });
   } catch (error: any) {
     console.error('Sign in error:', error);

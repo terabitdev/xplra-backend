@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+
+// Initialize Firebase client app if not already initialized
+if (!getApps().length) {
+  const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+  initializeApp(firebaseConfig);
+}
+
+const auth = getAuth();
 
 export async function POST(req: Request) {
   try {
@@ -19,21 +28,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create user using Admin SDK
-    const userRecord = await adminAuth.createUser({
-      email,
-      password,
-      emailVerified: false,
-    });
-
-    // Create a custom token for immediate login
-    const customToken = await adminAuth.createCustomToken(userRecord.uid);
+    // Create user using Firebase client SDK
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const idToken = await userCredential.user.getIdToken();
 
     return NextResponse.json({
       message: 'User created successfully',
-      token: customToken,
-      uid: userRecord.uid,
-      email: userRecord.email,
+      user: {
+        token: idToken,
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+      }
     });
   } catch (error: any) {
     console.error('Sign up error:', error);
