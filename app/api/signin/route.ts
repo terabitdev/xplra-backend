@@ -1,16 +1,33 @@
 import { NextResponse } from 'next/server';
-import { FirebaseAuthService } from '../../../lib/infrastructure/services/FirebaseAuthService';
-import { IAuthService } from '../../../lib/domain/services/IAuthService';
-
-const authService: IAuthService = new FirebaseAuthService();
+import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
-
   try {
-    const token = await authService.signIn(email, password); // Get the token from FirebaseAuthService
-    return NextResponse.json({ token }); // Return the token in the response
+    const { email, password } = await req.json();
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify user credentials using Admin SDK
+    const user = await adminAuth.getUserByEmail(email);
+
+    // Create a custom token for the user
+    const customToken = await adminAuth.createCustomToken(user.uid);
+
+    return NextResponse.json({
+      token: customToken,
+      uid: user.uid,
+      email: user.email
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error('Sign in error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Invalid credentials' },
+      { status: 401 }
+    );
   }
 }

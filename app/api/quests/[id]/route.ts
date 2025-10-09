@@ -1,44 +1,80 @@
 import { NextResponse } from 'next/server';
-import { IQuestService } from '@/lib/domain/services/IQuestService';
-import { FirebaseQuestService } from '@/lib/infrastructure/services/FirebaseQuestService';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { Quest } from '@/lib/domain/models/quest';
 
-const questService: IQuestService = new FirebaseQuestService();
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const docRef = adminDb.collection('quests').doc(params.id);
+    const doc = await docRef.get();
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-    const questId = params.id;
-
-    try {
-        const quest = await questService.getQuestById(questId);
-        if (!quest) {
-            return NextResponse.json({ error: 'Quest not found' }, { status: 404 });
-        }
-        return NextResponse.json(quest);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!doc.exists) {
+      return NextResponse.json(
+        { error: 'Quest not found' },
+        { status: 404 }
+      );
     }
+
+    const quest: Quest = { id: doc.id, ...doc.data() } as Quest;
+    return NextResponse.json(quest);
+  } catch (error: any) {
+    console.error('Get quest error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch quest' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-    const questId = params.id;
+  try {
     const formData = await req.formData();
-    const updatedData = JSON.parse(formData.get('quest') as string);
+    const questData = JSON.parse(formData.get('quest') as string);
     const imageFile = formData.get('image') as File | null;
 
-    try {
-        await questService.updateQuest(questId, updatedData, imageFile || undefined);
-        return NextResponse.json({ message: 'Quest updated successfully' });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    const updatedData: Partial<Quest> = { ...questData };
+
+    // Upload new image if provided
+    if (imageFile) {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const fileName = `quests/${Date.now()}_${imageFile.name}`;
+      const file = adminStorage.bucket().file(fileName);
+
+      await file.save(buffer, {
+        metadata: { contentType: imageFile.type },
+      });
+
+      await file.makePublic();
+      updatedData.imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
+
+    // Update document
+    await adminDb.collection('quests').doc(params.id).update(updatedData);
+
+    return NextResponse.json({
+      message: 'Quest updated successfully',
+      id: params.id,
+    });
+  } catch (error: any) {
+    console.error('Update quest error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update quest' },
+      { status: 500 }
+    );
+  }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-    const questId = params.id;
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    await adminDb.collection('quests').doc(params.id).delete();
 
-    try {
-        await questService.deleteQuest(questId);
-        return NextResponse.json({ message: 'Quest deleted successfully' });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    return NextResponse.json({
+      message: 'Quest deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Delete quest error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete quest' },
+      { status: 500 }
+    );
+  }
 }

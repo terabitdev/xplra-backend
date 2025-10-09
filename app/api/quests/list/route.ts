@@ -1,19 +1,27 @@
 import { NextResponse } from 'next/server';
-import { IQuestService } from '@/lib/domain/services/IQuestService';
-import { FirebaseQuestService } from '@/lib/infrastructure/services/FirebaseQuestService';
-
-const questService: IQuestService = new FirebaseQuestService();
+import { adminDb } from '@/lib/firebase-admin';
+import { Quest } from '@/lib/domain/models/quest';
 
 export async function GET() {
-    try {
-        let quests = await questService.getAllQuests();
-        //filter out the quests with a userId property
-        quests = quests.filter(quest => !quest.userId || quest.userId === "");
-        return NextResponse.json(quests);
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-        return NextResponse.json({ error: 'Unknown error' }, { status: 500 });
-    }
+  try {
+    const questsRef = adminDb.collection('quests');
+    const snapshot = await questsRef.get();
+
+    const quests: Quest[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      // Filter out quests with a userId property (only public quests)
+      if (!data.userId || data.userId === '') {
+        quests.push({ id: doc.id, ...data } as Quest);
+      }
+    });
+
+    return NextResponse.json(quests);
+  } catch (error: any) {
+    console.error('Get quests error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch quests' },
+      { status: 500 }
+    );
+  }
 }

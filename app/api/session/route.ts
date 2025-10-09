@@ -1,20 +1,30 @@
-import { ISessionService } from '@/lib/domain/services/ISessionService';
-import { FirebaseSessionService } from '@/lib/infrastructure/services/FirebaseSessionService';
 import { NextResponse } from 'next/server';
-
-const sessionService: ISessionService = new FirebaseSessionService();
+import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
+  try {
     const { token } = await req.json();
+
     if (!token) {
-        return NextResponse.json({ error: 'Token is required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Token is required' },
+        { status: 400 }
+      );
     }
 
-    try {
-        const decodedToken = await sessionService.validateSession(token);
-        console.log(decodedToken);
-        return NextResponse.json({ decodedToken });
-    } catch (error) {
-        return NextResponse.json({ error: (error as Error).message }, { status: 400 });
-    }
+    // Verify the ID token
+    const decodedToken = await adminAuth.verifyIdToken(token);
+
+    return NextResponse.json({
+      valid: true,
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+    });
+  } catch (error: any) {
+    console.error('Session validation error:', error);
+    return NextResponse.json(
+      { error: 'Invalid or expired token', valid: false },
+      { status: 401 }
+    );
+  }
 }
