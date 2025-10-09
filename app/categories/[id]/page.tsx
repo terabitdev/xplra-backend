@@ -4,11 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ChevronLeft } from '@carbon/icons-react';
 import { Category } from '@/lib/domain/models/category';
-import Image from 'next/image';
 
 export default function AchievementFormPage() {
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [category, setCategory] = useState<Partial<Category>>({
         id: '',
@@ -66,74 +63,67 @@ export default function AchievementFormPage() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files ? e.target.files[0] : null;
         setImageFile(file);
-        if (file) {
-            const fileReader = new FileReader();
-            fileReader.onload = () => setImagePreview(fileReader.result as string);
-            fileReader.readAsDataURL(file);
-        }
     };
 
     if (dataLoading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
+            <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="container mt-5">
-            <h1 style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="container mx-auto px-4 mt-8 max-w-4xl">
+            <h1 className="flex items-center text-3xl font-bold mb-6">
                 <ChevronLeft
                     onClick={() => router.push('/categories')}
                     width={32}
                     height={32}
+                    className="cursor-pointer hover:text-gray-600"
                 />
                 {id === 'create' ? 'Create Category' : 'Edit Category'}
             </h1>
-            <form onSubmit={handleSubmit}>
-                <div className="form-group mb-3">
-                    <label htmlFor="title">Title</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label htmlFor="title" className="block text-sm font-medium mb-2">Title</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="title"
                         value={category.name}
                         onChange={(e) => setCategory({ ...category, name: e.target.value })}
                         required
                         disabled={loading}
                     />
-                    <>
-                        <label htmlFor="image">Upload Main Image</label>
-                        <input
-                            type="file"
-                            className="form-control"
-                            id="image"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            disabled={loading}
-                        />
-                        {category.imageUrl && category.imageUrl.length > 0 && (
-                            <div className="mt-3">
-                                <label>Current Image Preview:</label>
-                                <div>
-                                    <img src={category.imageUrl} alt="Category Image" style={{ maxWidth: '100%' }} />
-                                </div>
+                </div>
+
+                <div>
+                    <label htmlFor="image" className="block text-sm font-medium mb-2">Upload Main Image</label>
+                    <input
+                        type="file"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        id="image"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        disabled={loading}
+                    />
+                    {category.imageUrl && category.imageUrl.length > 0 && (
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium mb-2">Current Image Preview:</label>
+                            <div>
+                                <img src={category.imageUrl} alt="Category Image" className="max-w-full rounded-md" />
                             </div>
-                        )}
-                    </>
+                        </div>
+                    )}
                 </div>
 
                 {loading ? (
-                    <div className="d-flex justify-content-center">
-                        <div className="spinner-border" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
+                    <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                     </div>
                 ) : (
-                    <button type="submit" className="btn btn-primary">
+                    <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors">
                         {id === 'create' ? 'Create Category' : 'Update Category'}
                     </button>
                 )}

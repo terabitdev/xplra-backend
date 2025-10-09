@@ -99,30 +99,29 @@ export default function QuestFormPage() {
     if (dataLoading) {
         // Show a centered loader when data is being fetched
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
+            <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="container mt-5">
-            <h1 style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="container border rounded-lg shadow-lg mx-auto p-5 mt-8 mb-4 max-w-4xl">
+            <h1 className="flex items-center text-3xl font-bold mb-6">
                 <ChevronLeft
                     onClick={() => router.push('/quests')}
                     width={32}
                     height={32}
+                    className="cursor-pointer hover:text-gray-600"
                 />
                 {id === 'create' ? 'Create Quest' : 'Edit Quest'}
             </h1>
-            <form onSubmit={handleSubmit}>
-                <div className="form-group mb-3">
-                    <label htmlFor="title">Title</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label htmlFor="title" className="block text-sm font-medium mb-2">Title</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="title"
                         value={quest.title}
                         onChange={(e) => setQuest({ ...quest, title: e.target.value })}
@@ -130,11 +129,11 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="shortDescription">Short Description</label>
+                <div>
+                    <label htmlFor="shortDescription" className="block text-sm font-medium mb-2">Short Description</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="shortDescription"
                         value={quest.shortDescription}
                         onChange={(e) =>
@@ -144,10 +143,10 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="longDescription">Long Description</label>
+                <div>
+                    <label htmlFor="longDescription" className="block text-sm font-medium mb-2">Long Description</label>
                     <textarea
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="longDescription"
                         rows={3}
                         value={quest.longDescription}
@@ -159,10 +158,10 @@ export default function QuestFormPage() {
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label htmlFor="categories" className="form-label">Category</label>
+                <div>
+                    <label htmlFor="categories" className="block text-sm font-medium mb-2">Category</label>
                     <select
-                        className="form-select"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="categories"
                         value={quest.category || ''}
                         onChange={(e) => setQuest({ ...quest, category: e.target.value })}
@@ -178,11 +177,11 @@ export default function QuestFormPage() {
                     </select>
                 </div>
 
-                <div className="form-group mb-3">
-                    <label htmlFor="experience">Experience</label>
+                <div>
+                    <label htmlFor="experience" className="block text-sm font-medium mb-2">Experience</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="experience"
                         value={quest.experience}
                         onChange={(e) =>
@@ -193,12 +192,12 @@ export default function QuestFormPage() {
                     />
                 </div>
 
-                <div className="form-group mb-3">
-                    <label htmlFor="experience">Hours to complete again</label>
+                <div>
+                    <label htmlFor="hoursToCompleteAgain" className="block text-sm font-medium mb-2">Hours to complete again</label>
                     <input
                         type="number"
-                        className="form-control"
-                        id="experience"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        id="hoursToCompleteAgain"
                         value={quest.hoursToCompleteAgain}
                         onChange={(e) =>
                             setQuest({ ...quest, hoursToCompleteAgain: parseInt(e.target.value) })
@@ -207,11 +206,11 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="stepCode">Step Code</label>
+                <div>
+                    <label htmlFor="stepCode" className="block text-sm font-medium mb-2">Step Code</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="stepCode"
                         value={quest.stepCode}
                         onChange={(e) => setQuest({ ...quest, stepCode: e.target.value })}
@@ -219,11 +218,11 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="stepLatitude">Step Latitude</label>
+                <div>
+                    <label htmlFor="stepLatitude" className="block text-sm font-medium mb-2">Step Latitude</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="stepLatitude"
                         value={quest.stepLatitude as number}
                         onChange={(e) => {
@@ -250,11 +249,11 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="stepLongitude">Step Longitude</label>
+                <div>
+                    <label htmlFor="stepLongitude" className="block text-sm font-medium mb-2">Step Longitude</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="stepLongitude"
                         value={quest.stepLongitude as number}
                         onChange={(e) => {
@@ -281,11 +280,11 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="distance">Distance</label>
+                <div>
+                    <label htmlFor="distance" className="block text-sm font-medium mb-2">Distance</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="distance"
                         value={(quest.distance || 0) as number}
                         onChange={(e) => setQuest({ ...quest, distance: parseInt(e.target.value) })}
@@ -293,10 +292,10 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="stepType">Step Type</label>
+                <div>
+                    <label htmlFor="stepType" className="block text-sm font-medium mb-2">Step Type</label>
                     <select
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="stepType"
                         value={quest.stepType}
                         onChange={(e) => setQuest({ ...quest, stepType: e.target.value })}
@@ -307,11 +306,11 @@ export default function QuestFormPage() {
                         <option value="timeLocation">Time & Location</option>
                     </select>
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="timeInSeconds" className="form-label">Time In Seconds</label>
+                <div>
+                    <label htmlFor="timeInSeconds" className="block text-sm font-medium mb-2">Time In Seconds</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="timeInSeconds"
                         value={quest.timeInSeconds}
                         onChange={(e) => setQuest({ ...quest, timeInSeconds: parseInt(e.target.value) })}
@@ -319,27 +318,25 @@ export default function QuestFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
+                <div>
                     {imagePreview && (
-                        <div className="mb-3">
-                            <label>Current Image Preview:</label>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">Current Image Preview:</label>
                             <div>
                                 <Image
                                     src={imagePreview}
                                     alt="Quest Image Preview"
                                     width={200}
                                     height={200}
-                                    style={{
-                                        objectFit: 'cover',
-                                    }}
+                                    className="object-cover rounded-md"
                                 />
                             </div>
                         </div>
                     )}
-                    <label htmlFor="image">Upload New Image</label>
+                    <label htmlFor="image" className="block text-sm font-medium mb-2">Upload New Image</label>
                     <input
                         type="file"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="image"
                         accept="image/*"
                         onChange={handleImageChange}
@@ -347,13 +344,11 @@ export default function QuestFormPage() {
                     />
                 </div>
                 {loading ? (
-                    <div className="d-flex justify-content-center">
-                        <div className="spinner-border" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
+                    <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                     </div>
                 ) : (
-                    <button type="submit" className="btn btn-primary">
+                    <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors">
                         {id === 'create' ? 'Create Quest' : 'Update Quest'}
                     </button>
                 )}

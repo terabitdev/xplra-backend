@@ -128,26 +128,24 @@ export default function AdventureFormPage() {
 
     if (dataLoading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
+            <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="container mt-5">
-            <h1 style={{ display: 'flex', alignItems: 'center' }}>
-                <ChevronLeft onClick={() => router.push('/adventures')} width={32} height={32} />
+        <div className="container border rounded-lg shadow-lg mx-auto p-5 mt-8 mb-8 max-w-4xl">
+            <h1 className="flex items-center text-3xl font-bold mb-6">
+                <ChevronLeft onClick={() => router.push('/adventures')} width={32} height={32} className="cursor-pointer hover:text-gray-600" />
                 {id === 'create' ? 'Create Adventure' : 'Edit Adventure'}
             </h1>
-            <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                    <label htmlFor="title" className="form-label">Title</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label htmlFor="title" className="block text-sm font-medium mb-2">Title</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="title"
                         value={adventure.title}
                         onChange={(e) => setAdventure({ ...adventure, title: e.target.value })}
@@ -155,11 +153,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="shortDescription" className="form-label">Short Description</label>
+                <div>
+                    <label htmlFor="shortDescription" className="block text-sm font-medium mb-2">Short Description</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="shortDescription"
                         value={adventure.shortDescription}
                         onChange={(e) => setAdventure({ ...adventure, shortDescription: e.target.value })}
@@ -167,11 +165,12 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="longDescription" className="form-label">Long Description</label>
+                <div>
+                    <label htmlFor="longDescription" className="block text-sm font-medium mb-2">Long Description</label>
                     <textarea
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="longDescription"
+                        rows={3}
                         value={adventure.longDescription}
                         onChange={(e) => setAdventure({ ...adventure, longDescription: e.target.value })}
                         required
@@ -179,10 +178,10 @@ export default function AdventureFormPage() {
                     />
                 </div>
 
-                <div className="mb-3">
-                    <label htmlFor="categories" className="form-label">Category</label>
+                <div>
+                    <label htmlFor="categories" className="block text-sm font-medium mb-2">Category</label>
                     <select
-                        className="form-select"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="categories"
                         value={adventure.category || ''}
                         onChange={(e) => setAdventure({ ...adventure, category: e.target.value })}
@@ -198,40 +197,27 @@ export default function AdventureFormPage() {
                     </select>
                 </div>
 
-                <div className="mb-3">
+                <div>
                     {adventure.featured ? (
                         <>
-                            <label htmlFor="featuredImages">Upload Featured Images</label>
+                            <label htmlFor="featuredImages" className="block text-sm font-medium mb-2">Upload Featured Images</label>
                             <input
                                 type="file"
-                                className="form-control"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                                 id="featuredImages"
                                 accept="image/*"
                                 onChange={handleImageChange}
                                 multiple
                                 disabled={loading}
                             />
-                            <div className="mt-3">
+                            <div className="mt-4 flex flex-wrap gap-3">
                                 {multiImagePreviews.map((preview, index) => (
-                                    <div key={index} style={{ position: 'relative', display: 'inline-block', marginRight: '10px' }}>
-                                        <Image src={preview} alt={`Featured Image ${index + 1}`} width={100} height={100} className="img-fluid" style={{ objectFit: 'cover' }} />
+                                    <div key={index} className="relative inline-block">
+                                        <Image src={preview} alt={`Featured Image ${index + 1}`} width={100} height={100} className="object-cover rounded-md" />
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveImage(index)}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                right: 0,
-                                                backgroundColor: 'red',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '50%',
-                                                width: '20px',
-                                                height: '20px',
-                                                textAlign: 'center',
-                                                padding: '0',
-                                                lineHeight: '20px',
-                                            }}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 disabled:opacity-50"
                                             disabled={loading}
                                         >
                                             ×
@@ -242,20 +228,20 @@ export default function AdventureFormPage() {
                         </>
                     ) : (
                         <>
-                            <label htmlFor="image">Upload Main Image</label>
+                            <label htmlFor="image" className="block text-sm font-medium mb-2">Upload Main Image</label>
                             <input
                                 type="file"
-                                className="form-control"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                                 id="image"
                                 accept="image/*"
                                 onChange={handleImageChange}
                                 disabled={loading}
                             />
                             {imagePreview && (
-                                <div className="mt-3">
-                                    <label>Current Image Preview:</label>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium mb-2">Current Image Preview:</label>
                                     <div>
-                                        <Image src={imagePreview} alt="Adventure Image Preview" width={200} height={200} className="img-fluid" style={{ objectFit: 'cover' }} />
+                                        <Image src={imagePreview} alt="Adventure Image Preview" width={200} height={200} className="object-cover rounded-md" />
                                     </div>
                                 </div>
                             )}
@@ -263,11 +249,11 @@ export default function AdventureFormPage() {
                     )}
                 </div>
 
-                <div className="mb-3">
-                    <label htmlFor="latitude" className="form-label">Latitude</label>
+                <div>
+                    <label htmlFor="latitude" className="block text-sm font-medium mb-2">Latitude</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="latitude"
                         value={adventure.latitude as number}
                         onChange={(e) => {
@@ -287,11 +273,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="longitude" className="form-label">Longitude</label>
+                <div>
+                    <label htmlFor="longitude" className="block text-sm font-medium mb-2">Longitude</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="longitude"
                         value={adventure.longitude as number}
                         onChange={(e) => {
@@ -311,11 +297,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="distance" className="form-label">Distance</label>
+                <div>
+                    <label htmlFor="distance" className="block text-sm font-medium mb-2">Distance</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="distance"
                         value={(adventure.distance || 30) as number}
                         onChange={(e) => setAdventure({ ...adventure, distance: parseFloat(e.target.value) })}
@@ -323,11 +309,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="experience" className="form-label">Experience</label>
+                <div>
+                    <label htmlFor="experience" className="block text-sm font-medium mb-2">Experience</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="experience"
                         value={adventure.experience}
                         onChange={(e) => setAdventure({ ...adventure, experience: parseInt(e.target.value) })}
@@ -335,11 +321,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="hoursToComplete" className="form-label">Hours to Complete</label>
+                <div>
+                    <label htmlFor="hoursToComplete" className="block text-sm font-medium mb-2">Hours to Complete</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="hoursToComplete"
                         value={adventure.hoursToCompleteAgain || 0}
                         onChange={(e) => setAdventure({ ...adventure, hoursToCompleteAgain: parseInt(e.target.value) })}
@@ -347,11 +333,11 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="timeInSeconds" className="form-label">Time in Seconds</label>
+                <div>
+                    <label htmlFor="timeInSeconds" className="block text-sm font-medium mb-2">Time in Seconds</label>
                     <input
                         type="number"
-                        className="form-control"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         id="timeInSeconds"
                         value={adventure.timeInSeconds}
                         onChange={(e) => setAdventure({ ...adventure, timeInSeconds: parseInt(e.target.value) })}
@@ -359,31 +345,29 @@ export default function AdventureFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-check mb-3">
+                <div className="flex items-center">
                     <input
                         type="checkbox"
-                        className="form-check-input"
+                        className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                         id="featured"
                         checked={adventure.featured}
                         onChange={(e) => setAdventure({ ...adventure, featured: e.target.checked })}
                         disabled={loading}
                     />
-                    <label className="form-check-label" htmlFor="featured">Featured</label>
+                    <label className="ml-2 text-sm font-medium" htmlFor="featured">Featured</label>
                 </div>
 
-                <div className="d-flex align-items-center">
+                <div className="flex items-center gap-4">
                     {loading ? (
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                     ) : (
                         <>
-                            <button type="submit" className="btn btn-primary">
+                            <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors">
                                 {id === 'create' ? 'Create Adventure' : 'Update Adventure'}
                             </button>
                             <button
                                 type="button"
-                                className="btn btn-secondary mx-2"
+                                className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                 onClick={() => router.push('/adventures')}
                                 disabled={loading}
                             >

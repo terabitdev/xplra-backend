@@ -71,7 +71,7 @@ export default function AchievementFormPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-12">
             <h1 className="flex items-center text-4xl font-bold mb-6">
                 <ChevronLeft
                     onClick={() => router.push('/achievements')}
@@ -81,7 +81,7 @@ export default function AchievementFormPage() {
                 />
                 {id === 'create' ? 'Create Achievement' : 'Edit Achievement'}
             </h1>
-            <form onSubmit={handleSubmit}>
+            <form className='max-w-4xl mx-auto p-5 border rounded-lg shadow-lg' onSubmit={handleSubmit}>
                 <div className="mb-3">
                     <label htmlFor="title" className="block mb-2 text-sm font-medium">Title</label>
                     <input
