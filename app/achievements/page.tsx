@@ -42,44 +42,45 @@ export default function AchivementsPage() {
     };
 
     return (
-        <div className="d-flex">
+        <div className="flex">
             <Sidebar />
-            <div className="container-fluid">
-                <h1 className="mt-5">Achievements</h1>
+            <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
+                <h1 className="mt-12 text-4xl font-bold">Achievements</h1>
 
-                <button className="btn btn-primary mb-4" onClick={handleCreateAchievements}>
+                <button className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded mb-4 mt-4" onClick={handleCreateAchievements}>
                     Create New Achievement
                 </button>
 
-                <div className="table-wrapper">
-                    <table className="table table-striped">
-                        <thead>
+                <div className="max-h-[calc(100vh-150px)] overflow-y-auto border border-bootstrap-border rounded pb-5">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <th>Id</th>
-                                <th>Title</th>
-                                <th>Description</th>
-                                <th>Icon</th>
-                                <th>Trigger</th>
-                                <th>Trigger Value</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Id</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Icon</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trigger</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trigger Value</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white divide-y divide-gray-200">
                             {achievements.map((achievement) => (
-                                <tr key={achievement.id + achievement.title}>
-                                    <td>{achievement.title}</td>
-                                    <td>{achievement.description}</td>
-                                    <td>{achievement.icon}</td>
-                                    <td>{achievement.trigger}</td>
-                                    <td>{achievement.triggerValue}</td>
-                                    <td>
+                                <tr key={achievement.id + achievement.title} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{achievement.title}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{achievement.description}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{achievement.icon}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{achievement.trigger}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{achievement.triggerValue}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">
                                         <button
-                                            className="btn btn-secondary btn-sm mx-2"
+                                            className="bg-bootstrap-secondary hover:bg-bootstrap-secondary-hover text-white text-sm py-1 px-3 rounded mx-2"
                                             onClick={() => handleEditAchievement(achievement.id)}
                                         >
                                             Edit
                                         </button>
                                         <button
-                                            className="btn btn-danger btn-sm"
+                                            className="bg-bootstrap-danger hover:bg-bootstrap-danger-hover text-white text-sm py-1 px-3 rounded"
                                             onClick={() => handleDeleteAdventure(achievement.id)}
                                         >
                                             Delete

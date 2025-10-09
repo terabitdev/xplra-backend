@@ -62,30 +62,31 @@ export default function AchievementFormPage() {
 
     if (dataLoading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" role="status">
+                    <span className="sr-only">Loading...</span>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="container mt-5">
-            <h1 style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+            <h1 className="flex items-center text-4xl font-bold mb-6">
                 <ChevronLeft
                     onClick={() => router.push('/achievements')}
                     width={32}
                     height={32}
+                    className="cursor-pointer"
                 />
                 {id === 'create' ? 'Create Achievement' : 'Edit Achievement'}
             </h1>
             <form onSubmit={handleSubmit}>
-                <div className="form-group mb-3">
-                    <label htmlFor="title">Title</label>
+                <div className="mb-3">
+                    <label htmlFor="title" className="block mb-2 text-sm font-medium">Title</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         id="title"
                         value={achievement.title}
                         onChange={(e) => setAchievement({ ...achievement, title: e.target.value })}
@@ -93,10 +94,10 @@ export default function AchievementFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="description">Description</label>
+                <div className="mb-3">
+                    <label htmlFor="description" className="block mb-2 text-sm font-medium">Description</label>
                     <textarea
-                        className="form-control"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         id="description"
                         value={achievement.description}
                         onChange={(e) => setAchievement({ ...achievement, description: e.target.value })}
@@ -104,11 +105,11 @@ export default function AchievementFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="icon">Icon</label>
+                <div className="mb-3">
+                    <label htmlFor="icon" className="block mb-2 text-sm font-medium">Icon</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         id="icon"
                         value={achievement.icon}
                         onChange={(e) => setAchievement({ ...achievement, icon: e.target.value })}
@@ -116,10 +117,10 @@ export default function AchievementFormPage() {
                         disabled={loading}
                     />
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="trigger">Trigger</label>
+                <div className="mb-3">
+                    <label htmlFor="trigger" className="block mb-2 text-sm font-medium">Trigger</label>
                     <select
-                        className="form-control"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         id="trigger"
                         value={achievement.trigger}
                         onChange={(e) => setAchievement({ ...achievement, trigger: e.target.value as Achievement['trigger'] })}
@@ -132,11 +133,11 @@ export default function AchievementFormPage() {
                         <option value="quest">Quest</option>
                     </select>
                 </div>
-                <div className="form-group mb-3">
-                    <label htmlFor="triggerValue">Trigger Value</label>
+                <div className="mb-3">
+                    <label htmlFor="triggerValue" className="block mb-2 text-sm font-medium">Trigger Value</label>
                     <input
                         type="text"
-                        className="form-control"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         id="triggerValue"
                         value={achievement.triggerValue}
                         onChange={(e) => setAchievement({ ...achievement, triggerValue: e.target.value })}
@@ -145,13 +146,13 @@ export default function AchievementFormPage() {
                     />
                 </div>
                 {loading ? (
-                    <div className="d-flex justify-content-center">
-                        <div className="spinner-border" role="status">
-                            <span className="visually-hidden">Loading...</span>
+                    <div className="flex justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" role="status">
+                            <span className="sr-only">Loading...</span>
                         </div>
                     </div>
                 ) : (
-                    <button type="submit" className="btn btn-primary">
+                    <button type="submit" className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded">
                         {id === 'create' ? 'Create Achievement' : 'Update Achievement'}
                     </button>
                 )}

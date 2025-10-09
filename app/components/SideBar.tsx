@@ -45,35 +45,35 @@ export default function Sidebar() {
     };
 
     return (
-        <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsedSideBar : styles.expandedSideBar}`}>
-            <div className={styles.sidebarContent}>
-                <button onClick={toggleSidebar} className={styles.toggleButton}>
+        <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsedSideBar : styles.expandedSideBar} flex flex-col h-screen bg-bootstrap-bg fixed top-0 left-0 bottom-0 z-[1000] shadow-[2px_0_5px_rgba(0,0,0,0.1)]`}>
+            <div className="flex flex-col items-center pt-4">
+                <button onClick={toggleSidebar} className="bg-transparent border-none text-xl cursor-pointer mb-4">
                     {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
                 </button>
-                <h2 className={styles.logo}>{isCollapsed ? 'X' : 'Xplra'}</h2>
-                <nav className={styles.nav}>
-                    <a className={styles.navLink} href="/quests">
-                        <Home size={20} className={styles.icon} />
+                <h2 className={`${styles.logo} text-2xl my-4`}>{isCollapsed ? 'X' : 'Xplra'}</h2>
+                <nav className="flex flex-col items-center w-full">
+                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/quests">
+                        <Home size={20} className="inline-block" />
                         {!isCollapsed && <span>Quests</span>}
                     </a>
-                    <a className={styles.navLink} href="/adventures">
-                        <EarthEuropeAfrica size={20} className={styles.icon} />
+                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/adventures">
+                        <EarthEuropeAfrica size={20} className="inline-block" />
                         {!isCollapsed && <span>Adventures</span>}
                     </a>
-                    <a className={styles.navLink} href="/categories">
-                        <Tag size={20} className={styles.icon} />
+                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/categories">
+                        <Tag size={20} className="inline-block" />
                         {!isCollapsed && <span>Categories</span>}
                     </a>
-                    <a className={styles.navLink} href="/achievements">
-                        <Trophy size={20} className={styles.icon} />
+                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/achievements">
+                        <Trophy size={20} className="inline-block" />
                         {!isCollapsed && <span>Achievements</span>}
                     </a>
 
                 </nav>
             </div>
-            <div className={styles.logoutButton}>
-                <button className="btn btn-danger" onClick={handleLogout}>
-                    <Logout size={20} className={styles.icon} />
+            <div className="mt-auto p-4 flex items-center justify-center w-full">
+                <button className="w-full bg-bootstrap-danger hover:bg-bootstrap-danger-hover text-white border-none py-3 px-4 text-base rounded flex items-center justify-center gap-2" onClick={handleLogout}>
+                    <Logout size={20} className="inline-block" />
                     {!isCollapsed && <span>Logout</span>}
                 </button>
             </div>

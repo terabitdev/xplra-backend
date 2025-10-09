@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/SideBar';
-import Image from 'next/image';
 import { Category } from '@/lib/domain/models/category';
 
 export default function CategoriesPage() {
@@ -43,40 +42,40 @@ export default function CategoriesPage() {
     };
 
     return (
-        <div className="d-flex">
+        <div className="flex">
             <Sidebar />
-            <div className="container-fluid">
-                <h1 className="mt-5">Category</h1>
+            <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
+                <h1 className="mt-12 text-4xl font-bold">Category</h1>
 
-                <button className="btn btn-primary mb-4" onClick={handleCreateCategory}>
+                <button className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded mb-4 mt-4" onClick={handleCreateCategory}>
                     Create New Category
                 </button>
 
-                <div className="table-wrapper">
-                    <table className="table table-striped">
-                        <thead>
+                <div className="max-h-[calc(100vh-150px)] overflow-y-auto border border-bootstrap-border rounded pb-5">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <th>Name</th>
-                                <th>Image</th>
-                                <th>Actions</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white divide-y divide-gray-200">
                             {categories.map((category) => (
-                                <tr key={category.id}>
-                                    <td>{category.name}</td>
-                                    <td>
-                                        <img src={category.imageUrl} alt={category.name} width={100} height={100} />
+                                <tr key={category.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">{category.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">
+                                        <img src={category.imageUrl} alt={category.name} width={100} height={100} className="max-w-[80px] h-auto rounded" />
                                     </td>
-                                    <td>
+                                    <td className="px-6 py-4 whitespace-nowrap align-middle">
                                         <button
-                                            className="btn btn-secondary btn-sm mx-2"
+                                            className="bg-bootstrap-secondary hover:bg-bootstrap-secondary-hover text-white text-sm py-1 px-3 rounded mx-2"
                                             onClick={() => handleEditCategory(category.id)}
                                         >
                                             Edit
                                         </button>
                                         <button
-                                            className="btn btn-danger btn-sm"
+                                            className="bg-bootstrap-danger hover:bg-bootstrap-danger-hover text-white text-sm py-1 px-3 rounded"
                                             onClick={() => handleDeleteCategories(category.id)}
                                         >
                                             Delete

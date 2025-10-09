@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Full height layout */
 html,
 body {
@@ -6,82 +10,14 @@ body {
   padding: 0;
   font-family: 'Arial', sans-serif;
   overflow-x: hidden;
-  /* Prevent horizontal overflow */
 }
 
-/* Flex layout for the main content and sidebar */
-.d-flex {
-  display: flex;
+/* Main content offset for sidebar */
+.main-content {
+  margin-left: 250px;
 }
 
-/* Sidebar styles */
-.sidebar {
-  width: 250px;
-  background-color: #343a40;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1rem;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-  position: fixed;
-  /* Keep sidebar fixed on the left */
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 1000;
-}
-
-/* Adjust the content area to leave space for the sidebar */
-.container-fluid {
-  /* Ensure the main content is offset by the sidebar width */
-  padding: 2rem;
-  /* Add padding for a clean layout */
-  min-height: 100vh;
-  /* Ensure the main content fills the height of the screen */
-  box-sizing: border-box;
-  overflow-y: auto;
-}
-
-/* Styling the table container */
-.table-wrapper {
-  max-height: calc(100vh - 150px);
-  /* Calculate height with room for header and buttons */
-  overflow-y: auto;
-  /* Scrollable content */
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
-  padding-bottom: 20px;
-  /* Ensure a bit of space at the bottom */
-}
-
-/* Styling the table */
-.table th,
-.table td {
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-/* Styling for table images */
-.table img {
-  max-width: 80px;
-  height: auto;
-  border-radius: 0.25rem;
-}
-
-/* Logout button */
-.logout-button {
-  padding: 1rem;
-}
-
-.logout-button .btn {
-  width: 100%;
-  background-color: #dc3545;
-  border: none;
-  padding: 0.75rem;
-  font-size: 1rem;
-}
-
-.logout-button .btn:hover {
-  background-color: #c82333;
+/* Main content offset for collapsed sidebar */
+.main-content-collapsed {
+  margin-left: 60px;
 }

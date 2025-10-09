@@ -34,23 +34,23 @@ export default function ForgotPassword() {
 
 
   return (
-    <div className="container mt-5">
-      <h2 className="mb-4">Forgot Password</h2>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+      <h2 className="mb-4 text-2xl font-bold">Forgot Password</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label htmlFor="email" className="form-label">Email address</label>
+          <label htmlFor="email" className="block mb-2 text-sm font-medium">Email address</label>
           <input
             type="email"
-            className="form-control"
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
-        <button type="submit" className="btn btn-primary w-100">Send Reset Link</button>
-        {message && <div className="mt-3 alert alert-success">{message}</div>}
-        {error && <div className="mt-3 alert alert-danger">{error}</div>}
+        <button type="submit" className="w-full bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded">Send Reset Link</button>
+        {message && <div className="mt-3 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{message}</div>}
+        {error && <div className="mt-3 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
       </form>
     </div>
   );

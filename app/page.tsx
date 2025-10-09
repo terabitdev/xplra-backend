@@ -36,13 +36,13 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="d-flex">
+    <div className="flex">
       <Sidebar />
-      <div className="main-content container-fluid">
-        <div className="row mt-5">
-          <div className="col-12">
-            <h1>Welcome to the Home Page</h1>
-            <p className="lead">You are logged in!</p>
+      <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
+        <div className="flex flex-wrap mt-12">
+          <div className="w-full">
+            <h1 className="text-4xl font-bold">Welcome to the Home Page</h1>
+            <p className="text-xl text-gray-600 mt-2">You are logged in!</p>
           </div>
         </div>
       </div>
