@@ -41,7 +41,7 @@ export default function Sidebar() {
         <div className="w-64 flex flex-col h-screen shadow-2xl fixed top-0 left-0 bottom-0 z-[1000]">
             <Link href="/" className="flex items-center p-3 border-b border-gray-200 ">
                 <Image
-                    src="/assets/xplralogo.jpg"
+                    src="/assets/xplralogo.png"
                     alt="Xplra Logo"
                     width={50}
                     height={50}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeApp, getApps } from 'firebase/app';
+import { adminDb } from '@/lib/firebase-admin';
 
 // Initialize Firebase client app if not already initialized
 if (!getApps().length) {
@@ -31,12 +32,29 @@ export async function POST(req: Request) {
     // Create user using Firebase client SDK
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const idToken = await userCredential.user.getIdToken();
+    const uid = userCredential.user.uid;
+
+    // Create user document in Firestore users collection
+    try {
+      await adminDb.collection('users').doc(uid).set({
+        uid,
+        email: userCredential.user.email,
+        displayName: email.split('@')[0], // Use email prefix as initial display name
+        photoURL: null,
+        type: 'Admin', // Set default type as Admin
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (firestoreError) {
+      console.error('Error creating user document in Firestore:', firestoreError);
+      // Continue even if Firestore fails - user is still created in Auth
+    }
 
     return NextResponse.json({
       message: 'User created successfully',
       user: {
         token: idToken,
-        uid: userCredential.user.uid,
+        uid,
         email: userCredential.user.email,
       }
     });

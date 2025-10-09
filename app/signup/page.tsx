@@ -48,7 +48,7 @@ export default function SignUp() {
           {/* Logo Section */}
           <div className="flex justify-center mb-6">
             <Image
-              src="/assets/xplralogo.jpg"
+              src="/assets/xplralogo.png"
               alt="Xplra Logo"
               width={100}
               height={100}

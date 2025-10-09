@@ -216,7 +216,7 @@ export default function TopBar() {
 
             {/* Edit Profile Modal */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+                <div className="fixed inset-0  bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-[100]">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
                         <button
                             onClick={() => setIsEditModalOpen(false)}
