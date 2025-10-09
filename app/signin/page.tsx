@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -19,15 +20,14 @@ export default function SignIn() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }), // Send credentials to the API
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // Store the token in localStorage (or cookies)
-        localStorage.setItem('token', data.token); // Store the token received from the API
-        router.push('/'); // Redirect to home page
+        localStorage.setItem('token', data.token);
+        router.push('/');
       } else {
         setError(data.error);
       }
@@ -36,42 +36,84 @@ export default function SignIn() {
     }
   };
 
-
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
-      <h2 className="mb-4 text-2xl font-bold">Sign In</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label htmlFor="email" className="block mb-2 text-sm font-medium">Email address</label>
-          <input
-            type="email"
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label htmlFor="password" className="block mb-2 text-sm font-medium">Password</label>
-          <input
-            type="password"
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" className="w-full bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded">Sign In</button>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-md w-full">
+        <div className="bg-white rounded-2xl shadow-xl p-10">
+          {/* Logo Section */}
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/assets/xplralogo.jpg"
+              alt="Xplra Logo"
+              width={100}
+              height={100}
+              className="object-contain"
+            />
+          </div>
 
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-3">{error}</div>}
+          {/* Header */}
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 ">Welcome Back to Xplra</h2>
+            <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
+          </div>
 
-        <p className="mt-3">
-          Don't have an account? <Link href="/signup" className="text-blue-600 hover:underline">Sign up</Link>
-        </p>
-      </form>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email address
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 outline-none"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 outline-none"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Sign In
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500 transition duration-200">
+                Sign up
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

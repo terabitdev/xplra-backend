@@ -18,6 +18,12 @@ module.exports = {
         'bootstrap-border': '#dee2e6',
         'bootstrap-bg': '#f8f9fa',
       },
+      fontFamily: {
+        'geist': ['Geist', 'sans-serif'],
+        'geist-mono': ['Geist Mono', 'monospace'],
+        'sans': ['Geist', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        'mono': ['Geist Mono', 'ui-monospace', 'monospace'],
+      },
     },
   },
   plugins: [],
