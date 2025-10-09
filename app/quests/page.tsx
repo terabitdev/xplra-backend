@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../components/SideBar';
+import DashboardLayout from '../components/DashboardLayout';
 import { Category } from '@/lib/domain/models/category';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchQuests, deleteQuest } from '../store/slices/questsSlice';
@@ -47,10 +47,9 @@ export default function QuestsPage() {
     };
 
     return (
-        <div className="flex">
-            <Sidebar />
-            <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
-                <h1 className="mt-12 text-4xl font-bold">Quests</h1>
+        <DashboardLayout>
+            <div className="w-full">
+                <h1 className="text-4xl font-bold">Quests</h1>
 
                 <button
                     className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded mb-4 mt-4"
@@ -118,6 +117,6 @@ export default function QuestsPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </DashboardLayout>
     );
 }

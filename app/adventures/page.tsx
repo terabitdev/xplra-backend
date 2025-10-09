@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Adventure } from '@/lib/domain/models/adventures';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../components/SideBar';
+import DashboardLayout from '../components/DashboardLayout';
 import Image from 'next/image';
 import { Category } from '@/lib/domain/models/category';
 
@@ -55,10 +55,9 @@ export default function AdventuresPage() {
     };
 
     return (
-        <div className="flex">
-            <Sidebar />
-            <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
-                <h1 className="mt-12 text-4xl font-bold">Adventures</h1>
+        <DashboardLayout>
+            <div className="w-full">
+                <h1 className="text-4xl font-bold">Adventures</h1>
 
                 <button className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded mb-4 mt-4" onClick={handleCreateAdventure}>
                     Create New Adventure
@@ -116,6 +115,6 @@ export default function AdventuresPage() {
                     </table>
                 </div>
             </div>
-        </div>
+        </DashboardLayout>
     );
 }

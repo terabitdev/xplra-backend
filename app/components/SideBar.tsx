@@ -1,21 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Home, EarthEuropeAfrica, Logout, ChevronRight, ChevronLeft, Trophy, Tag } from '@carbon/icons-react';
-import styles from './SideBar.module.css';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Dashboard, Home, EarthEuropeAfrica, Logout, Trophy, Tag } from '@carbon/icons-react';
 
 export default function Sidebar() {
     const router = useRouter();
-    const [isCollapsed, setIsCollapsed] = useState(true);
-
-    useEffect(() => {
-        // Retrieve saved state from localStorage when component mounts
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState) {
-            setIsCollapsed(JSON.parse(savedState));
-        }
-    }, []);
+    const pathname = usePathname();
 
     const handleLogout = async () => {
         try {
@@ -37,44 +29,56 @@ export default function Sidebar() {
         }
     };
 
-    const toggleSidebar = () => {
-        // Toggle state and save to localStorage
-        const newState = !isCollapsed;
-        setIsCollapsed(newState);
-        localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
-    };
+    const navLinks = [
+        { href: '/', icon: Dashboard, label: 'Dashboard' },
+        { href: '/quests', icon: Home, label: 'Quests' },
+        { href: '/adventures', icon: EarthEuropeAfrica, label: 'Adventures' },
+        { href: '/categories', icon: Tag, label: 'Categories' },
+        { href: '/achievements', icon: Trophy, label: 'Achievements' },
+    ];
 
     return (
-        <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsedSideBar : styles.expandedSideBar} flex flex-col h-screen bg-bootstrap-bg fixed top-0 left-0 bottom-0 z-[1000] shadow-[2px_0_5px_rgba(0,0,0,0.1)]`}>
-            <div className="flex flex-col items-center pt-4">
-                <button onClick={toggleSidebar} className="bg-transparent border-none text-xl cursor-pointer mb-4">
-                    {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-                </button>
-                <h2 className={`${styles.logo} text-2xl my-4`}>{isCollapsed ? 'X' : 'Xplra'}</h2>
-                <nav className="flex flex-col items-center w-full">
-                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/quests">
-                        <Home size={20} className="inline-block" />
-                        {!isCollapsed && <span>Quests</span>}
-                    </a>
-                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/adventures">
-                        <EarthEuropeAfrica size={20} className="inline-block" />
-                        {!isCollapsed && <span>Adventures</span>}
-                    </a>
-                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/categories">
-                        <Tag size={20} className="inline-block" />
-                        {!isCollapsed && <span>Categories</span>}
-                    </a>
-                    <a className={`${styles.navLink} flex items-center my-2 whitespace-nowrap w-full px-2 py-2 text-left gap-2.5 justify-center`} href="/achievements">
-                        <Trophy size={20} className="inline-block" />
-                        {!isCollapsed && <span>Achievements</span>}
-                    </a>
+        <div className="w-64 flex flex-col h-screen shadow-2xl fixed top-0 left-0 bottom-0 z-[1000]">
+            <Link href="/" className="flex items-center p-3 border-b border-gray-200 ">
+                <Image
+                    src="/assets/xplralogo.jpg"
+                    alt="Xplra Logo"
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                />
+                <h2 className="text-2xl font-bold text-gray-800">Xplra</h2>
+            </Link>
 
-                </nav>
-            </div>
-            <div className="mt-auto p-4 flex items-center justify-center w-full">
-                <button className="w-full bg-bootstrap-danger hover:bg-bootstrap-danger-hover text-white border-none py-3 px-4 text-base rounded flex items-center justify-center gap-2" onClick={handleLogout}>
-                    <Logout size={20} className="inline-block" />
-                    {!isCollapsed && <span>Logout</span>}
+            <nav className="flex flex-col flex-1 w-full px-4 py-6 space-y-2">
+                {navLinks.map((link) => {
+                    const Icon = link.icon;
+                    const isActive = pathname === link.href;
+
+                    return (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 gap-3 ${
+                                isActive
+                                    ? 'bg-blue-600 text-white font-semibold shadow-md'
+                                    : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <Icon size={22} />
+                            <span>{link.label}</span>
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            <div className="p-4 border-t border-gray-200">
+                <button
+                    className="w-full bg-red-500 hover:bg-red-600 text-white border-none py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    onClick={handleLogout}
+                >
+                    <Logout size={20} />
+                    <span>Logout</span>
                 </button>
             </div>
         </div>

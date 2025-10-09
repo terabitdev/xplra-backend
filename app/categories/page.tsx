@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../components/SideBar';
+import DashboardLayout from '../components/DashboardLayout';
 import { Category } from '@/lib/domain/models/category';
 
 export default function CategoriesPage() {
@@ -42,11 +42,9 @@ export default function CategoriesPage() {
     };
 
     return (
-        <div className="flex">
-            <Sidebar />
-            <div className="main-content p-8 min-h-screen box-border overflow-y-auto w-full">
-                <div className="max-w-7xl mx-auto">
-                    <h1 className="mt-12 text-4xl font-bold">Category</h1>
+        <DashboardLayout>
+            <div className="w-full max-w-7xl mx-auto">
+                <h1 className="text-4xl font-bold">Category</h1>
 
                     <button className="bg-bootstrap-primary hover:bg-bootstrap-primary-hover text-white font-medium py-2 px-4 rounded mb-4 mt-4" onClick={handleCreateCategory}>
                         Create New Category
@@ -87,8 +85,7 @@ export default function CategoriesPage() {
                             </tbody>
                         </table>
                     </div>
-                </div>
             </div>
-        </div>
+        </DashboardLayout>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from './components/SideBar';
+import DashboardLayout from './components/DashboardLayout';
 
 export default function Home() {
   const router = useRouter();
@@ -36,16 +36,11 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex">
-      <Sidebar />
-      <div className="main-content p-8 min-h-screen box-border overflow-y-auto">
-        <div className="flex flex-wrap mt-12">
-          <div className="w-full">
-            <h1 className="text-4xl font-bold">Welcome to the Home Page</h1>
-            <p className="text-xl text-gray-600 mt-2">You are logged in!</p>
-          </div>
-        </div>
+    <DashboardLayout>
+      <div className="w-full">
+        <h1 className="text-4xl font-bold">Welcome to the Dashboard</h1>
+        <p className="text-xl text-gray-600 mt-2">You are logged in!</p>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
