@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { UserAvatar, ChevronDown, Logout, Edit } from "@carbon/icons-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchUserProfile, updateUserProfile, setEditModalOpen } from "../store/slices/userSlice";
+import SearchBar from "./SearchBar";
 
 function TopBar() {
   const router = useRouter();
@@ -103,8 +104,20 @@ function TopBar() {
     }
   };
 
+  const handleSearch = (query: string) => {
+    console.log("Search query:", query);
+    // Add your search logic here
+  };
+
   return (
-    <div className="h-[4.7rem] bg-white border-b border-gray-200 fixed top-0 left-64 right-0 z-50 flex items-center justify-end px-6 shadow-sm">
+    <div className="h-[4.7rem] bg-white border-b border-gray-200 fixed top-0 left-64 right-0 z-50 flex items-center justify-between px-6 shadow-sm">
+      {/* Search Bar */}
+      <SearchBar
+        placeholder="Search users, analytics, or data..."
+        onSearch={handleSearch}
+        className="w-full max-w-md"
+      />
+
       {/* User Profile Section */}
       <div className="relative" ref={dropdownRef}>
         {loading ? (

@@ -46,7 +46,7 @@ export default function Sidebar() {
 
   return (
     <div className="w-64 flex flex-col h-screen shadow-2xl fixed top-0 left-0 bottom-0 z-[1000]">
-      <div className="flex items-center p-3 border-b border-gray-200 ">
+      <div className="flex items-center p-3 border-b  ">
         <Link href="/">
           <Image
             src="/assets/xplralogo.png"
@@ -57,14 +57,16 @@ export default function Sidebar() {
           />
         </Link>
 
+        <Link href="/">
         {/* Logo */}
         <Image
-          src="/assets/xplralogo2.jpg"
+          src="/assets/xplralogo2.png"
           alt="Xplra Logo"
           width={120}
           height={40}
           className="object-contain"
         />
+        </Link>
       </div>
 
       <nav className="flex flex-col flex-1 w-full px-4 py-6 space-y-2">
@@ -89,7 +91,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t ">
         <button
           className="w-full bg-red-500 hover:bg-red-600 text-white border-none py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
           onClick={handleLogout}

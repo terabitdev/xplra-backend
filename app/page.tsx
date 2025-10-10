@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from './components/DashboardLayout';
+import MetricsCards from './components/MetricsCards';
+import UserGrowthGraph from './components/UserGrowthGraph';
 
 export default function Home() {
   const router = useRouter();
@@ -37,9 +39,14 @@ export default function Home() {
 
   return (
     <DashboardLayout>
-      <div className="w-full">
-        <h1 className="text-4xl font-bold">Welcome to the Dashboard</h1>
-        <p className="text-xl text-gray-600 mt-2">You are logged in!</p>
+      <div className="w-full mt-8">
+        <h1 className="text-4xl font-bold mb-6">Welcome to the Dashboard</h1>
+
+        {/* Metrics Cards */}
+        <MetricsCards />
+
+        {/* User Growth Graph */}
+        <UserGrowthGraph />
       </div>
     </DashboardLayout>
   );
