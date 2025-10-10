@@ -11,6 +11,7 @@ const nextConfig = {
             'picsum.photos',
         ], // Add your allowed domains here
     },
+    reactStrictMode: false, // Disable to reduce console warnings in development
 };
 
 export default nextConfig;
