@@ -8,6 +8,7 @@ const nextConfig = {
         domains: [
             '*',
             'firebasestorage.googleapis.com',
+            'storage.googleapis.com',
             'picsum.photos',
         ], // Add your allowed domains here
     },
