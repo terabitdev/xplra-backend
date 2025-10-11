@@ -43,13 +43,10 @@ export default function AdventuresPage() {
         }
     }, [uid]);
 
-    // Fetch adventures using Redux - optimized with loading check
+    // Fetch adventures using Redux on mount
     useEffect(() => {
-        // Only fetch if we don't have adventures and not currently loading
-        if (adventures.length === 0 && !loading) {
-            dispatch(fetchAdventures());
-        }
-    }, [dispatch, adventures.length, loading]);
+        dispatch(fetchAdventures());
+    }, [dispatch]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((adventure: Adventure) => {

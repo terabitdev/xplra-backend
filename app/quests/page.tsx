@@ -42,13 +42,10 @@ export default function QuestsPage() {
         }
     }, [uid]);
 
-    // Fetch quests using Redux - optimized with loading check
+    // Fetch quests using Redux on mount
     useEffect(() => {
-        // Only fetch if we don't have quests and not currently loading
-        if (quests.length === 0 && !loading) {
-            dispatch(fetchQuests());
-        }
-    }, [dispatch, quests.length, loading]);
+        dispatch(fetchQuests());
+    }, [dispatch]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((quest: Quest) => {

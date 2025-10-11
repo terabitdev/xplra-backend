@@ -29,12 +29,10 @@ export default function CategoriesPage() {
         }
     }, [uid]);
 
-    // Fetch categories using Redux
+    // Fetch categories using Redux on mount
     useEffect(() => {
-        if (categories.length === 0 && !loading) {
-            dispatch(fetchCategories());
-        }
-    }, [dispatch, categories.length, loading]);
+        dispatch(fetchCategories());
+    }, [dispatch]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((category: Category) => {

@@ -172,12 +172,12 @@ export default function QuestFormModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Category */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="category" className="block text-sm  font-medium text-gray-700 mb-2">
                 Category *
               </label>
               <select
                 id="category"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className="w-full px-4 py-2 border border-gray-300  rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 value={quest.category || ''}
                 onChange={(e) => setQuest({ ...quest, category: e.target.value })}
                 required
