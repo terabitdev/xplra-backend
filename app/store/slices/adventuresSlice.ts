@@ -186,7 +186,7 @@ const adventuresSlice = createSlice({
       })
       .addCase(updateAdventure.fulfilled, (state, action: PayloadAction<any>) => {
         state.loading = false;
-        const index = state.adventures.findIndex((adv) => adv.id === action.payload.id);
+        const index = state.adventures.findIndex((adventure) => adventure.id === action.payload.id);
         if (index !== -1) {
           state.adventures[index] = { ...state.adventures[index], ...action.payload };
         }
@@ -205,7 +205,7 @@ const adventuresSlice = createSlice({
       })
       .addCase(deleteAdventure.fulfilled, (state, action: PayloadAction<string>) => {
         state.loading = false;
-        state.adventures = state.adventures.filter((adv) => adv.id !== action.payload);
+        state.adventures = state.adventures.filter((adventure) => adventure.id !== action.payload);
         state.error = null;
       })
       .addCase(deleteAdventure.rejected, (state, action) => {

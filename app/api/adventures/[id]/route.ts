@@ -1,26 +1,34 @@
 import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Adventure } from '@/lib/domain/models/adventures';
+import admin from '@/lib/firebase-admin';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const docRef = adminDb.collection('adventures').doc(params.id);
-    const doc = await docRef.get();
+    const adventureId = params.id;
 
-    if (!doc.exists) {
-      return NextResponse.json(
-        { error: 'Adventure not found' },
-        { status: 404 }
-      );
+    // Search through all adminAdventures documents to find the adventure
+    const adminAdventuresSnapshot = await adminDb.collection('adminAdventures').get();
+
+    for (const doc of adminAdventuresSnapshot.docs) {
+      const data = doc.data();
+      const adventures = data.adventures || [];
+      const adventure = adventures.find((a: Adventure) => a.id === adventureId);
+
+      if (adventure) {
+        return NextResponse.json(adventure);
+      }
     }
 
-    const adventure: Adventure = { id: doc.id, ...doc.data() } as Adventure;
-    return NextResponse.json(adventure);
+    return NextResponse.json(
+      { error: 'Adventure not found' },
+      { status: 404 }
+    );
   } catch (error: any) {
     console.error('Get adventure error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch adventure' },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
@@ -31,8 +39,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const adventureData = JSON.parse(formData.get('adventure') as string);
     const imageFile = formData.get('image') as File | null;
     const imageFiles = formData.getAll('featuredImages') as File[];
+    const adventureId = params.id;
+    const adminId = adventureData.userId;
 
-    const updatedData: Partial<Adventure> = { ...adventureData };
+    if (!adminId) {
+      return NextResponse.json(
+        { error: 'Admin ID is required' },
+        { status: 400 }
+      );
+    }
+
+    let imageUrl = adventureData.imageUrl || '';
+    let featuredImages = adventureData.featuredImages || [];
 
     // Upload new main image if provided
     if (imageFile) {
@@ -45,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       await file.makePublic();
-      updatedData.imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
+      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
 
     // Upload new featured images if provided
@@ -63,37 +81,104 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         return `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
       });
 
-      updatedData.featuredImages = await Promise.all(uploadPromises);
+      featuredImages = await Promise.all(uploadPromises);
     }
 
-    // Update document
-    await adminDb.collection('adventures').doc(params.id).update(updatedData);
+    // Get admin's adventure document
+    const adminAdventureDocRef = adminDb.collection('adminAdventures').doc(adminId);
+    const adminAdventureDoc = await adminAdventureDocRef.get();
+
+    if (!adminAdventureDoc.exists) {
+      return NextResponse.json(
+        { error: 'Admin adventure document not found' },
+        { status: 404 }
+      );
+    }
+
+    const data = adminAdventureDoc.data();
+    const adventures = data?.adventures || [];
+
+    // Find and update the adventure in the array
+    const adventureIndex = adventures.findIndex((a: Adventure) => a.id === adventureId);
+
+    if (adventureIndex === -1) {
+      return NextResponse.json(
+        { error: 'Adventure not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update the adventure
+    adventures[adventureIndex] = {
+      ...adventures[adventureIndex],
+      title: adventureData.title,
+      shortDescription: adventureData.shortDescription,
+      longDescription: adventureData.longDescription,
+      imageUrl,
+      latitude: adventureData.latitude,
+      longitude: adventureData.longitude,
+      distance: adventureData.distance || 30,
+      experience: adventureData.experience,
+      featured: adventureData.featured || false,
+      featuredImages,
+      timeInSeconds: adventureData.timeInSeconds,
+      hoursToCompleteAgain: adventureData.hoursToCompleteAgain || 0,
+      category: adventureData.category,
+    };
+
+    // Update the document
+    await adminAdventureDocRef.update({
+      adventures,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     return NextResponse.json({
       message: 'Adventure updated successfully',
-      id: params.id,
+      adventure: adventures[adventureIndex],
     });
   } catch (error: any) {
     console.error('Update adventure error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to update adventure' },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await adminDb.collection('adventures').doc(params.id).delete();
+    const adventureId = params.id;
 
-    return NextResponse.json({
-      message: 'Adventure deleted successfully',
-    });
+    // Find the admin document containing this adventure
+    const adminAdventuresSnapshot = await adminDb.collection('adminAdventures').get();
+
+    for (const doc of adminAdventuresSnapshot.docs) {
+      const data = doc.data();
+      const adventures = data.adventures || [];
+      const adventureToDelete = adventures.find((a: Adventure) => a.id === adventureId);
+
+      if (adventureToDelete) {
+        // Remove the adventure from the array
+        await doc.ref.update({
+          adventures: admin.firestore.FieldValue.arrayRemove(adventureToDelete),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return NextResponse.json({
+          message: 'Adventure deleted successfully',
+        });
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Adventure not found' },
+      { status: 404 }
+    );
   } catch (error: any) {
     console.error('Delete adventure error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to delete adventure' },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
