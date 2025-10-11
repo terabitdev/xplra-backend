@@ -1,21 +1,29 @@
 import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Quest } from '@/lib/domain/models/quest';
+import admin from '@/lib/firebase-admin';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const docRef = adminDb.collection('quests').doc(params.id);
-    const doc = await docRef.get();
+    const questId = params.id;
 
-    if (!doc.exists) {
-      return NextResponse.json(
-        { error: 'Quest not found' },
-        { status: 404 }
-      );
+    // Search through all adminQuests documents to find the quest
+    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
+
+    for (const doc of adminQuestsSnapshot.docs) {
+      const data = doc.data();
+      const quests = data.quests || [];
+      const quest = quests.find((q: Quest) => q.id === questId);
+
+      if (quest) {
+        return NextResponse.json(quest);
+      }
     }
 
-    const quest: Quest = { id: doc.id, ...doc.data() } as Quest;
-    return NextResponse.json(quest);
+    return NextResponse.json(
+      { error: 'Quest not found' },
+      { status: 404 }
+    );
   } catch (error: any) {
     console.error('Get quest error:', error);
     return NextResponse.json(
@@ -30,8 +38,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const formData = await req.formData();
     const questData = JSON.parse(formData.get('quest') as string);
     const imageFile = formData.get('image') as File | null;
+    const questId = params.id;
+    const adminId = questData.userId;
 
-    const updatedData: Partial<Quest> = { ...questData };
+    if (!adminId) {
+      return NextResponse.json(
+        { error: 'Admin ID is required' },
+        { status: 400 }
+      );
+    }
+
+    let imageUrl = questData.imageUrl || '';
 
     // Upload new image if provided
     if (imageFile) {
@@ -44,15 +61,60 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       await file.makePublic();
-      updatedData.imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
+      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
 
-    // Update document
-    await adminDb.collection('quests').doc(params.id).update(updatedData);
+    // Get admin's quest document
+    const adminQuestDocRef = adminDb.collection('adminQuests').doc(adminId);
+    const adminQuestDoc = await adminQuestDocRef.get();
+
+    if (!adminQuestDoc.exists) {
+      return NextResponse.json(
+        { error: 'Admin quest document not found' },
+        { status: 404 }
+      );
+    }
+
+    const data = adminQuestDoc.data();
+    const quests = data?.quests || [];
+
+    // Find and update the quest in the array
+    const questIndex = quests.findIndex((q: Quest) => q.id === questId);
+
+    if (questIndex === -1) {
+      return NextResponse.json(
+        { error: 'Quest not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update the quest
+    quests[questIndex] = {
+      ...quests[questIndex],
+      title: questData.title,
+      shortDescription: questData.shortDescription,
+      longDescription: questData.longDescription,
+      experience: questData.experience,
+      imageUrl,
+      stepCode: questData.stepCode,
+      stepLatitude: questData.stepLatitude,
+      stepLongitude: questData.stepLongitude,
+      stepType: questData.stepType,
+      timeInSeconds: questData.timeInSeconds,
+      distance: questData.distance || 0,
+      category: questData.category,
+      hoursToCompleteAgain: questData.hoursToCompleteAgain || 0,
+    };
+
+    // Update the document
+    await adminQuestDocRef.update({
+      quests,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     return NextResponse.json({
       message: 'Quest updated successfully',
-      id: params.id,
+      quest: quests[questIndex],
     });
   } catch (error: any) {
     console.error('Update quest error:', error);
@@ -65,11 +127,33 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await adminDb.collection('quests').doc(params.id).delete();
+    const questId = params.id;
 
-    return NextResponse.json({
-      message: 'Quest deleted successfully',
-    });
+    // Find the admin document containing this quest
+    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
+
+    for (const doc of adminQuestsSnapshot.docs) {
+      const data = doc.data();
+      const quests = data.quests || [];
+      const questToDelete = quests.find((q: Quest) => q.id === questId);
+
+      if (questToDelete) {
+        // Remove the quest from the array
+        await doc.ref.update({
+          quests: admin.firestore.FieldValue.arrayRemove(questToDelete),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return NextResponse.json({
+          message: 'Quest deleted successfully',
+        });
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Quest not found' },
+      { status: 404 }
+    );
   } catch (error: any) {
     console.error('Delete quest error:', error);
     return NextResponse.json(

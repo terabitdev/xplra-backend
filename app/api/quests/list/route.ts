@@ -4,19 +4,23 @@ import { Quest } from '@/lib/domain/models/quest';
 
 export async function GET() {
   try {
-    const questsRef = adminDb.collection('quests');
-    const snapshot = await questsRef.get();
+    // Get all admin quest documents
+    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
 
-    const quests: Quest[] = [];
-    snapshot.forEach((doc) => {
+    const allQuests: Quest[] = [];
+
+    // Iterate through each admin document and collect all quests
+    adminQuestsSnapshot.forEach((doc) => {
       const data = doc.data();
-      // Filter out quests with a userId property (only public quests)
-      if (!data.userId || data.userId === '') {
-        quests.push({ id: doc.id, ...data } as Quest);
-      }
+      const quests = data.quests || [];
+
+      // Add all quests from this admin
+      quests.forEach((quest: Quest) => {
+        allQuests.push(quest);
+      });
     });
 
-    return NextResponse.json(quests);
+    return NextResponse.json(allQuests);
   } catch (error: any) {
     console.error('Get quests error:', error);
     return NextResponse.json(

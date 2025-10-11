@@ -16,13 +16,13 @@ const MetricCard = ({ title, value, icon: Icon, loading }: MetricCardProps) => {
     <div className="bg-white flex flex-col gap-8  p-4 rounded-lg shadow-sm">
       <div className="flex justify-between">
         <div className="flex items-center">
-          <div className="bg-[#1E3A5F] p-2 rounded-md mr-3">
+          <div className="bg-blue-600 p-2 rounded-md mr-3">
             <Icon className="w-5 h-5 text-white" />
           </div>
           <span className="text-black">{title}</span>
         </div>
         <button
-          className="text-black hover:text-[#1E3A5F] transition-colors"
+          className="text-black hover:text-blue-600 transition-colors"
         >
           <Info size={20} />
         </button>

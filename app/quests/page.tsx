@@ -6,14 +6,20 @@ import DashboardLayout from '../components/DashboardLayout';
 import { Category } from '@/lib/domain/models/category';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchQuests, deleteQuest } from '../store/slices/questsSlice';
+import QuestFormModal from '../components/modals/QuestFormModal';
+import { Quest } from '@/lib/domain/models/quest';
 
 export default function QuestsPage() {
     const [categories, setCategories] = useState<Category[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+    const [adminId, setAdminId] = useState<string>('');
     const router = useRouter();
     const dispatch = useAppDispatch();
 
     // Get quests from Redux store
     const { quests, loading, error } = useAppSelector((state) => state.quests);
+    const { uid } = useAppSelector((state) => state.user);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -24,6 +30,13 @@ export default function QuestsPage() {
 
         fetchCategories();
     }, []);
+
+    // Set admin ID from user uid
+    useEffect(() => {
+        if (uid) {
+            setAdminId(uid);
+        }
+    }, [uid]);
 
     // Fetch quests using Redux
     useEffect(() => {
@@ -37,18 +50,53 @@ export default function QuestsPage() {
         }
     };
 
-    // Redirect to edit page
-    const handleEditQuest = (id: string) => {
-        router.push(`/quests/${id}`);
+    // Open edit modal
+    const handleEditQuest = (quest: Quest) => {
+        setSelectedQuest(quest);
+        setIsModalOpen(true);
     };
 
+    // Open create modal
     const handleCreateQuest = () => {
-        router.push('/quests/create');
+        setSelectedQuest(null);
+        setIsModalOpen(true);
+    };
+
+    // Handle form submission
+    const handleSubmitQuest = async (quest: Partial<Quest>, imageFile: File | null) => {
+        try {
+            const formData = new FormData();
+            formData.append('quest', JSON.stringify(quest));
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            const url = selectedQuest ? `/api/quests/${selectedQuest.id}` : '/api/quests/create';
+            const method = selectedQuest ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                body: formData,
+            });
+
+            if (res.ok) {
+                // Refresh quests list
+                dispatch(fetchQuests());
+                setIsModalOpen(false);
+                setSelectedQuest(null);
+            } else {
+                const errorData = await res.json();
+                alert(`Error: ${errorData.error || 'Failed to save quest'}`);
+            }
+        } catch (error) {
+            console.error('Error submitting quest:', error);
+            alert('An error occurred while saving the quest');
+        }
     };
 
     return (
         <DashboardLayout>
-            <div className="w-full">
+            <div className="w-full mt-8">
                 <h1 className="text-4xl font-bold">Quests</h1>
 
                 <button
@@ -99,7 +147,7 @@ export default function QuestsPage() {
                                         <td className="px-6 py-4 whitespace-nowrap align-middle">
                                             <button
                                                 className="bg-bootstrap-secondary hover:bg-bootstrap-secondary-hover text-white text-sm py-1 px-3 rounded mx-2"
-                                                onClick={() => handleEditQuest(quest.id)}
+                                                onClick={() => handleEditQuest(quest)}
                                             >
                                                 Edit
                                             </button>
@@ -117,6 +165,19 @@ export default function QuestsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Quest Form Modal */}
+            <QuestFormModal
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedQuest(null);
+                }}
+                onSubmit={handleSubmitQuest}
+                quest={selectedQuest}
+                categories={categories}
+                adminId={adminId}
+            />
         </DashboardLayout>
     );
 }

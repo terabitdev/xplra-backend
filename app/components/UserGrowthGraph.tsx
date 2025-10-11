@@ -83,7 +83,7 @@ export default function UserGrowthGraph() {
                     }}
                     className={`block w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
                       year === selectedYear
-                        ? 'bg-gray-100 text-[#1E3A5F] font-semibold'
+                        ? 'bg-gray-100 text-blue-600 font-semibold'
                         : 'text-black'
                     }`}
                   >
@@ -115,7 +115,7 @@ export default function UserGrowthGraph() {
                     }}
                     className={`block w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
                       month === selectedMonth
-                        ? 'bg-gray-100 text-[#1E3A5F] font-semibold'
+                        ? 'bg-gray-100 text-blue-600 font-semibold'
                         : 'text-black'
                     }`}
                   >
@@ -147,7 +147,7 @@ export default function UserGrowthGraph() {
                     }}
                     className={`block w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
                       day === selectedDay
-                        ? 'bg-gray-100 text-[#1E3A5F] font-semibold'
+                        ? 'bg-gray-100 text-blue-600 font-semibold'
                         : 'text-black'
                     }`}
                   >
@@ -173,18 +173,18 @@ export default function UserGrowthGraph() {
             >
               <defs>
                 <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1E3A5F" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#1E3A5F" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0.05} />
                 </linearGradient>
 
                 <linearGradient id="userBarGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1E3A5F" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#1E3A5F" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
                 </linearGradient>
 
                 <radialGradient id="userDotGradient" cx="50%" cy="30%" r="70%">
-                  <stop offset="0%" stopColor="#1E3A5F" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#1E3A5F" stopOpacity={0.6} />
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6} />
                 </radialGradient>
               </defs>
 
@@ -209,7 +209,7 @@ export default function UserGrowthGraph() {
               <Area
                 type="monotone"
                 dataKey="percentage"
-                stroke="#1E3A5F"
+                stroke="#2563eb"
                 strokeWidth={3}
                 fill="url(#areaGradient)"
                 dot={(props) => {
@@ -236,7 +236,7 @@ export default function UserGrowthGraph() {
                           cy={props.cy}
                           r={12}
                           fill="#ffffff"
-                          stroke="#1E3A5F"
+                          stroke="#2563eb"
                           strokeWidth={3}
                         />
                       </g>
