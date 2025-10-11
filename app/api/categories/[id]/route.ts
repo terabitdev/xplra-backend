@@ -1,69 +1,153 @@
-import { ICategoryService } from '@/lib/domain/services/ICategoryService';
-import { FirebaseICategoryService } from '@/lib/infrastructure/services/FirebaseCategoryService';
 import { NextResponse } from 'next/server';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { Category } from '@/lib/domain/models/category';
+import admin from '@/lib/firebase-admin';
 
-const categoriesService: ICategoryService = new FirebaseICategoryService();
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const categoryId = params.id;
 
-export async function GET(req: Request) {
-    const id = req.url.split('/').pop();
+    // Search through all adminCategories documents to find the category
+    const adminCategoriesSnapshot = await adminDb.collection('adminCategories').get();
 
-    if (!id) {
-        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    for (const doc of adminCategoriesSnapshot.docs) {
+      const data = doc.data();
+      const categories = data.categories || [];
+      const category = categories.find((c: Category) => c.id === categoryId);
+
+      if (category) {
+        return NextResponse.json(category);
+      }
     }
 
-    try {
-        const categories = await categoriesService.getById(id);
-        if (!categories) {
-            return NextResponse.json({ error: 'Category not found' }, { status: 404 });
-        }
-        return NextResponse.json(categories);
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-        return NextResponse.json({ error: 'Unknown error' }, { status: 500 });
-    }
+    return NextResponse.json(
+      { error: 'Category not found' },
+      { status: 404 }
+    );
+  } catch (error: any) {
+    console.error('Get category error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch category' },
+      { status: 500 }
+    );
+  }
 }
 
-export async function PUT(req: Request) {
-    const id = req.url.split('/').pop();
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const formData = await req.formData();
+    const categoryData = JSON.parse(formData.get('category') as string);
+    const imageFile = formData.get('image') as File | null;
+    const categoryId = params.id;
+    const adminId = categoryData.userId;
 
-    if (!id) {
-        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    if (!adminId) {
+      return NextResponse.json(
+        { error: 'Admin ID is required' },
+        { status: 400 }
+      );
     }
 
-    try {
-        const formData = await req.formData();
-        const categoriesData = JSON.parse(formData.get('category') as string);
-        const imageFile = formData.get('image') as File | null;
-        const updatedCategory = await categoriesService.updateCategory(id, categoriesData, imageFile || undefined);
-        return NextResponse.json(updatedCategory);
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        return NextResponse.json({ error: 'Unknown error' }, { status: 400 });
+    let imageUrl = categoryData.imageUrl || '';
+
+    // Upload new image if provided
+    if (imageFile) {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const fileName = `categories/${Date.now()}_${imageFile.name}`;
+      const file = adminStorage.bucket().file(fileName);
+
+      await file.save(buffer, {
+        metadata: { contentType: imageFile.type },
+      });
+
+      await file.makePublic();
+      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
+
+    // Get admin's category document
+    const adminCategoryDocRef = adminDb.collection('adminCategories').doc(adminId);
+    const adminCategoryDoc = await adminCategoryDocRef.get();
+
+    if (!adminCategoryDoc.exists) {
+      return NextResponse.json(
+        { error: 'Admin category document not found' },
+        { status: 404 }
+      );
+    }
+
+    const data = adminCategoryDoc.data();
+    const categories = data?.categories || [];
+
+    // Find and update the category in the array
+    const categoryIndex = categories.findIndex((c: Category) => c.id === categoryId);
+
+    if (categoryIndex === -1) {
+      return NextResponse.json(
+        { error: 'Category not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update the category
+    categories[categoryIndex] = {
+      ...categories[categoryIndex],
+      name: categoryData.name,
+      imageUrl,
+    };
+
+    // Update the document
+    await adminCategoryDocRef.update({
+      categories,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return NextResponse.json({
+      message: 'Category updated successfully',
+      category: categories[categoryIndex],
+    });
+  } catch (error: any) {
+    console.error('Update category error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update category' },
+      { status: 500 }
+    );
+  }
 }
 
-export async function PATCH(req: Request) {
-    const id = req.url.split('/').pop();
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const categoryId = params.id;
 
-    if (!id) {
-        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    // Find the admin document containing this category
+    const adminCategoriesSnapshot = await adminDb.collection('adminCategories').get();
+
+    for (const doc of adminCategoriesSnapshot.docs) {
+      const data = doc.data();
+      const categories = data.categories || [];
+      const categoryToDelete = categories.find((c: Category) => c.id === categoryId);
+
+      if (categoryToDelete) {
+        // Remove the category from the array
+        await doc.ref.update({
+          categories: admin.firestore.FieldValue.arrayRemove(categoryToDelete),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return NextResponse.json({
+          message: 'Category deleted successfully',
+        });
+      }
     }
 
-    try {
-        const formData = await req.formData();
-        const categoriesData = JSON.parse(formData.get('category') as string);
-        const imageFile = formData.get('image') as File | null;
-        const updatedCategory = await categoriesService.updateCategory(id, categoriesData, imageFile || undefined);
-        
-        return NextResponse.json(updatedCategory);
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        return NextResponse.json({ error: 'Unknown error' }, { status: 400 });
-    }
+    return NextResponse.json(
+      { error: 'Category not found' },
+      { status: 404 }
+    );
+  } catch (error: any) {
+    console.error('Delete category error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete category' },
+      { status: 500 }
+    );
+  }
 }

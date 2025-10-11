@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import adventuresReducer from './slices/adventuresSlice';
 import questsReducer from './slices/questsSlice';
 import userReducer from './slices/userSlice';
+import categoriesReducer from './slices/categoriesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     adventures: adventuresReducer,
     quests: questsReducer,
     user: userReducer,
+    categories: categoriesReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
