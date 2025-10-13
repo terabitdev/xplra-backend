@@ -7,11 +7,13 @@ import { UserAvatar, ChevronDown, Logout, Edit } from "@carbon/icons-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchUserProfile, updateUserProfile, setEditModalOpen } from "../store/slices/userSlice";
 import SearchBar from "./SearchBar";
+import { useSearch } from "../contexts/SearchContext";
 
 function TopBar() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { email, displayName, photoURL, loading, isEditModalOpen, isSaving } = useAppSelector((state) => state.user);
+  const { setSearchQuery } = useSearch();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -105,8 +107,7 @@ function TopBar() {
   };
 
   const handleSearch = (query: string) => {
-    console.log("Search query:", query);
-    // Add your search logic here
+    setSearchQuery(query);
   };
 
   return (

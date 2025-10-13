@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Achievement } from '@/lib/domain/models/achievement';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchAchievements, deleteAchievement } from '../store/slices/achievementsSlice';
 import AchievementFormModal from '../components/modals/AchievementFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
+import { useSearch } from '../contexts/SearchContext';
 
 export default function AchievementsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,10 +17,24 @@ export default function AchievementsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [adminId, setAdminId] = useState<string>('');
     const dispatch = useAppDispatch();
+    const { searchQuery } = useSearch();
 
     // Get achievements from Redux store
     const { achievements, loading, error } = useAppSelector((state) => state.achievements);
     const { uid } = useAppSelector((state) => state.user);
+
+    // Filter achievements based on search query
+    const filteredAchievements = useMemo(() => {
+        if (!searchQuery.trim()) return achievements;
+
+        const query = searchQuery.toLowerCase();
+        return achievements.filter(achievement =>
+            achievement.title.toLowerCase().includes(query) ||
+            achievement.description.toLowerCase().includes(query) ||
+            achievement.trigger.toLowerCase().includes(query) ||
+            achievement.triggerValue.toLowerCase().includes(query)
+        );
+    }, [achievements, searchQuery]);
 
     // Set admin ID from user uid
     useEffect(() => {
@@ -143,6 +158,15 @@ export default function AchievementsPage() {
                     </button>
                 </div>
 
+                {/* Search Results Count */}
+                {searchQuery && (
+                    <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                            <span className="font-semibold">{filteredAchievements.length}</span> {filteredAchievements.length === 1 ? 'achievement' : 'achievements'} found for "{searchQuery}"
+                        </p>
+                    </div>
+                )}
+
                 {/* Loading State */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -174,20 +198,24 @@ export default function AchievementsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {achievements.length === 0 ? (
+                                    {filteredAchievements.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="px-6 py-12 text-center">
                                                 <div className="flex flex-col items-center justify-center">
                                                     <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                                                     </svg>
-                                                    <p className="text-gray-600 text-lg font-medium">No achievements found</p>
-                                                    <p className="text-gray-400 text-sm mt-1">Create your first achievement to get started</p>
+                                                    <p className="text-gray-600 text-lg font-medium">
+                                                        {searchQuery ? 'No achievements match your search' : 'No achievements found'}
+                                                    </p>
+                                                    <p className="text-gray-400 text-sm mt-1">
+                                                        {searchQuery ? 'Try adjusting your search terms' : 'Create your first achievement to get started'}
+                                                    </p>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : (
-                                        achievements.map((achievement) => (
+                                        filteredAchievements.map((achievement) => (
                                             <tr key={achievement.id} className="hover:bg-blue-50 transition-colors duration-150">
                                                 <td className="px-3 py-3">
                                                     <div className="flex items-center justify-center">

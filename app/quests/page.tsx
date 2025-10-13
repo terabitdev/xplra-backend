@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { Category } from '@/lib/domain/models/category';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -9,6 +8,7 @@ import { fetchQuests, deleteQuest } from '../store/slices/questsSlice';
 import QuestFormModal from '../components/modals/QuestFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import { Quest } from '@/lib/domain/models/quest';
+import { useSearch } from '../contexts/SearchContext';
 
 export default function QuestsPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -18,12 +18,25 @@ export default function QuestsPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [questToDelete, setQuestToDelete] = useState<Quest | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const router = useRouter();
     const dispatch = useAppDispatch();
+    const { searchQuery } = useSearch();
 
     // Get quests from Redux store
     const { quests, loading, error } = useAppSelector((state) => state.quests);
     const { uid } = useAppSelector((state) => state.user);
+
+    // Filter quests based on search query
+    const filteredQuests = useMemo(() => {
+        if (!searchQuery.trim()) return quests;
+
+        const query = searchQuery.toLowerCase();
+        return quests.filter(quest =>
+            quest.title.toLowerCase().includes(query) ||
+            quest.shortDescription.toLowerCase().includes(query) ||
+            quest.stepType.toLowerCase().includes(query) ||
+            categories?.find((cat: Category) => cat.id === quest.category)?.name.toLowerCase().includes(query)
+        );
+    }, [quests, searchQuery, categories]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -145,6 +158,15 @@ export default function QuestsPage() {
                     </button>
                 </div>
 
+                {/* Search Results Count */}
+                {searchQuery && (
+                    <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                            <span className="font-semibold">{filteredQuests.length}</span> {filteredQuests.length === 1 ? 'quest' : 'quests'} found for "{searchQuery}"
+                        </p>
+                    </div>
+                )}
+
                 {/* Loading State */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -180,20 +202,24 @@ export default function QuestsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {quests.length === 0 ? (
+                                    {filteredQuests.length === 0 ? (
                                         <tr>
                                             <td colSpan={9} className="px-6 py-12 text-center">
                                                 <div className="flex flex-col items-center justify-center">
                                                     <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
-                                                    <p className="text-gray-600 text-lg font-medium">No quests found</p>
-                                                    <p className="text-gray-400 text-sm mt-1">Create your first quest to get started</p>
+                                                    <p className="text-gray-600 text-lg font-medium">
+                                                        {searchQuery ? 'No quests match your search' : 'No quests found'}
+                                                    </p>
+                                                    <p className="text-gray-400 text-sm mt-1">
+                                                        {searchQuery ? 'Try adjusting your search terms' : 'Create your first quest to get started'}
+                                                    </p>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : (
-                                        quests.map((quest) => (
+                                        filteredQuests.map((quest) => (
                                             <tr key={quest.id} className="hover:bg-blue-50 transition-colors duration-150">
                                                 <td className="px-3 py-3">
                                                     <div className="flex items-center gap-2 max-w-[200px]">

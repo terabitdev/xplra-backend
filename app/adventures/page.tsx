@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Adventure } from '@/lib/domain/models/adventures';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
 import { Category } from '@/lib/domain/models/category';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -10,6 +9,7 @@ import { fetchAdventures, deleteAdventure } from '../store/slices/adventuresSlic
 import AdventureFormModal from '../components/modals/AdventureFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Image from 'next/image';
+import { useSearch } from '../contexts/SearchContext';
 
 export default function AdventuresPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -19,12 +19,26 @@ export default function AdventuresPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [adventureToDelete, setAdventureToDelete] = useState<Adventure | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const router = useRouter();
     const dispatch = useAppDispatch();
+    const { searchQuery } = useSearch();
 
     // Get adventures from Redux store
     const { adventures, loading, error } = useAppSelector((state) => state.adventures);
     const { uid } = useAppSelector((state) => state.user);
+
+    // Filter adventures based on search query
+    const filteredAdventures = useMemo(() => {
+        if (!searchQuery.trim()) return adventures;
+
+        const query = searchQuery.toLowerCase();
+        return adventures.filter(adventure =>
+            adventure.title.toLowerCase().includes(query) ||
+            adventure.shortDescription.toLowerCase().includes(query) ||
+            adventure.longDescription.toLowerCase().includes(query) ||
+            categories?.find((cat: Category) => cat.id === adventure.category)?.name.toLowerCase().includes(query) ||
+            (adventure.featured && 'featured'.includes(query))
+        );
+    }, [adventures, searchQuery, categories]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -151,6 +165,15 @@ export default function AdventuresPage() {
                     </button>
                 </div>
 
+                {/* Search Results Count */}
+                {searchQuery && (
+                    <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                            <span className="font-semibold">{filteredAdventures.length}</span> {filteredAdventures.length === 1 ? 'adventure' : 'adventures'} found for "{searchQuery}"
+                        </p>
+                    </div>
+                )}
+
                 {/* Loading State */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -186,20 +209,24 @@ export default function AdventuresPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {adventures.length === 0 ? (
+                                    {filteredAdventures.length === 0 ? (
                                         <tr>
                                             <td colSpan={9} className="px-6 py-12 text-center">
                                                 <div className="flex flex-col items-center justify-center">
                                                     <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
-                                                    <p className="text-gray-600 text-lg font-medium">No adventures found</p>
-                                                    <p className="text-gray-400 text-sm mt-1">Create your first adventure to get started</p>
+                                                    <p className="text-gray-600 text-lg font-medium">
+                                                        {searchQuery ? 'No adventures match your search' : 'No adventures found'}
+                                                    </p>
+                                                    <p className="text-gray-400 text-sm mt-1">
+                                                        {searchQuery ? 'Try adjusting your search terms' : 'Create your first adventure to get started'}
+                                                    </p>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : (
-                                        adventures.map((adventure) => (
+                                        filteredAdventures.map((adventure) => (
                                             <tr key={adventure.id} className="hover:bg-blue-50 transition-colors duration-150">
                                                 <td className="px-3 py-3">
                                                     <div className="flex items-center gap-2 max-w-[200px]">
