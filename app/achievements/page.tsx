@@ -8,6 +8,7 @@ import { fetchAchievements, deleteAchievement } from '../store/slices/achievemen
 import AchievementFormModal from '../components/modals/AchievementFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import { useSearch } from '../contexts/SearchContext';
+import AchievementsFilter from '../components/filters/AchievementsFilter';
 
 export default function AchievementsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,23 +19,34 @@ export default function AchievementsPage() {
     const [adminId, setAdminId] = useState<string>('');
     const dispatch = useAppDispatch();
     const { searchQuery } = useSearch();
+    const { selectedTriggerType } = useAppSelector((state) => state.filter);
 
     // Get achievements from Redux store
     const { achievements, loading, error } = useAppSelector((state) => state.achievements);
     const { uid } = useAppSelector((state) => state.user);
 
-    // Filter achievements based on search query
+    // Filter achievements based on trigger type filter and search query
     const filteredAchievements = useMemo(() => {
-        if (!searchQuery.trim()) return achievements;
+        let filtered = achievements;
 
-        const query = searchQuery.toLowerCase();
-        return achievements.filter(achievement =>
-            achievement.title.toLowerCase().includes(query) ||
-            achievement.description.toLowerCase().includes(query) ||
-            achievement.trigger.toLowerCase().includes(query) ||
-            achievement.triggerValue.toLowerCase().includes(query)
-        );
-    }, [achievements, searchQuery]);
+        // Apply trigger type filter
+        if (selectedTriggerType) {
+            filtered = filtered.filter(achievement => achievement.trigger === selectedTriggerType);
+        }
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(achievement =>
+                achievement.title.toLowerCase().includes(query) ||
+                achievement.description.toLowerCase().includes(query) ||
+                achievement.trigger.toLowerCase().includes(query) ||
+                achievement.triggerValue.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [achievements, searchQuery, selectedTriggerType]);
 
     // Set admin ID from user uid
     useEffect(() => {
@@ -158,11 +170,16 @@ export default function AchievementsPage() {
                     </button>
                 </div>
 
-                {/* Search Results Count */}
-                {searchQuery && (
+                {/* Trigger Type Filter */}
+                <AchievementsFilter />
+
+                {/* Search/Filter Results Count */}
+                {(searchQuery || selectedTriggerType) && (
                     <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
-                            <span className="font-semibold">{filteredAchievements.length}</span> {filteredAchievements.length === 1 ? 'achievement' : 'achievements'} found for "{searchQuery}"
+                            <span className="font-semibold">{filteredAchievements.length}</span> {filteredAchievements.length === 1 ? 'achievement' : 'achievements'} found
+                            {searchQuery && ` for "${searchQuery}"`}
+                            {selectedTriggerType && ` with trigger type "${selectedTriggerType}"`}
                         </p>
                     </div>
                 )}

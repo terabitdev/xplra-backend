@@ -9,6 +9,7 @@ import QuestFormModal from '../components/modals/QuestFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import { Quest } from '@/lib/domain/models/quest';
 import { useSearch } from '../contexts/SearchContext';
+import QuestsFilter from '../components/filters/QuestsFilter';
 
 export default function QuestsPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -24,19 +25,30 @@ export default function QuestsPage() {
     // Get quests from Redux store
     const { quests, loading, error } = useAppSelector((state) => state.quests);
     const { uid } = useAppSelector((state) => state.user);
+    const { selectedCategory } = useAppSelector((state) => state.filter);
 
-    // Filter quests based on search query
+    // Filter quests based on search query and category filter
     const filteredQuests = useMemo(() => {
-        if (!searchQuery.trim()) return quests;
+        let filtered = quests;
 
-        const query = searchQuery.toLowerCase();
-        return quests.filter(quest =>
-            quest.title.toLowerCase().includes(query) ||
-            quest.shortDescription.toLowerCase().includes(query) ||
-            quest.stepType.toLowerCase().includes(query) ||
-            categories?.find((cat: Category) => cat.id === quest.category)?.name.toLowerCase().includes(query)
-        );
-    }, [quests, searchQuery, categories]);
+        // Apply category filter first
+        if (selectedCategory) {
+            filtered = filtered.filter(quest => quest.category === selectedCategory);
+        }
+
+        // Then apply search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(quest =>
+                quest.title.toLowerCase().includes(query) ||
+                quest.shortDescription.toLowerCase().includes(query) ||
+                quest.stepType.toLowerCase().includes(query) ||
+                categories?.find((cat: Category) => cat.id === quest.category)?.name.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [quests, searchQuery, categories, selectedCategory]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -158,11 +170,21 @@ export default function QuestsPage() {
                     </button>
                 </div>
 
+                {/* Filters */}
+                <QuestsFilter categories={categories} />
+
                 {/* Search Results Count */}
-                {searchQuery && (
+                {(searchQuery || selectedCategory) && (
                     <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
-                            <span className="font-semibold">{filteredQuests.length}</span> {filteredQuests.length === 1 ? 'quest' : 'quests'} found for "{searchQuery}"
+                            <span className="font-semibold">{filteredQuests.length}</span> {filteredQuests.length === 1 ? 'quest' : 'quests'} found
+                            {searchQuery && ` for "${searchQuery}"`}
+                            {selectedCategory && searchQuery && ' in '}
+                            {selectedCategory && (
+                                <span className="font-semibold">
+                                    {categories?.find((cat: Category) => cat.id === selectedCategory)?.name}
+                                </span>
+                            )}
                         </p>
                     </div>
                 )}

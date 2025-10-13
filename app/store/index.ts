@@ -5,6 +5,7 @@ import questsReducer from './slices/questsSlice';
 import userReducer from './slices/userSlice';
 import categoriesReducer from './slices/categoriesSlice';
 import achievementsReducer from './slices/achievementsSlice';
+import filterReducer from './slices/filterSlice';
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     user: userReducer,
     categories: categoriesReducer,
     achievements: achievementsReducer,
+    filter: filterReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

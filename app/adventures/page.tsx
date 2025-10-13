@@ -10,6 +10,7 @@ import AdventureFormModal from '../components/modals/AdventureFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
+import AdventuresListFilter from '../components/filters/AdventuresListFilter';
 
 export default function AdventuresPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -21,24 +22,35 @@ export default function AdventuresPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const dispatch = useAppDispatch();
     const { searchQuery } = useSearch();
+    const { selectedCategory } = useAppSelector((state) => state.filter);
 
     // Get adventures from Redux store
     const { adventures, loading, error } = useAppSelector((state) => state.adventures);
     const { uid } = useAppSelector((state) => state.user);
 
-    // Filter adventures based on search query
+    // Filter adventures based on category filter and search query
     const filteredAdventures = useMemo(() => {
-        if (!searchQuery.trim()) return adventures;
+        let filtered = adventures;
 
-        const query = searchQuery.toLowerCase();
-        return adventures.filter(adventure =>
-            adventure.title.toLowerCase().includes(query) ||
-            adventure.shortDescription.toLowerCase().includes(query) ||
-            adventure.longDescription.toLowerCase().includes(query) ||
-            categories?.find((cat: Category) => cat.id === adventure.category)?.name.toLowerCase().includes(query) ||
-            (adventure.featured && 'featured'.includes(query))
-        );
-    }, [adventures, searchQuery, categories]);
+        // Apply category filter
+        if (selectedCategory) {
+            filtered = filtered.filter(adventure => adventure.category === selectedCategory);
+        }
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(adventure =>
+                adventure.title.toLowerCase().includes(query) ||
+                adventure.shortDescription.toLowerCase().includes(query) ||
+                adventure.longDescription.toLowerCase().includes(query) ||
+                categories?.find((cat: Category) => cat.id === adventure.category)?.name.toLowerCase().includes(query) ||
+                (adventure.featured && 'featured'.includes(query))
+            );
+        }
+
+        return filtered;
+    }, [adventures, searchQuery, categories, selectedCategory]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -165,11 +177,16 @@ export default function AdventuresPage() {
                     </button>
                 </div>
 
-                {/* Search Results Count */}
-                {searchQuery && (
+                {/* Category Filter */}
+                <AdventuresListFilter categories={categories} />
+
+                {/* Search/Filter Results Count */}
+                {(searchQuery || selectedCategory) && (
                     <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
-                            <span className="font-semibold">{filteredAdventures.length}</span> {filteredAdventures.length === 1 ? 'adventure' : 'adventures'} found for "{searchQuery}"
+                            <span className="font-semibold">{filteredAdventures.length}</span> {filteredAdventures.length === 1 ? 'adventure' : 'adventures'} found
+                            {searchQuery && ` for "${searchQuery}"`}
+                            {selectedCategory && ` in ${categories?.find((cat: Category) => cat.id === selectedCategory)?.name || 'selected category'}`}
                         </p>
                     </div>
                 )}
