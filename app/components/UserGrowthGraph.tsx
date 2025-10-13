@@ -1,14 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AreaChart,
   Area,
   XAxis,
   YAxis,
   ResponsiveContainer,
+  Tooltip,
 } from 'recharts';
 import { ChevronDown } from 'lucide-react';
+
+interface DailyGrowth {
+  day: number;
+  count: number;
+  percentage: number;
+  isSelected: boolean;
+}
+
+interface GrowthData {
+  totalUsers: number;
+  dailyGrowth: DailyGrowth[];
+  selectedDate: string;
+}
 
 export default function UserGrowthGraph() {
   const months = [
@@ -22,21 +36,50 @@ export default function UserGrowthGraph() {
 
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
-  const [selectedDay, setSelectedDay] = useState(getCurrentDay());
+  const [selectedDay, setSelectedDay] = useState<number | null>(getCurrentDay());
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [chartData, setChartData] = useState<DailyGrowth[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
 
-  // Sample chart data - replace with actual data
-  const chartData = [
-    { month: 'Jan', percentage: 20, value: 5 },
-    { month: 'Feb', percentage: 40, value: 10 },
-    { month: 'Mar', percentage: 60, value: 15 },
-    { month: 'Apr', percentage: 45, value: 12 },
-    { month: 'May', percentage: 80, value: 20, isSelected: true },
-    { month: 'Jun', percentage: 55, value: 14 },
-  ];
+  // Fetch user growth data
+  useEffect(() => {
+    const fetchGrowthData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          year: selectedYear.toString(),
+          month: selectedMonth,
+          ...(selectedDay && { day: selectedDay.toString() }),
+        });
+
+        const response = await fetch(`/api/users/growth?${params}`);
+        const data: GrowthData = await response.json();
+
+        if (response.ok) {
+          // Update chart data with isSelected for the current day
+          const updatedData = data.dailyGrowth.map(d => ({
+            ...d,
+            isSelected: selectedDay ? d.day === selectedDay : false,
+          }));
+          setChartData(updatedData);
+          setTotalUsers(data.totalUsers);
+        } else {
+          console.error('Failed to fetch growth data:', data);
+          setChartData([]);
+        }
+      } catch (error) {
+        console.error('Error fetching growth data:', error);
+        setChartData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGrowthData();
+  }, [selectedMonth, selectedYear, selectedDay]);
 
   const getAvailableYears = () => {
     const currentYear = getCurrentYear();
@@ -160,6 +203,12 @@ export default function UserGrowthGraph() {
         </div>
       </div>
 
+      <div className="mb-4">
+        <div className="text-sm text-gray-600">
+          Total Non-Admin Users: <span className="font-semibold text-gray-900">{totalUsers}</span>
+        </div>
+      </div>
+
       <div className="h-80 w-full">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -189,11 +238,12 @@ export default function UserGrowthGraph() {
               </defs>
 
               <XAxis
-                dataKey="month"
+                dataKey="day"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 14, fill: '#9ca3af' }}
                 dy={10}
+                interval="preserveStartEnd"
               />
 
               <YAxis
@@ -204,6 +254,24 @@ export default function UserGrowthGraph() {
                 tick={{ fontSize: 14, fill: '#9ca3af' }}
                 tickFormatter={(value) => `${value}%`}
                 dx={-10}
+              />
+
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload as DailyGrowth;
+                    return (
+                      <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg shadow-lg">
+                        <p className="text-sm text-gray-600">Day {data.day}</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {data.count} user{data.count !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-gray-500">{data.percentage}%</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
 
               <Area
@@ -219,8 +287,8 @@ export default function UserGrowthGraph() {
                     const barHeight = bottomY - props.cy;
 
                     return (
-                      <g key={props.index ?? payload?.month ?? `${props.cx}-${props.cy}`}>
-                        {payload.value > 0 && (
+                      <g key={props.index ?? payload?.day ?? `${props.cx}-${props.cy}`}>
+                        {payload.count > 0 && (
                           <rect
                             x={props.cx - 12}
                             y={props.cy}

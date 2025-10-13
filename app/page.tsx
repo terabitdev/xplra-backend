@@ -5,37 +5,34 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from './components/DashboardLayout';
 import MetricsCards from './components/MetricsCards';
 import UserGrowthGraph from './components/UserGrowthGraph';
+import { useAppDispatch } from './store/hooks';
+import { validateSession } from './store/slices/authSlice';
 
 export default function Home() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const validateSession = async () => {
+    const checkAuth = async () => {
       const token = localStorage.getItem('token');
 
-      if (token) {
-        try {
-          const res = await fetch('/api/session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token }),
-          });
+      if (!token) {
+        router.push('/signin');
+        return;
+      }
 
-          if (!res.ok) {
-            router.push('/signin');
-          }
-        } catch (err) {
-          router.push('/signin');
-        }
-      } else {
+      try {
+        // Dispatch Redux action to validate session and populate user data
+        await dispatch(validateSession()).unwrap();
+        // Session is valid, user data is now in Redux store
+      } catch (err) {
+        // Session validation failed
         router.push('/signin');
       }
     };
 
-    validateSession();
-  }, [router]);
+    checkAuth();
+  }, [dispatch, router]);
 
   return (
     <DashboardLayout>
