@@ -20,6 +20,7 @@ module.exports = {
       },
       fontFamily: {
         'geist': ['Geist', 'sans-serif'],
+        'inter': ['Inter', 'sans-serif'],
         'geist-mono': ['Geist Mono', 'monospace'],
         'sans': ['Geist', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'mono': ['Geist Mono', 'ui-monospace', 'monospace'],
