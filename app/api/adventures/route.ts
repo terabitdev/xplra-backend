@@ -87,6 +87,7 @@ export async function POST(req: Request) {
     // Create adventure object
     const newAdventure: Adventure = {
       id: adventureId,
+      adventureId: adventureId,
       title: adventureData.title,
       shortDescription: adventureData.shortDescription,
       longDescription: adventureData.longDescription,
