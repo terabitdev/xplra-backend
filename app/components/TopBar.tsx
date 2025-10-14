@@ -112,9 +112,9 @@ function TopBar() {
   return (
     <div className="h-[4.7rem] bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-50 flex items-center justify-between px-4 lg:px-6 shadow-sm">
       {/* Search Bar - Hidden on small mobile, visible on tablet and up */}
-      <div className="hidden sm:block flex-1 max-w-md mr-4">
+      <div className=" flex-1 ml-14 sm:ml-16 lg:ml-2 max-w-[14rem] sm:max-w-xs">
         <SearchBar
-          placeholder="Search users, analytics, or data..."
+          placeholder="Search analytics, or data..."
           onSearch={handleSearch}
           className="w-full"
         />
@@ -199,8 +199,8 @@ function TopBar() {
 
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center  z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative max-h-[90vh] scrollbar-hide overflow-y-auto">
             <button
               onClick={() => dispatch(setEditModalOpen(false))}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"

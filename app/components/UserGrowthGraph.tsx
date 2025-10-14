@@ -256,14 +256,22 @@ export default function UserGrowthGraph() {
 
       <div className="mb-4">
         <div className="text-sm text-gray-600">
-          Total Non-Admin Users: <span className="font-semibold text-gray-900">{totalUsers}</span>
+          Total Non-Admin Users: {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
+              <span className="text-gray-500">Loading...</span>
+            </span>
+          ) : (
+            <span className="font-semibold text-gray-900">{totalUsers}</span>
+          )}
         </div>
       </div>
 
       <div className="h-80 w-full">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">Loading chart data...</div>
+          <div className="flex gap-2 items-center justify-center h-full">
+            <span className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
+            <span className="text-gray-500 text-xl">Loading...</span>
           </div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">

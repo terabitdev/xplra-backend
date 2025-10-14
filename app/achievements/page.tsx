@@ -152,7 +152,7 @@ export default function AchievementsPage() {
 
     return (
         <DashboardLayout>
-            <div className="w-full p-2 mt-5 sm:mt-0 sm:p-4 lg:p-6">
+            <div className="w-full p-2 mt-5 sm:mt-7 lg:mt-0  sm:p-4 lg:py-6">
                 {/* Header Section */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
