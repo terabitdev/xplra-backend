@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "../components/DashboardLayout";
 import { Category } from "@/lib/domain/models/category";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -11,6 +10,7 @@ import DeleteDialog from "../components/ui/DeleteDialog";
 import { Quest } from "@/lib/domain/models/quest";
 import SearchBar from "../components/SearchBar";
 import QuestsFilter from "../components/filters/QuestsFilter";
+import { useSearch } from "../contexts/SearchContext";
 
 export default function QuestsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -20,9 +20,8 @@ export default function QuestsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [questToDelete, setQuestToDelete] = useState<Quest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const router = useRouter();
   const dispatch = useAppDispatch();
+  const { searchQuery } = useSearch();
 
   // Get quests from Redux store
   const { quests, loading, error } = useAppSelector((state) => state.quests);
