@@ -10,6 +10,7 @@ import QuestFormModal from "../components/modals/QuestFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import { Quest } from "@/lib/domain/models/quest";
 import SearchBar from "../components/SearchBar";
+import QuestsFilter from "../components/filters/QuestsFilter";
 
 export default function QuestsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -26,23 +27,34 @@ export default function QuestsPage() {
   // Get quests from Redux store
   const { quests, loading, error } = useAppSelector((state) => state.quests);
   const { uid } = useAppSelector((state) => state.user);
+  const { selectedCategory } = useAppSelector((state) => state.filter);
 
-  // Filter quests based on search query
+  // Filter quests based on search query and category
   const filteredQuests = useMemo(() => {
-    if (!searchQuery.trim()) return quests;
+    let filtered = quests;
 
-    const query = searchQuery.toLowerCase();
-    return quests.filter(
-      (quest) =>
-        quest.title.toLowerCase().includes(query) ||
-        quest.shortDescription.toLowerCase().includes(query) ||
-        quest.stepType.toLowerCase().includes(query) ||
-        categories
-          ?.find((cat: Category) => cat.id === quest.category)
-          ?.name.toLowerCase()
-          .includes(query)
-    );
-  }, [quests, searchQuery, categories]);
+    // Filter by category
+    if (selectedCategory) {
+      filtered = filtered.filter((quest) => quest.category === selectedCategory);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (quest) =>
+          quest.title.toLowerCase().includes(query) ||
+          quest.shortDescription.toLowerCase().includes(query) ||
+          quest.stepType.toLowerCase().includes(query) ||
+          categories
+            ?.find((cat: Category) => cat.id === quest.category)
+            ?.name.toLowerCase()
+            .includes(query)
+      );
+    }
+
+    return filtered;
+  }, [quests, searchQuery, categories, selectedCategory]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -184,6 +196,9 @@ export default function QuestsPage() {
           </button>
         </div>
 
+        {/* Filter Section */}
+        <QuestsFilter categories={categories} />
+
         {/* Loading State */}
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -249,7 +264,7 @@ export default function QuestsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {quests.length === 0 ? (
+                  {filteredQuests.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center justify-center">
@@ -270,13 +285,15 @@ export default function QuestsPage() {
                             No quests found
                           </p>
                           <p className="text-gray-400 text-sm mt-1">
-                            Create your first quest to get started
+                            {quests.length === 0
+                              ? "Create your first quest to get started"
+                              : "No quests match your filters"}
                           </p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    quests.map((quest) => (
+                    filteredQuests.map((quest) => (
                       <tr
                         key={quest.id}
                         className="hover:bg-blue-50 transition-colors duration-150"
