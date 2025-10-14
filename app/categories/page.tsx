@@ -127,21 +127,22 @@ export default function CategoriesPage() {
 
     return (
         <DashboardLayout>
-            <div className="w-full p-6">
+            <div className="w-full mt-5 sm:mt-0 p-2 sm:p-4 lg:p-6">
                 {/* Header Section */}
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Categories Management</h1>
-                        <p className="text-gray-600 mt-1">Create and manage your categories</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Categories Management</h1>
+                        <p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage your categories</p>
                     </div>
                     <button
-                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                        className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
                         onClick={handleCreateCategory}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        Create New Category
+                        <span className="hidden sm:inline">Create New Category</span>
+                        <span className="sm:hidden">New Category</span>
                     </button>
                 </div>
 
@@ -172,7 +173,7 @@ export default function CategoriesPage() {
                     </div>
                 ) : (
                     /* Categories Grid */
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                         {filteredCategories.length === 0 ? (
                             <div className="col-span-full flex flex-col items-center justify-center py-20">
                                 <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

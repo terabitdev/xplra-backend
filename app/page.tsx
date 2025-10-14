@@ -37,7 +37,7 @@ export default function Home() {
   return (
     <DashboardLayout>
       <div className="w-full mt-8">
-        <h1 className="text-4xl font-bold mb-6">Welcome to the Dashboard</h1>
+        <h1 className=" text-2xl sm:text-4xl font-bold mb-6">Welcome to the Dashboard</h1>
 
         {/* Metrics Cards */}
         <MetricsCards />

@@ -153,9 +153,9 @@ export default function UserGrowthGraph() {
 
   return (
     <div className="bg-white p-6 rounded-lg font-DMSansRegular shadow-sm">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-semibold text-gray-900">New Users</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 sm:mb-8">
+        <h2 className="text-lg sm:text-2xl font-semibold mb-2 sm:mb-0 text-gray-900">New Users</h2>
+        <div className="flex flex-row items-center gap-2">
           {/* Year Dropdown */}
           <div className="relative date-dropdown">
             <button
