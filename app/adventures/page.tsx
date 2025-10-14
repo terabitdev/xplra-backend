@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchAdventures, deleteAdventure } from '../store/slices/adventuresSlice';
 import AdventureFormModal from '../components/modals/AdventureFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
+import Toaster from '../components/ui/Toaster';
 import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 import AdventuresListFilter from '../components/filters/AdventuresListFilter';
@@ -20,6 +21,7 @@ export default function AdventuresPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [adventureToDelete, setAdventureToDelete] = useState<Adventure | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
     const dispatch = useAppDispatch();
     const { searchQuery } = useSearch();
     const { selectedCategory } = useAppSelector((state) => state.filter);
@@ -89,9 +91,10 @@ export default function AdventuresPage() {
             await dispatch(deleteAdventure(adventureToDelete.id)).unwrap();
             setIsDeleteDialogOpen(false);
             setAdventureToDelete(null);
+            setToast({ message: 'Adventure deleted successfully', type: 'success', isVisible: true });
         } catch (error) {
             console.error('Failed to delete adventure:', error);
-            alert('Failed to delete adventure. Please try again.');
+            setToast({ message: 'Failed to delete adventure. Please try again.', type: 'error', isVisible: true });
         } finally {
             setIsDeleting(false);
         }
@@ -147,13 +150,15 @@ export default function AdventuresPage() {
                 dispatch(fetchAdventures());
                 setIsModalOpen(false);
                 setSelectedAdventure(null);
+                const message = selectedAdventure ? 'Adventure updated successfully' : 'Adventure created successfully';
+                setToast({ message, type: 'success', isVisible: true });
             } else {
                 const errorData = await res.json();
-                alert(`Error: ${errorData.error || 'Failed to save adventure'}`);
+                setToast({ message: errorData.error || 'Failed to save adventure', type: 'error', isVisible: true });
             }
         } catch (error) {
             console.error('Error submitting adventure:', error);
-            alert('An error occurred while saving the adventure');
+            setToast({ message: 'An error occurred while saving the adventure', type: 'error', isVisible: true });
         }
     };
 
@@ -499,6 +504,14 @@ export default function AdventuresPage() {
                 message="Are you sure you want to delete this adventure? This action cannot be undone and all associated data will be permanently removed."
                 itemName={adventureToDelete?.title}
                 isDeleting={isDeleting}
+            />
+
+            {/* Toaster */}
+            <Toaster
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
             />
         </DashboardLayout>
     );

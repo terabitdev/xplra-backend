@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice';
 import CategoryFormModal from '../components/modals/CategoryFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
+import Toaster from '../components/ui/Toaster';
 import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 
@@ -17,6 +18,7 @@ export default function CategoriesPage() {
     const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [adminId, setAdminId] = useState<string>('');
+    const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
     const dispatch = useAppDispatch();
     const { searchQuery } = useSearch();
 
@@ -61,9 +63,10 @@ export default function CategoriesPage() {
             await dispatch(deleteCategory(categoryToDelete.id)).unwrap();
             setIsDeleteDialogOpen(false);
             setCategoryToDelete(null);
+            setToast({ message: 'Category deleted successfully', type: 'success', isVisible: true });
         } catch (error) {
             console.error('Failed to delete category:', error);
-            alert('Failed to delete category. Please try again.');
+            setToast({ message: 'Failed to delete category. Please try again.', type: 'error', isVisible: true });
         } finally {
             setIsDeleting(false);
         }
@@ -115,13 +118,15 @@ export default function CategoriesPage() {
                 dispatch(fetchCategories());
                 setIsModalOpen(false);
                 setSelectedCategory(null);
+                const message = selectedCategory ? 'Category updated successfully' : 'Category created successfully';
+                setToast({ message, type: 'success', isVisible: true });
             } else {
                 const errorData = await res.json();
-                alert(`Error: ${errorData.error || 'Failed to save category'}`);
+                setToast({ message: errorData.error || 'Failed to save category', type: 'error', isVisible: true });
             }
         } catch (error) {
             console.error('Error submitting category:', error);
-            alert('An error occurred while saving the category');
+            setToast({ message: 'An error occurred while saving the category', type: 'error', isVisible: true });
         }
     };
 
@@ -268,6 +273,14 @@ export default function CategoriesPage() {
                 message="Are you sure you want to delete this category? This action cannot be undone and may affect adventures and quests using this category."
                 itemName={categoryToDelete?.name}
                 isDeleting={isDeleting}
+            />
+
+            {/* Toaster */}
+            <Toaster
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
             />
         </DashboardLayout>
     );

@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchQuests, deleteQuest } from "../store/slices/questsSlice";
 import QuestFormModal from "../components/modals/QuestFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
+import Toaster from "../components/ui/Toaster";
 import { Quest } from "@/lib/domain/models/quest";
 import SearchBar from "../components/SearchBar";
 import QuestsFilter from "../components/filters/QuestsFilter";
@@ -20,6 +21,7 @@ export default function QuestsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [questToDelete, setQuestToDelete] = useState<Quest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
   const dispatch = useAppDispatch();
   const { searchQuery } = useSearch();
 
@@ -92,9 +94,10 @@ export default function QuestsPage() {
       await dispatch(deleteQuest(questToDelete.id)).unwrap();
       setIsDeleteDialogOpen(false);
       setQuestToDelete(null);
+      setToast({ message: 'Quest deleted successfully', type: 'success', isVisible: true });
     } catch (error) {
       console.error("Failed to delete quest:", error);
-      alert("Failed to delete quest. Please try again.");
+      setToast({ message: 'Failed to delete quest. Please try again.', type: 'error', isVisible: true });
     } finally {
       setIsDeleting(false);
     }
@@ -153,13 +156,15 @@ export default function QuestsPage() {
         dispatch(fetchQuests());
         setIsModalOpen(false);
         setSelectedQuest(null);
+        const message = selectedQuest ? 'Quest updated successfully' : 'Quest created successfully';
+        setToast({ message, type: 'success', isVisible: true });
       } else {
         const errorData = await res.json();
-        alert(`Error: ${errorData.error || "Failed to save quest"}`);
+        setToast({ message: errorData.error || 'Failed to save quest', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error("Error submitting quest:", error);
-      alert("An error occurred while saving the quest");
+      setToast({ message: 'An error occurred while saving the quest', type: 'error', isVisible: true });
     }
   };
 
@@ -623,6 +628,14 @@ export default function QuestsPage() {
         message="Are you sure you want to delete this quest? This action cannot be undone and all associated data will be permanently removed."
         itemName={questToDelete?.title}
         isDeleting={isDeleting}
+      />
+
+      {/* Toaster */}
+      <Toaster
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={() => setToast({ ...toast, isVisible: false })}
       />
     </DashboardLayout>
   );

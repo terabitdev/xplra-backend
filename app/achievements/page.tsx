@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchAchievements, deleteAchievement } from '../store/slices/achievementsSlice';
 import AchievementFormModal from '../components/modals/AchievementFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
+import Toaster from '../components/ui/Toaster';
 import { useSearch } from '../contexts/SearchContext';
 import AchievementsFilter from '../components/filters/AchievementsFilter';
 
@@ -17,6 +18,7 @@ export default function AchievementsPage() {
     const [achievementToDelete, setAchievementToDelete] = useState<Achievement | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [adminId, setAdminId] = useState<string>('');
+    const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
     const dispatch = useAppDispatch();
     const { searchQuery } = useSearch();
     const { selectedTriggerType } = useAppSelector((state) => state.filter);
@@ -75,9 +77,10 @@ export default function AchievementsPage() {
             await dispatch(deleteAchievement(achievementToDelete.id)).unwrap();
             setIsDeleteDialogOpen(false);
             setAchievementToDelete(null);
+            setToast({ message: 'Achievement deleted successfully', type: 'success', isVisible: true });
         } catch (error) {
             console.error('Failed to delete achievement:', error);
-            alert('Failed to delete achievement. Please try again.');
+            setToast({ message: 'Failed to delete achievement. Please try again.', type: 'error', isVisible: true });
         } finally {
             setIsDeleting(false);
         }
@@ -125,13 +128,15 @@ export default function AchievementsPage() {
                 dispatch(fetchAchievements());
                 setIsModalOpen(false);
                 setSelectedAchievement(null);
+                const message = selectedAchievement ? 'Achievement updated successfully' : 'Achievement created successfully';
+                setToast({ message, type: 'success', isVisible: true });
             } else {
                 const errorData = await res.json();
-                alert(`Error: ${errorData.error || 'Failed to save achievement'}`);
+                setToast({ message: errorData.error || 'Failed to save achievement', type: 'error', isVisible: true });
             }
         } catch (error) {
             console.error('Error submitting achievement:', error);
-            alert('An error occurred while saving the achievement');
+            setToast({ message: 'An error occurred while saving the achievement', type: 'error', isVisible: true });
         }
     };
 
@@ -377,6 +382,14 @@ export default function AchievementsPage() {
                 message="Are you sure you want to delete this achievement? This action cannot be undone and users will no longer be able to earn this achievement."
                 itemName={achievementToDelete?.title}
                 isDeleting={isDeleting}
+            />
+
+            {/* Toaster */}
+            <Toaster
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
             />
         </DashboardLayout>
     );
