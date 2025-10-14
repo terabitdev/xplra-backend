@@ -199,6 +199,22 @@ export default function QuestsPage() {
         {/* Filter Section */}
         <QuestsFilter categories={categories} />
 
+        {/* Search/Filter Results Count */}
+        {(searchQuery || selectedCategory) && (
+          <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">{filteredQuests.length}</span>{" "}
+              {filteredQuests.length === 1 ? "quest" : "quests"} found
+              {searchQuery && ` for "${searchQuery}"`}
+              {selectedCategory &&
+                ` in ${
+                  categories?.find((cat: Category) => cat.id === selectedCategory)
+                    ?.name || "selected category"
+                }`}
+            </p>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
