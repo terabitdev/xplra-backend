@@ -52,13 +52,15 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button - Only visible on mobile */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[1100] p-2 bg-white rounded-lg shadow-lg border border-gray-200"
-      >
-        {isMobileMenuOpen ? <Close size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Mobile Menu Button - Only visible on mobile when closed */}
+      {!isMobileMenuOpen && (
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-[1100] p-2 bg-white rounded-lg shadow-lg border border-gray-200"
+        >
+          <Menu size={24} />
+        </button>
+      )}
 
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
@@ -74,27 +76,37 @@ export default function Sidebar() {
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
       >
-        <div className="flex items-center p-3 border-b">
-          <Link href="/" onClick={closeMobileMenu}>
-            <Image
-              src="/assets/xplralogo.png"
-              alt="Xplra Logo"
-              width={50}
-              height={50}
-              className="object-contain"
-            />
-          </Link>
+        <div className="flex items-center justify-between p-3 border-b">
+          {/* Close button - Only visible on mobile when drawer is open */}
+          <button
+            onClick={closeMobileMenu}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg ml-auto order-2"
+          >
+            <Close size={24} />
+          </button>
 
-          <Link href="/" onClick={closeMobileMenu}>
-            {/* Logo */}
-            <Image
-              src="/assets/xplralogo2.png"
-              alt="Xplra Logo"
-              width={120}
-              height={40}
-              className="object-contain"
-            />
-          </Link>
+          <div className="flex items-center order-1">
+            <Link href="/" onClick={closeMobileMenu}>
+              <Image
+                src="/assets/xplralogo.png"
+                alt="Xplra Logo"
+                width={50}
+                height={50}
+                className="object-contain"
+              />
+            </Link>
+
+            <Link href="/" onClick={closeMobileMenu}>
+              {/* Logo */}
+              <Image
+                src="/assets/xplralogo2.png"
+                alt="Xplra Logo"
+                width={120}
+                height={40}
+                className="object-contain"
+              />
+            </Link>
+          </div>
         </div>
 
         <nav className="flex flex-col flex-1 w-full px-4 py-6 space-y-2">
