@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from './components/DashboardLayout';
 import MetricsCards from './components/MetricsCards';
@@ -11,6 +11,7 @@ import { validateSession } from './store/slices/authSlice';
 export default function Home() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,6 +26,7 @@ export default function Home() {
         // Dispatch Redux action to validate session and populate user data
         await dispatch(validateSession()).unwrap();
         // Session is valid, user data is now in Redux store
+        setIsAuthenticated(true);
       } catch (err) {
         // Session validation failed
         router.push('/signin');
@@ -33,6 +35,10 @@ export default function Home() {
 
     checkAuth();
   }, [dispatch, router]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <DashboardLayout>
