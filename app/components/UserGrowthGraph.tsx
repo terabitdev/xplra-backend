@@ -13,6 +13,7 @@ import { ChevronDown } from 'lucide-react';
 
 interface DailyGrowth {
   day: number;
+  month?: string;
   count: number;
   percentage: number;
   isSelected: boolean;
@@ -44,32 +45,82 @@ export default function UserGrowthGraph() {
   const [chartData, setChartData] = useState<DailyGrowth[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // Fetch user growth data
+  // Fetch user growth data for all months
   useEffect(() => {
     const fetchGrowthData = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams({
-          year: selectedYear.toString(),
-          month: selectedMonth,
-          ...(selectedDay && { day: selectedDay.toString() }),
-        });
+        // Show only 6 months with selected month in center (2 before, selected, 3 after)
+        const selectedMonthIndex = months.indexOf(selectedMonth);
+        let startIndex = selectedMonthIndex - 2;
+        let endIndex = selectedMonthIndex + 4; // selected + 3 after = 4
 
-        const response = await fetch(`/api/users/growth?${params}`);
-        const data: GrowthData = await response.json();
-
-        if (response.ok) {
-          // Update chart data with isSelected for the current day
-          const updatedData = data.dailyGrowth.map(d => ({
-            ...d,
-            isSelected: selectedDay ? d.day === selectedDay : false,
-          }));
-          setChartData(updatedData);
-          setTotalUsers(data.totalUsers);
-        } else {
-          console.error('Failed to fetch growth data:', data);
-          setChartData([]);
+        // Adjust if we're at the beginning or end of the year
+        if (startIndex < 0) {
+          startIndex = 0;
+          endIndex = Math.min(6, months.length);
+        } else if (endIndex > months.length) {
+          endIndex = months.length;
+          startIndex = Math.max(0, endIndex - 6);
         }
+
+        const reorderedMonths = months.slice(startIndex, endIndex);
+
+        // Fetch data for the 6 months in the range
+        const monthlyData = await Promise.all(
+          reorderedMonths.map(async (month, index) => {
+            const params = new URLSearchParams({
+              year: selectedYear.toString(),
+              month: month,
+            });
+
+            try {
+              const response = await fetch(`/api/users/growth?${params}`);
+              const data: GrowthData = await response.json();
+
+              if (response.ok) {
+                // Sum up all users for this month
+                const totalCount = data.dailyGrowth.reduce((sum, d) => sum + d.count, 0);
+                return {
+                  day: index + 1,
+                  month: month.substring(0, 3),
+                  count: totalCount,
+                  percentage: 0, // Will calculate after we get all data
+                  isSelected: month === selectedMonth,
+                };
+              }
+              return {
+                day: index + 1,
+                month: month.substring(0, 3),
+                count: 0,
+                percentage: 0,
+                isSelected: month === selectedMonth,
+              };
+            } catch (error) {
+              console.error(`Error fetching data for ${month}:`, error);
+              return {
+                day: index + 1,
+                month: month.substring(0, 3),
+                count: 0,
+                percentage: 0,
+                isSelected: month === selectedMonth,
+              };
+            }
+          })
+        );
+
+        // Calculate percentages based on max count
+        const maxCount = Math.max(...monthlyData.map(d => d.count));
+        const dataWithPercentages = monthlyData.map(d => ({
+          ...d,
+          percentage: maxCount > 0 ? (d.count / maxCount) * 100 : 0,
+        }));
+
+        setChartData(dataWithPercentages);
+
+        // Calculate total users from all months
+        const total = monthlyData.reduce((sum, d) => sum + d.count, 0);
+        setTotalUsers(total);
       } catch (error) {
         console.error('Error fetching growth data:', error);
         setChartData([]);
@@ -79,7 +130,7 @@ export default function UserGrowthGraph() {
     };
 
     fetchGrowthData();
-  }, [selectedMonth, selectedYear, selectedDay]);
+  }, [selectedMonth, selectedYear]);
 
   const getAvailableYears = () => {
     const currentYear = getCurrentYear();
@@ -102,9 +153,9 @@ export default function UserGrowthGraph() {
 
   return (
     <div className="bg-white p-6 rounded-lg font-DMSansRegular shadow-sm">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-semibold text-gray-900">New Users</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 sm:mb-8">
+        <h2 className="text-lg sm:text-2xl font-semibold mb-2 sm:mb-0 text-gray-900">New Users</h2>
+        <div className="flex flex-row items-center gap-2">
           {/* Year Dropdown */}
           <div className="relative date-dropdown">
             <button
@@ -205,14 +256,22 @@ export default function UserGrowthGraph() {
 
       <div className="mb-4">
         <div className="text-sm text-gray-600">
-          Total Non-Admin Users: <span className="font-semibold text-gray-900">{totalUsers}</span>
+          Total Non-Admin Users: {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
+              <span className="text-gray-500">Loading...</span>
+            </span>
+          ) : (
+            <span className="font-semibold text-gray-900">{totalUsers}</span>
+          )}
         </div>
       </div>
 
       <div className="h-80 w-full">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">Loading chart data...</div>
+          <div className="flex gap-2 items-center justify-center h-full">
+            <span className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></span>
+            <span className="text-gray-500 text-xl">Loading...</span>
           </div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -238,12 +297,12 @@ export default function UserGrowthGraph() {
               </defs>
 
               <XAxis
-                dataKey="day"
+                dataKey="month"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 14, fill: '#9ca3af' }}
                 dy={10}
-                interval="preserveStartEnd"
+                interval={0}
               />
 
               <YAxis
@@ -262,7 +321,7 @@ export default function UserGrowthGraph() {
                     const data = payload[0].payload as DailyGrowth;
                     return (
                       <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg shadow-lg">
-                        <p className="text-sm text-gray-600">Day {data.day}</p>
+                        <p className="text-sm text-gray-600">{data.month || `Day ${data.day}`}</p>
                         <p className="text-sm font-semibold text-gray-900">
                           {data.count} user{data.count !== 1 ? 's' : ''}
                         </p>

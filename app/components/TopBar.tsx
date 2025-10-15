@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, memo } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UserAvatar, ChevronDown, Logout, Edit } from "@carbon/icons-react";
+import { ChevronDown, Logout, Edit } from "@carbon/icons-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchUserProfile, updateUserProfile, setEditModalOpen } from "../store/slices/userSlice";
 import SearchBar from "./SearchBar";
@@ -111,18 +110,23 @@ function TopBar() {
   };
 
   return (
-    <div className="h-[4.7rem] bg-white border-b border-gray-200 fixed top-0 left-64 right-0 z-50 flex items-center justify-between px-6 shadow-sm">
-      {/* Search Bar */}
-      <SearchBar
-        placeholder="Search users, analytics, or data..."
-        onSearch={handleSearch}
-        className="w-full max-w-md"
-      />
+    <div className="h-[4.7rem] bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-50 flex items-center justify-between px-4 lg:px-6 shadow-sm">
+      {/* Search Bar - Hidden on small mobile, visible on tablet and up */}
+      <div className=" flex-1 ml-14 sm:ml-16 lg:ml-2 max-w-[14rem] sm:max-w-xs">
+        <SearchBar
+          placeholder="Search analytics, or data..."
+          onSearch={handleSearch}
+          className="w-full"
+        />
+      </div>
+
+      {/* Spacer for mobile to push profile to the right */}
+      <div className="flex-1 sm:hidden"></div>
 
       {/* User Profile Section */}
       <div className="relative" ref={dropdownRef}>
         {loading ? (
-          <div className="flex items-center  gap-3 px-4 py-2">
+          <div className="flex items-center gap-2 px-2 lg:px-4 py-2">
             <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
             <div className="hidden md:block">
               <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mb-1"></div>
@@ -132,7 +136,7 @@ function TopBar() {
         ) : (
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center  gap-3 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 lg:gap-3 px-2 lg:px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {photoURL ? (
               <img
@@ -157,7 +161,7 @@ function TopBar() {
             </div>
             <ChevronDown
               size={20}
-              className={`text-gray-600 transition-transform ${
+              className={`hidden sm:block text-gray-600 transition-transform ${
                 isDropdownOpen ? "rotate-180" : ""
               }`}
             />
@@ -195,8 +199,8 @@ function TopBar() {
 
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0  bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center  z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative max-h-[90vh] scrollbar-hide overflow-y-auto">
             <button
               onClick={() => dispatch(setEditModalOpen(false))}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
