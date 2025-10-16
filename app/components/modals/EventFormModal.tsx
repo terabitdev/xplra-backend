@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Event } from '@/lib/domain/models/event';
 import { Close } from '@carbon/icons-react';
+import Image from 'next/image';
 
 interface EventFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (event: Partial<Event>) => Promise<void>;
+  onSubmit: (event: Partial<Event>, imageFile: File | null) => Promise<void>;
   event?: Event | null;
   adminId: string;
 }
@@ -25,14 +26,18 @@ export default function EventFormModal({
     latitude: 0,
     longitude: 0,
     experience: 0,
+    imageUrl: '',
     isVisible: true,
     userId: adminId,
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (initialEvent) {
       setEvent(initialEvent);
+      setImagePreview(initialEvent.imageUrl || null);
     } else {
       // Reset form for new event
       setEvent({
@@ -41,17 +46,33 @@ export default function EventFormModal({
         latitude: 0,
         longitude: 0,
         experience: 0,
+        imageUrl: '',
         isVisible: true,
         userId: adminId,
       });
+      setImageFile(null);
+      setImagePreview(null);
     }
   }, [initialEvent, adminId, isOpen]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setImageFile(file);
+
+    if (file) {
+      const fileReader = new FileReader();
+      fileReader.onload = () => {
+        setImagePreview(fileReader.result as string);
+      };
+      fileReader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSubmit(event);
+      await onSubmit(event, imageFile);
       onClose();
     } catch (error) {
       console.error('Error submitting event:', error);
@@ -155,6 +176,33 @@ export default function EventFormModal({
               placeholder="Enter XP reward"
               min="0"
               required
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div>
+            {imagePreview && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Current Image:</label>
+                <Image
+                  src={imagePreview}
+                  alt="Event Preview"
+                  width={200}
+                  height={200}
+                  className="object-cover rounded-lg border-2 border-gray-200"
+                />
+              </div>
+            )}
+            <label htmlFor="image" className="block text-sm font-semibold text-gray-700 mb-2">
+              {imagePreview ? 'Change Image' : 'Upload Image *'}
+            </label>
+            <input
+              type="file"
+              id="image"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              required={!initialEvent}
             />
           </div>
 

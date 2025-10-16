@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Event } from '@/lib/domain/models/event';
 import admin from '@/lib/firebase-admin';
 
@@ -35,7 +35,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const eventData = await req.json();
+    const formData = await req.formData();
+    const eventData = JSON.parse(formData.get('event') as string);
+    const imageFile = formData.get('image') as File | null;
     const eventId = params.id;
     const adminId = eventData.userId;
 
@@ -44,6 +46,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { error: 'Admin ID is required' },
         { status: 400 }
       );
+    }
+
+    let imageUrl = eventData.imageUrl || '';
+
+    // Upload new image if provided
+    if (imageFile) {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const fileName = `events/${Date.now()}_${imageFile.name}`;
+      const file = adminStorage.bucket().file(fileName);
+
+      await file.save(buffer, {
+        metadata: { contentType: imageFile.type },
+      });
+
+      await file.makePublic();
+      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
 
     // Get admin's event document
@@ -78,6 +96,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       latitude: eventData.latitude,
       longitude: eventData.longitude,
       experience: eventData.experience,
+      imageUrl,
       isVisible: eventData.isVisible ?? events[eventIndex].isVisible,
       updatedAt: new Date().toISOString(),
     };

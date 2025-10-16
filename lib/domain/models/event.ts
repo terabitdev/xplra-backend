@@ -5,6 +5,7 @@ export interface Event {
     latitude: number;
     longitude: number;
     experience: number; // XP reward
+    imageUrl: string; // Event image URL
     isVisible: boolean; // Visibility toggle
     userId: string | null; // Admin who created it
     createdAt?: string; // ISO string for creation date

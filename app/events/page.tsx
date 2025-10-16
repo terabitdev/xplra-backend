@@ -7,8 +7,10 @@ import { fetchEvents, deleteEvent } from "../store/slices/eventsSlice";
 import EventFormModal from "../components/modals/EventFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import Toaster from "../components/ui/Toaster";
+import EventsFilter from "../components/filters/EventsFilter";
 import { Event } from "@/lib/domain/models/event";
 import { useSearch } from "../contexts/SearchContext";
+import Image from "next/image";
 
 export default function EventsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,6 +19,7 @@ export default function EventsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedVisibility, setSelectedVisibility] = useState<boolean | null>(null);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
   const dispatch = useAppDispatch();
   const { searchQuery } = useSearch();
@@ -25,9 +28,14 @@ export default function EventsPage() {
   const { events, loading, error } = useAppSelector((state) => state.events);
   const { uid } = useAppSelector((state) => state.user);
 
-  // Filter events based on search query
+  // Filter events based on search query and visibility
   const filteredEvents = useMemo(() => {
     let filtered = events;
+
+    // Filter by visibility
+    if (selectedVisibility !== null) {
+      filtered = filtered.filter((event) => event.isVisible === selectedVisibility);
+    }
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -39,7 +47,7 @@ export default function EventsPage() {
     }
 
     return filtered;
-  }, [events, searchQuery]);
+  }, [events, searchQuery, selectedVisibility]);
 
   // Set admin ID from user uid
   useEffect(() => {
@@ -104,8 +112,14 @@ export default function EventsPage() {
   }, []);
 
   // Handle form submission
-  const handleSubmitEvent = async (event: Partial<Event>) => {
+  const handleSubmitEvent = async (event: Partial<Event>, imageFile: File | null) => {
     try {
+      const formData = new FormData();
+      formData.append("event", JSON.stringify(event));
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
       const url = selectedEvent
         ? `/api/events/${selectedEvent.id}`
         : "/api/events/create";
@@ -113,10 +127,7 @@ export default function EventsPage() {
 
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(event),
+        body: formData,
       });
 
       if (res.ok) {
@@ -169,13 +180,21 @@ export default function EventsPage() {
           </button>
         </div>
 
-        {/* Search Results Count */}
-        {searchQuery && (
+        {/* Filter Section */}
+        <EventsFilter
+          selectedVisibility={selectedVisibility}
+          onVisibilityChange={setSelectedVisibility}
+        />
+
+        {/* Search/Filter Results Count */}
+        {(searchQuery || selectedVisibility !== null) && (
           <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
               <span className="font-semibold">{filteredEvents.length}</span>{" "}
               {filteredEvents.length === 1 ? "event" : "events"} found
               {searchQuery && ` for "${searchQuery}"`}
+              {selectedVisibility !== null &&
+                ` (${selectedVisibility ? 'Visible' : 'Hidden'} only)`}
             </p>
           </div>
         )}
@@ -241,14 +260,23 @@ export default function EventsPage() {
                     className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
                   >
                     {/* Event Header */}
-                    <div className="mb-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900 text-lg">{event.title}</h3>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          event.isVisible ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {event.isVisible ? 'Visible' : 'Hidden'}
-                        </span>
+                    <div className="flex items-start gap-3 mb-3">
+                      <Image
+                        src={event.imageUrl}
+                        alt={event.title}
+                        width={64}
+                        height={64}
+                        className="w-16 h-16 rounded-lg object-cover shadow-sm border border-gray-200"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-1">
+                          <h3 className="font-semibold text-gray-900 truncate">{event.title}</h3>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ml-2 ${
+                            event.isVisible ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {event.isVisible ? 'Visible' : 'Hidden'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -362,9 +390,20 @@ export default function EventsPage() {
                         className="hover:bg-blue-50 transition-colors duration-150"
                       >
                         <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {event.title}
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <Image
+                              src={event.imageUrl}
+                              alt={event.title}
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded-lg object-cover shadow-sm border border-gray-200 flex-shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {event.title}
+                              </p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-700">
