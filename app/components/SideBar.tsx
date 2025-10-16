@@ -13,6 +13,8 @@ import {
   Tag,
   Menu,
   Close,
+  Calendar,
+  ShoppingCart,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -43,6 +45,8 @@ export default function Sidebar() {
   const navLinks = [
     { href: "/", icon: Dashboard, label: "Dashboard" },
     { href: "/quests", icon: Home, label: "Quests" },
+    { href: "/events", icon: Calendar, label: "Events" },
+    { href: "/store-page", icon: ShoppingCart, label: "Store" },
     { href: "/adventures", icon: EarthEuropeAfrica, label: "Adventures" },
     { href: "/categories", icon: Tag, label: "Categories" },
     { href: "/achievements", icon: Trophy, label: "Achievements" },

@@ -2,6 +2,8 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import adventuresReducer from './slices/adventuresSlice';
 import questsReducer from './slices/questsSlice';
+import eventsReducer from './slices/eventsSlice';
+import storeReducer from './slices/storeSlice';
 import userReducer from './slices/userSlice';
 import categoriesReducer from './slices/categoriesSlice';
 import achievementsReducer from './slices/achievementsSlice';
@@ -12,6 +14,8 @@ export const store = configureStore({
     auth: authReducer,
     adventures: adventuresReducer,
     quests: questsReducer,
+    events: eventsReducer,
+    store: storeReducer,
     user: userReducer,
     categories: categoriesReducer,
     achievements: achievementsReducer,

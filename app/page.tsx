@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from './components/DashboardLayout';
 import MetricsCards from './components/MetricsCards';
@@ -12,8 +12,12 @@ export default function Home() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
 
