@@ -1,12 +1,11 @@
-'use client';
-
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from './components/DashboardLayout';
-import MetricsCards from './components/MetricsCards';
-import UserGrowthGraph from './components/UserGrowthGraph';
-import { useAppDispatch } from './store/hooks';
-import { validateSession } from './store/slices/authSlice';
+"use client";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "./components/DashboardLayout";
+import MetricsCards from "./components/MetricsCards";
+import UserGrowthGraph from "./components/UserGrowthGraph";
+import { useAppDispatch } from "./store/hooks";
+import { validateSession } from "./store/slices/authSlice";
 
 export default function Home() {
   const router = useRouter();
@@ -19,10 +18,10 @@ export default function Home() {
     hasCheckedAuth.current = true;
 
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
 
       if (!token) {
-        router.push('/signin');
+        router.push("/signin");
         return;
       }
 
@@ -33,7 +32,7 @@ export default function Home() {
         setIsAuthenticated(true);
       } catch (err) {
         // Session validation failed
-        router.push('/signin');
+        router.push("/signin");
       }
     };
 
@@ -47,7 +46,9 @@ export default function Home() {
   return (
     <DashboardLayout>
       <div className="w-full mt-8">
-        <h1 className=" text-2xl sm:text-4xl font-bold mb-6">Welcome to the Dashboard</h1>
+        <h1 className=" text-2xl sm:text-4xl font-bold mb-6">
+          Welcome to the Dashboard
+        </h1>
 
         {/* Metrics Cards */}
         <MetricsCards />
