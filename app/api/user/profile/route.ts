@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function PUT(req: Request) {
     try {
         const authHeader = req.headers.get('Authorization');
