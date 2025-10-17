@@ -1,6 +1,6 @@
 'use client';
 
-import { Info, Map, Compass, FolderTree, Trophy } from 'lucide-react';
+import { Info, Map, Compass, FolderTree, Trophy, Calendar, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/store/hooks';
@@ -8,6 +8,8 @@ import { fetchQuests } from '@/app/store/slices/questsSlice';
 import { fetchAdventures } from '@/app/store/slices/adventuresSlice';
 import { fetchCategories } from '@/app/store/slices/categoriesSlice';
 import { fetchAchievements } from '@/app/store/slices/achievementsSlice';
+import { fetchEvents } from '@/app/store/slices/eventsSlice';
+import { fetchStoreItems } from '@/app/store/slices/storeSlice';
 
 interface MetricCardProps {
   title: string;
@@ -50,6 +52,8 @@ export default function MetricsCards() {
   const { adventures, loading: adventuresLoading } = useAppSelector((state) => state.adventures);
   const { categories, loading: categoriesLoading } = useAppSelector((state) => state.categories);
   const { achievements, loading: achievementsLoading } = useAppSelector((state) => state.achievements);
+  const { events, loading: eventsLoading } = useAppSelector((state) => state.events);
+  const { items, loading: storeLoading } = useAppSelector((state) => state.store);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -57,6 +61,8 @@ export default function MetricsCards() {
     dispatch(fetchAdventures());
     dispatch(fetchCategories());
     dispatch(fetchAchievements());
+    dispatch(fetchEvents());
+    dispatch(fetchStoreItems());
   }, [dispatch]);
 
   // Filter data by current admin's userId and calculate stats
@@ -69,6 +75,8 @@ export default function MetricsCards() {
         totalAdventures: 0,
         totalCategories: 0,
         totalAchievements: 0,
+        totalEvents: 0,
+        totalStoreItems: 0,
       };
     }
 
@@ -77,14 +85,16 @@ export default function MetricsCards() {
       totalAdventures: adventures.filter(adventure => adventure.userId === userId).length,
       totalCategories: categories.filter(category => category.userId === userId).length,
       totalAchievements: achievements.filter(achievement => achievement.userId === userId).length,
+      totalEvents: events.filter(event => event.userId === userId).length,
+      totalStoreItems: items.filter(item => item.userId === userId).length,
     };
-  }, [quests, adventures, categories, achievements, currentUser]);
+  }, [quests, adventures, categories, achievements, events, items, currentUser]);
 
   // Combined loading state
-  const loading = questsLoading || adventuresLoading || categoriesLoading || achievementsLoading;
+  const loading = questsLoading || adventuresLoading || categoriesLoading || achievementsLoading || eventsLoading || storeLoading;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
       <MetricCard
         title="Total Quests"
         value={stats.totalQuests}
@@ -107,6 +117,18 @@ export default function MetricsCards() {
         title="Total Achievements"
         value={stats.totalAchievements}
         icon={Trophy}
+        loading={loading}
+      />
+      <MetricCard
+        title="Total Events"
+        value={stats.totalEvents}
+        icon={Calendar}
+        loading={loading}
+      />
+      <MetricCard
+        title="Total Store Items"
+        value={stats.totalStoreItems}
+        icon={ShoppingBag}
         loading={loading}
       />
     </div>
