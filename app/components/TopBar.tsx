@@ -199,7 +199,7 @@ function TopBar() {
 
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center  z-[100] p-4">
+        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative max-h-[90vh] scrollbar-hide overflow-y-auto">
             <button
               onClick={() => dispatch(setEditModalOpen(false))}
