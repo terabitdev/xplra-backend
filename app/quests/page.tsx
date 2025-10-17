@@ -8,6 +8,7 @@ import { fetchQuests, deleteQuest } from "../store/slices/questsSlice";
 import QuestFormModal from "../components/modals/QuestFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import Toaster from "../components/ui/Toaster";
+import CustomScrollbar from "../components/ui/CustomScrollbar";
 import { Quest } from "@/lib/domain/models/quest";
 import SearchBar from "../components/SearchBar";
 import QuestsFilter from "../components/filters/QuestsFilter";
@@ -351,7 +352,7 @@ export default function QuestsPage() {
 
             {/* Desktop Table View */}
             <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
+              <CustomScrollbar className="overflow-x-auto max-h-[600px]">
                 <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
@@ -600,8 +601,8 @@ export default function QuestsPage() {
                   )}
                 </tbody>
               </table>
+              </CustomScrollbar>
             </div>
-          </div>
           </>
         )}
       </div>

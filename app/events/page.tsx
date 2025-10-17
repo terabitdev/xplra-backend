@@ -11,6 +11,7 @@ import EventsFilter from "../components/filters/EventsFilter";
 import { Event } from "@/lib/domain/models/event";
 import { useSearch } from "../contexts/SearchContext";
 import Image from "next/image";
+import CustomScrollbar from "../components/ui/CustomScrollbar";
 
 export default function EventsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -330,7 +331,7 @@ export default function EventsPage() {
 
             {/* Desktop Table View */}
             <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
+              <CustomScrollbar className="overflow-x-auto max-h-[600px]">
                 <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
@@ -493,7 +494,7 @@ export default function EventsPage() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </CustomScrollbar>
           </div>
           </>
         )}

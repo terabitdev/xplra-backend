@@ -10,6 +10,7 @@ import DeleteDialog from '../components/ui/DeleteDialog';
 import Toaster from '../components/ui/Toaster';
 import { useSearch } from '../contexts/SearchContext';
 import AchievementsFilter from '../components/filters/AchievementsFilter';
+import CustomScrollbar from '../components/ui/CustomScrollbar';
 
 export default function AchievementsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -272,8 +273,8 @@ export default function AchievementsPage() {
                         </div>
 
                         {/* Desktop Table View */}
-                        <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="overflow-x-auto">
+                        <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 scrollbar-hide overflow-hidden">
+                            <CustomScrollbar className="overflow-x-auto max-h-[600px]">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                         <tr>
@@ -355,7 +356,7 @@ export default function AchievementsPage() {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
+                            </CustomScrollbar>
                         </div>
                     </>
                 )}

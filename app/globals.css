@@ -15,6 +15,16 @@ body {
   overflow-x: hidden;
 }
 
+/* Hide default scrollbar globally */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* Main content offset for sidebar */
 .main-content {
   margin-left: 250px;

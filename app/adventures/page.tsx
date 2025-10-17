@@ -9,6 +9,7 @@ import { fetchAdventures, deleteAdventure } from '../store/slices/adventuresSlic
 import AdventureFormModal from '../components/modals/AdventureFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Toaster from '../components/ui/Toaster';
+import CustomScrollbar from '../components/ui/CustomScrollbar';
 import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 import AdventuresListFilter from '../components/filters/AdventuresListFilter';
@@ -328,7 +329,7 @@ export default function AdventuresPage() {
 
                         {/* Desktop Table View */}
                         <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="overflow-x-auto">
+                            <CustomScrollbar className="overflow-x-auto max-h-[600px]">
                                 <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                     <tr>
@@ -476,8 +477,8 @@ export default function AdventuresPage() {
                                     )}
                                 </tbody>
                             </table>
+                            </CustomScrollbar>
                         </div>
-                    </div>
                     </>
                 )}
             </div>
