@@ -120,14 +120,14 @@ export default function SignIn() {
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center">
+          {/* <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500 transition duration-200">
                 Sign up
               </Link>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
