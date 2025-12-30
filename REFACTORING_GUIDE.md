@@ -279,5 +279,5 @@ const analytics = getAnalytics(app); -->
 
 
 
-<!-- juanidalikhan03@gmail.com
-Ahmad!23 -->
+juanidalikhan03@gmail.com
+Ahmad!23

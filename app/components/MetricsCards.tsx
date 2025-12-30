@@ -73,7 +73,8 @@ export default function MetricsCards() {
     }
 
     return {
-      totalQuests: quests.filter(quest => quest.userId === userId).length,
+      // Note: Quests are global entities, so we count all of them
+      totalQuests: quests.length,
       totalAdventures: adventures.filter(adventure => adventure.userId === userId).length,
       totalCategories: categories.filter(category => category.userId === userId).length,
       totalAchievements: achievements.filter(achievement => achievement.userId === userId).length,
