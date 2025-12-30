@@ -2,17 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Quest } from '@/lib/domain/models/quest';
-import { Category } from '@/lib/domain/models/category';
 import { Close } from '@carbon/icons-react';
-import Image from 'next/image';
 
 interface QuestFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (quest: Partial<Quest>, imageFile: File | null) => Promise<void>;
+  onSubmit: (quest: Partial<Quest>) => Promise<void>;
   quest?: Quest | null;
-  categories: Category[];
-  adminId: string;
 }
 
 export default function QuestFormModal({
@@ -20,74 +16,42 @@ export default function QuestFormModal({
   onClose,
   onSubmit,
   quest: initialQuest,
-  categories,
-  adminId,
 }: QuestFormModalProps) {
   const [quest, setQuest] = useState<Partial<Quest>>({
     title: '',
-    shortDescription: '',
-    longDescription: '',
-    experience: 0,
-    imageUrl: '',
-    stepCode: '',
-    stepLatitude: 0,
-    stepLongitude: 0,
-    stepType: 'qr',
-    timeInSeconds: 0,
-    userId: adminId,
-    distance: 0,
-    category: '',
-    hoursToCompleteAgain: 0,
+    description: '',
+    placeId: null,
+    type: 'qr_scan',
+    xpReward: 0,
+    cooldownSeconds: 3600,
+    active: true,
+    requirements: {},
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (initialQuest) {
       setQuest(initialQuest);
-      setImagePreview(initialQuest.imageUrl || null);
     } else {
       // Reset form for new quest
       setQuest({
         title: '',
-        shortDescription: '',
-        longDescription: '',
-        experience: 0,
-        imageUrl: '',
-        stepCode: '',
-        stepLatitude: 0,
-        stepLongitude: 0,
-        stepType: 'qr',
-        timeInSeconds: 0,
-        userId: adminId,
-        distance: 0,
-        category: '',
-        hoursToCompleteAgain: 0,
+        description: '',
+        placeId: null,
+        type: 'qr_scan',
+        xpReward: 0,
+        cooldownSeconds: 3600,
+        active: true,
+        requirements: {},
       });
-      setImageFile(null);
-      setImagePreview(null);
     }
-  }, [initialQuest, adminId, isOpen]);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setImageFile(file);
-
-    if (file) {
-      const fileReader = new FileReader();
-      fileReader.onload = () => {
-        setImagePreview(fileReader.result as string);
-      };
-      fileReader.readAsDataURL(file);
-    }
-  };
+  }, [initialQuest, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSubmit(quest, imageFile);
+      await onSubmit(quest);
       onClose();
     } catch (error) {
       console.error('Error submitting quest:', error);
@@ -100,7 +64,7 @@ export default function QuestFormModal({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col my-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto">
         {/* Modal Header */}
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-2xl">
           <h2 className="text-2xl font-bold text-gray-900 flex-1 min-w-0 pr-4">
@@ -129,265 +93,122 @@ export default function QuestFormModal({
               type="text"
               id="title"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              value={quest.title}
+              value={quest.title || ''}
               onChange={(e) => setQuest({ ...quest, title: e.target.value })}
               required
               disabled={loading}
             />
           </div>
 
-          {/* Short Description */}
+          {/* Description */}
           <div>
-            <label htmlFor="shortDescription" className="block text-sm font-medium text-gray-700 mb-2">
-              Short Description *
-            </label>
-            <input
-              type="text"
-              id="shortDescription"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              value={quest.shortDescription}
-              onChange={(e) => setQuest({ ...quest, shortDescription: e.target.value })}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          {/* Long Description */}
-          <div>
-            <label htmlFor="longDescription" className="block text-sm font-medium text-gray-700 mb-2">
-              Long Description *
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              Description *
             </label>
             <textarea
-              id="longDescription"
+              id="description"
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              value={quest.longDescription}
-              onChange={(e) => setQuest({ ...quest, longDescription: e.target.value })}
+              value={quest.description || ''}
+              onChange={(e) => setQuest({ ...quest, description: e.target.value })}
               required
               disabled={loading}
             />
           </div>
 
-          {/* Category and Experience Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Category */}
-            <div>
-              <label htmlFor="category" className="block text-sm  font-medium text-gray-700 mb-2">
-                Category *
-              </label>
-              <select
-                id="category"
-                className="w-full px-4 py-2 border border-gray-300  rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.category || ''}
-                onChange={(e) => setQuest({ ...quest, category: e.target.value })}
-                required
-                disabled={loading}
-              >
-                <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Experience */}
-            <div>
-              <label htmlFor="experience" className="block text-sm font-medium text-gray-700 mb-2">
-                Experience Points *
-              </label>
-              <input
-                type="number"
-                id="experience"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.experience}
-                onChange={(e) => setQuest({ ...quest, experience: parseInt(e.target.value) })}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* Hours to Complete and Distance Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="hoursToCompleteAgain" className="block text-sm font-medium text-gray-700 mb-2">
-                Hours to Complete Again *
-              </label>
-              <input
-                type="number"
-                id="hoursToCompleteAgain"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.hoursToCompleteAgain}
-                onChange={(e) => setQuest({ ...quest, hoursToCompleteAgain: parseInt(e.target.value) })}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="distance" className="block text-sm font-medium text-gray-700 mb-2">
-                Distance (meters) *
-              </label>
-              <input
-                type="number"
-                id="distance"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={(quest.distance as number) || 0}
-                onChange={(e) => setQuest({ ...quest, distance: parseInt(e.target.value) })}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* Step Code */}
+          {/* Place ID */}
           <div>
-            <label htmlFor="stepCode" className="block text-sm font-medium text-gray-700 mb-2">
-              Step Code *
+            <label htmlFor="placeId" className="block text-sm font-medium text-gray-700 mb-2">
+              Place ID
             </label>
             <input
               type="text"
-              id="stepCode"
+              id="placeId"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              value={quest.stepCode}
-              onChange={(e) => setQuest({ ...quest, stepCode: e.target.value })}
-              required
+              value={quest.placeId || ''}
+              onChange={(e) => setQuest({ ...quest, placeId: e.target.value || null })}
+              placeholder="Optional - Link to a place"
               disabled={loading}
             />
           </div>
 
-          {/* Latitude and Longitude Row */}
+          {/* Type and XP Reward Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Quest Type */}
             <div>
-              <label htmlFor="stepLatitude" className="block text-sm font-medium text-gray-700 mb-2">
-                Step Latitude *
-              </label>
-              <input
-                type="text"
-                id="stepLatitude"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.stepLatitude as number}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
-                    setQuest({ ...quest, stepLatitude: value as any });
-                  }
-                }}
-                onBlur={() => {
-                  if (
-                    quest.stepLatitude === '-' ||
-                    quest.stepLatitude === '' ||
-                    isNaN(Number(quest.stepLatitude))
-                  ) {
-                    setQuest({ ...quest, stepLatitude: 0 });
-                  } else {
-                    setQuest({ ...quest, stepLatitude: parseFloat(quest.stepLatitude as string) });
-                  }
-                }}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="stepLongitude" className="block text-sm font-medium text-gray-700 mb-2">
-                Step Longitude *
-              </label>
-              <input
-                type="text"
-                id="stepLongitude"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.stepLongitude as number}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^-?\d*\.?\d*$/.test(value) || value === '-') {
-                    setQuest({ ...quest, stepLongitude: value as any });
-                  }
-                }}
-                onBlur={() => {
-                  if (
-                    quest.stepLongitude === '-' ||
-                    quest.stepLongitude === '' ||
-                    isNaN(Number(quest.stepLongitude))
-                  ) {
-                    setQuest({ ...quest, stepLongitude: 0 });
-                  } else {
-                    setQuest({ ...quest, stepLongitude: parseFloat(quest.stepLongitude as string) });
-                  }
-                }}
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* Step Type and Time Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="stepType" className="block text-sm font-medium text-gray-700 mb-2">
-                Step Type *
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                Quest Type *
               </label>
               <select
-                id="stepType"
+                id="type"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.stepType}
-                onChange={(e) => setQuest({ ...quest, stepType: e.target.value })}
+                value={quest.type || 'qr_scan'}
+                onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest['type'] })}
+                required
                 disabled={loading}
               >
-                <option value="qr">QR</option>
-                <option value="location">Location</option>
-                <option value="timeLocation">Time & Location</option>
+                <option value="qr_scan">QR Scan</option>
+                <option value="gps_verify">GPS Verify</option>
+                <option value="checkin_time">Check-in Time</option>
+                <option value="checkin_proof">Check-in Proof</option>
               </select>
             </div>
 
+            {/* XP Reward */}
             <div>
-              <label htmlFor="timeInSeconds" className="block text-sm font-medium text-gray-700 mb-2">
-                Time In Seconds *
+              <label htmlFor="xpReward" className="block text-sm font-medium text-gray-700 mb-2">
+                XP Reward *
               </label>
               <input
                 type="number"
-                id="timeInSeconds"
+                id="xpReward"
+                min="0"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.timeInSeconds}
-                onChange={(e) => setQuest({ ...quest, timeInSeconds: parseInt(e.target.value) })}
+                value={quest.xpReward || 0}
+                onChange={(e) => setQuest({ ...quest, xpReward: parseInt(e.target.value) || 0 })}
                 required
                 disabled={loading}
               />
             </div>
           </div>
 
-          {/* Image Upload */}
+          {/* Cooldown */}
           <div>
-            {imagePreview && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Current Image:</label>
-                <Image
-                  src={imagePreview}
-                  alt="Quest Preview"
-                  width={200}
-                  height={200}
-                  className="object-cover rounded-lg border-2 border-gray-200"
-                />
-              </div>
-            )}
-            <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
-              {imagePreview ? 'Change Image' : 'Upload Image'}
+            <label htmlFor="cooldownSeconds" className="block text-sm font-medium text-gray-700 mb-2">
+              Cooldown (seconds) *
             </label>
             <input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              onChange={handleImageChange}
+              type="number"
+              id="cooldownSeconds"
+              min="0"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              value={quest.cooldownSeconds || 3600}
+              onChange={(e) => setQuest({ ...quest, cooldownSeconds: parseInt(e.target.value) || 0 })}
+              required
               disabled={loading}
-              value=""
             />
+            <p className="text-sm text-gray-500 mt-1">
+              {quest.cooldownSeconds ? `${Math.floor((quest.cooldownSeconds || 0) / 3600)} hours, ${Math.floor(((quest.cooldownSeconds || 0) % 3600) / 60)} minutes` : ''}
+            </p>
+          </div>
+
+          {/* Active Status */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="active"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              checked={quest.active ?? true}
+              onChange={(e) => setQuest({ ...quest, active: e.target.checked })}
+              disabled={loading}
+            />
+            <label htmlFor="active" className="ml-2 block text-sm text-gray-700">
+              Active Quest
+            </label>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-6 border-t border-gray-200  bg-white pb-2 -mx-6 px-6">
+          <div className="flex gap-3 pt-6 border-t border-gray-200 bg-white pb-2 -mx-6 px-6">
             <button
               type="button"
               onClick={onClose}
