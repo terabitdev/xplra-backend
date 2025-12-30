@@ -54,11 +54,12 @@ export const fetchQuestById = createAsyncThunk(
 
 export const createQuest = createAsyncThunk(
   'quests/create',
-  async (formData: FormData, { rejectWithValue }) => {
+  async (questData: Partial<Quest>, { rejectWithValue }) => {
     try {
       const response = await fetch('/api/quests/create', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(questData),
       });
 
       const data = await response.json();
@@ -76,11 +77,12 @@ export const createQuest = createAsyncThunk(
 
 export const updateQuest = createAsyncThunk(
   'quests/update',
-  async ({ id, formData }: { id: string; formData: FormData }, { rejectWithValue }) => {
+  async (questData: Quest, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/quests/${id}`, {
+      const response = await fetch(`/api/quests/${questData.questId}`, {
         method: 'PATCH',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(questData),
       });
 
       const data = await response.json();
@@ -89,7 +91,7 @@ export const updateQuest = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to update quest');
       }
 
-      return { id, ...data };
+      return questData;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Network error');
     }
@@ -98,9 +100,9 @@ export const updateQuest = createAsyncThunk(
 
 export const deleteQuest = createAsyncThunk(
   'quests/delete',
-  async (id: string, { rejectWithValue }) => {
+  async (questId: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/quests/${id}`, {
+      const response = await fetch(`/api/quests/${questId}`, {
         method: 'DELETE',
       });
 
@@ -110,7 +112,7 @@ export const deleteQuest = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to delete quest');
       }
 
-      return id;
+      return questId;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Network error');
     }
@@ -184,11 +186,11 @@ const questsSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(updateQuest.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(updateQuest.fulfilled, (state, action: PayloadAction<Quest>) => {
         state.loading = false;
-        const index = state.quests.findIndex((quest) => quest.id === action.payload.id);
+        const index = state.quests.findIndex((quest) => quest.questId === action.payload.questId);
         if (index !== -1) {
-          state.quests[index] = { ...state.quests[index], ...action.payload };
+          state.quests[index] = action.payload;
         }
         state.error = null;
       })
@@ -205,7 +207,7 @@ const questsSlice = createSlice({
       })
       .addCase(deleteQuest.fulfilled, (state, action: PayloadAction<string>) => {
         state.loading = false;
-        state.quests = state.quests.filter((quest) => quest.id !== action.payload);
+        state.quests = state.quests.filter((quest) => quest.questId !== action.payload);
         state.error = null;
       })
       .addCase(deleteQuest.rejected, (state, action) => {

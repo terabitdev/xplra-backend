@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
 import { Quest } from '@/lib/domain/models/quest';
 import admin from '@/lib/firebase-admin';
 
@@ -7,23 +7,34 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   try {
     const questId = params.id;
 
-    // Search through all adminQuests documents to find the quest
-    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
+    // Get quest document directly by ID
+    const questDoc = await adminDb.collection('adminQuests').doc(questId).get();
 
-    for (const doc of adminQuestsSnapshot.docs) {
-      const data = doc.data();
-      const quests = data.quests || [];
-      const quest = quests.find((q: Quest) => q.id === questId);
-
-      if (quest) {
-        return NextResponse.json(quest);
-      }
+    if (!questDoc.exists) {
+      return NextResponse.json(
+        { error: 'Quest not found' },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json(
-      { error: 'Quest not found' },
-      { status: 404 }
-    );
+    const data = questDoc.data();
+    const quest: Quest = {
+      questId: data?.questId || questDoc.id,
+      placeId: data?.placeId || null,
+      title: data?.title || '',
+      description: data?.description || '',
+      type: data?.type || 'checkin_time',
+      requirements: data?.requirements || {},
+      xpReward: data?.xpReward || 0,
+      cooldownSeconds: data?.cooldownSeconds || 3600,
+      active: data?.active ?? true,
+      startAt: data?.startAt,
+      endAt: data?.endAt,
+      createdAt: data?.createdAt?.toDate?.()?.toISOString() || data?.createdAt,
+      updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || data?.updatedAt,
+    };
+
+    return NextResponse.json(quest);
   } catch (error: any) {
     console.error('Get quest error:', error);
     return NextResponse.json(
@@ -35,86 +46,44 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const formData = await req.formData();
-    const questData = JSON.parse(formData.get('quest') as string);
-    const imageFile = formData.get('image') as File | null;
+    const questData = await req.json();
     const questId = params.id;
-    const adminId = questData.userId;
 
-    if (!adminId) {
-      return NextResponse.json(
-        { error: 'Admin ID is required' },
-        { status: 400 }
-      );
-    }
+    // Get quest document
+    const questDocRef = adminDb.collection('adminQuests').doc(questId);
+    const questDoc = await questDocRef.get();
 
-    let imageUrl = questData.imageUrl || '';
-
-    // Upload new image if provided
-    if (imageFile) {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const fileName = `quests/${Date.now()}_${imageFile.name}`;
-      const file = adminStorage.bucket().file(fileName);
-
-      await file.save(buffer, {
-        metadata: { contentType: imageFile.type },
-      });
-
-      await file.makePublic();
-      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
-    }
-
-    // Get admin's quest document
-    const adminQuestDocRef = adminDb.collection('adminQuests').doc(adminId);
-    const adminQuestDoc = await adminQuestDocRef.get();
-
-    if (!adminQuestDoc.exists) {
-      return NextResponse.json(
-        { error: 'Admin quest document not found' },
-        { status: 404 }
-      );
-    }
-
-    const data = adminQuestDoc.data();
-    const quests = data?.quests || [];
-
-    // Find and update the quest in the array
-    const questIndex = quests.findIndex((q: Quest) => q.id === questId);
-
-    if (questIndex === -1) {
+    if (!questDoc.exists) {
       return NextResponse.json(
         { error: 'Quest not found' },
         { status: 404 }
       );
     }
 
-    // Update the quest
-    quests[questIndex] = {
-      ...quests[questIndex],
+    // Update the quest with new data
+    const updatedQuest: Partial<Quest> = {
+      placeId: questData.placeId ?? null,
       title: questData.title,
-      shortDescription: questData.shortDescription,
-      longDescription: questData.longDescription,
-      experience: questData.experience,
-      imageUrl,
-      stepCode: questData.stepCode,
-      stepLatitude: questData.stepLatitude,
-      stepLongitude: questData.stepLongitude,
-      stepType: questData.stepType,
-      timeInSeconds: questData.timeInSeconds,
-      distance: questData.distance || 0,
-      category: questData.category,
-      hoursToCompleteAgain: questData.hoursToCompleteAgain || 0,
+      description: questData.description,
+      type: questData.type,
+      requirements: questData.requirements || {},
+      xpReward: questData.xpReward,
+      cooldownSeconds: questData.cooldownSeconds,
+      active: questData.active,
+      startAt: questData.startAt || undefined,
+      endAt: questData.endAt || undefined,
+      updatedAt: new Date().toISOString(),
     };
 
     // Update the document
-    await adminQuestDocRef.update({
-      quests,
+    await questDocRef.update({
+      ...updatedQuest,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({
       message: 'Quest updated successfully',
-      quest: quests[questIndex],
+      quest: { questId, ...updatedQuest },
     });
   } catch (error: any) {
     console.error('Update quest error:', error);
@@ -129,31 +98,23 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   try {
     const questId = params.id;
 
-    // Find the admin document containing this quest
-    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
+    // Get quest document
+    const questDocRef = adminDb.collection('adminQuests').doc(questId);
+    const questDoc = await questDocRef.get();
 
-    for (const doc of adminQuestsSnapshot.docs) {
-      const data = doc.data();
-      const quests = data.quests || [];
-      const questToDelete = quests.find((q: Quest) => q.id === questId);
-
-      if (questToDelete) {
-        // Remove the quest from the array
-        await doc.ref.update({
-          quests: admin.firestore.FieldValue.arrayRemove(questToDelete),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        return NextResponse.json({
-          message: 'Quest deleted successfully',
-        });
-      }
+    if (!questDoc.exists) {
+      return NextResponse.json(
+        { error: 'Quest not found' },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json(
-      { error: 'Quest not found' },
-      { status: 404 }
-    );
+    // Delete the quest document
+    await questDocRef.delete();
+
+    return NextResponse.json({
+      message: 'Quest deleted successfully',
+    });
   } catch (error: any) {
     console.error('Delete quest error:', error);
     return NextResponse.json(

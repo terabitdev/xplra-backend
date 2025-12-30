@@ -253,3 +253,31 @@ FIREBASE_ADMIN_SDK_JSON={"type":"service_account","project_id":"..."}
 - [Redux Toolkit Documentation](https://redux-toolkit.js.org/)
 - [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)
 - [Next.js App Router](https://nextjs.org/docs/app)
+
+
+<!-- // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDE77UbQfYXo-3V9CuEyvfRDHUZ4Rg_sTE",
+  authDomain: "xplra-1.firebaseapp.com",
+  projectId: "xplra-1",
+  storageBucket: "xplra-1.appspot.com",
+  messagingSenderId: "441929013315",
+  appId: "1:441929013315:web:a888cfe4e820b2d9a21cf6",
+  measurementId: "G-PQF6QF6L7J"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app); -->
+
+
+
+<!-- juanidalikhan03@gmail.com
+Ahmad!23 -->

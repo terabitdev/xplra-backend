@@ -4,20 +4,29 @@ import { Quest } from '@/lib/domain/models/quest';
 
 export async function GET() {
   try {
-    // Get all admin quest documents
-    const adminQuestsSnapshot = await adminDb.collection('adminQuests').get();
+    // Get all quest documents from adminQuests collection
+    const questsSnapshot = await adminDb.collection('adminQuests').get();
 
     const allQuests: Quest[] = [];
 
-    // Iterate through each admin document and collect all quests
-    adminQuestsSnapshot.forEach((doc) => {
+    // Each document is now a quest
+    questsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const quests = data.quests || [];
-
-      // Add all quests from this admin
-      quests.forEach((quest: Quest) => {
-        allQuests.push(quest);
-      });
+      allQuests.push({
+        questId: data.questId || doc.id,
+        placeId: data.placeId || null,
+        title: data.title || '',
+        description: data.description || '',
+        type: data.type || 'checkin_time',
+        requirements: data.requirements || {},
+        xpReward: data.xpReward || 0,
+        cooldownSeconds: data.cooldownSeconds || 3600,
+        active: data.active ?? true,
+        startAt: data.startAt,
+        endAt: data.endAt,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      } as Quest);
     });
 
     return NextResponse.json(allQuests);
