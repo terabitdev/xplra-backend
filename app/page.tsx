@@ -36,8 +36,10 @@ export default function Home() {
 
   return (
     <DashboardLayout>
-      <div className="w-full mt-8">
-        <h1 className=" text-2xl sm:text-4xl font-bold mb-6">Welcome to the Dashboard</h1>
+      <div className="w-full">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-gray-900">
+          Welcome to the Dashboard
+        </h1>
 
         {/* Metrics Cards */}
         <MetricsCards />

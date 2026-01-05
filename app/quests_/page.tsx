@@ -14,10 +14,12 @@ import {
   deleteQuest,
   clearError,
 } from "../store/slices/questsSlice";
+import { fetchPlaces } from "../store/slices/placesSlice";
 
 export default function Quests_Page() {
   const dispatch = useDispatch<AppDispatch>();
   const { quests, loading, error } = useSelector((state: RootState) => state.quests);
+  const { places } = useSelector((state: RootState) => state.places);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest_ | null>(null);
@@ -28,6 +30,7 @@ export default function Quests_Page() {
 
   useEffect(() => {
     dispatch(fetchQuests());
+    dispatch(fetchPlaces());
   }, [dispatch]);
 
   useEffect(() => {
@@ -36,6 +39,13 @@ export default function Quests_Page() {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  // Helper function to get place name from placeId
+  const getPlaceName = (placeId: string | null) => {
+    if (!placeId) return null;
+    const place = places.find(p => p.placeId === placeId);
+    return place?.name || placeId;
+  };
 
   const formatCooldown = (seconds: number) => {
     if (seconds >= 86400) return `${Math.floor(seconds / 86400)}d`;
@@ -47,9 +57,7 @@ export default function Quests_Page() {
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
       checkin_time: "bg-blue-100 text-blue-700",
-      checkin_proof: "bg-violet-100 text-violet-700",
       qr_scan: "bg-emerald-100 text-emerald-700",
-      gps_verify: "bg-amber-100 text-amber-700",
     };
     return colors[type] || "bg-gray-100 text-gray-700";
   };
@@ -156,9 +164,6 @@ export default function Quests_Page() {
                   {/* Description */}
                   <p className="text-xs text-gray-500 line-clamp-2 mb-3">{quest.description}</p>
 
-                  {/* Quest ID */}
-                  <p className="text-[10px] text-gray-400 font-mono truncate mb-2">{quest.questId}</p>
-
                   {/* Info Grid */}
                   <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
@@ -168,16 +173,22 @@ export default function Quests_Page() {
                       </span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">XP Reward</span>
-                      <span className="text-amber-600 font-semibold">{quest.xpReward} XP</span>
+                      <span className="text-gray-400 block text-[10px] mb-0.5">
+                        {quest.type === 'checkin_time' ? 'Min Time' : 'XP Reward'}
+                      </span>
+                      <span className={quest.type === 'checkin_time' ? 'text-blue-600 font-semibold' : 'text-amber-600 font-semibold'}>
+                        {quest.type === 'checkin_time'
+                          ? `${quest.requirements?.minTimeSeconds || 0}s`
+                          : `${quest.xpReward} XP`}
+                      </span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
                       <span className="text-gray-400 block text-[10px] mb-0.5">Cooldown</span>
                       <span className="text-gray-700 font-medium">{formatCooldown(quest.cooldownSeconds)}</span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">Place ID</span>
-                      <span className="text-gray-700 font-medium truncate block">{quest.placeId || <span className="text-gray-400">null</span>}</span>
+                      <span className="text-gray-400 block text-[10px] mb-0.5">Place</span>
+                      <span className="text-gray-700 font-medium truncate block">{getPlaceName(quest.placeId) || <span className="text-gray-400">None</span>}</span>
                     </div>
                   </div>
 
@@ -221,8 +232,8 @@ export default function Quests_Page() {
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Quest</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Type</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Place ID</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">XP</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Place</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Min Time</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Cooldown</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Status</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Duration</th>
@@ -236,7 +247,6 @@ export default function Quests_Page() {
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{quest.title}</p>
                         <p className="text-xs text-gray-500 truncate max-w-[180px]">{quest.description}</p>
-                        <p className="text-xs text-gray-400 font-mono truncate max-w-[180px]">{quest.questId}</p>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(quest.type)}`}>
@@ -244,12 +254,16 @@ export default function Quests_Page() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="text-gray-600 font-mono text-xs">
-                          {quest.placeId || <span className="text-gray-400">null</span>}
+                        <span className="text-gray-700 text-xs">
+                          {getPlaceName(quest.placeId) || <span className="text-gray-400">None</span>}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="font-medium text-gray-900">{quest.xpReward}</span>
+                        {quest.type === 'checkin_time' ? (
+                          <span className="font-medium text-blue-600">{quest.requirements?.minTimeSeconds || 0}s</span>
+                        ) : (
+                          <span className="font-medium text-gray-900">{quest.xpReward}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-gray-700">{formatCooldown(quest.cooldownSeconds)}</span>

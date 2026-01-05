@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { toggleSidebar } from '../../store/slices/uiSlice';
 import { createXpLedgerEntry } from '../../store/slices/xpLedgerSlice';
 import { AppDispatch } from '../../store';
-import { Close, Menu } from '@carbon/icons-react';
+import { Close } from '@carbon/icons-react';
 import { XpLedgerType } from '@/lib/domain/models/xpLedger';
 
 interface XpAdjustmentModalProps {
@@ -89,18 +88,8 @@ export default function XpAdjustmentModal({ isOpen, onClose, onSuccess, uid }: X
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => dispatch(toggleSidebar())}
-              className="lg:hidden p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-              disabled={loading}
-              type="button"
-            >
-              <Menu size={20} />
-            </button>
-            <h2 className="text-lg font-semibold text-gray-900">Adjust XP</h2>
-          </div>
-          <button onClick={handleClose} className="p-1 text-gray-400 hover:text-gray-600 rounded" disabled={loading}>
+          <h2 className="text-lg font-semibold text-gray-900">Adjust XP</h2>
+          <button onClick={handleClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors" disabled={loading}>
             <Close size={20} />
           </button>
         </div>
