@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Quest } from '@/lib/domain/models/quest';
 import { Close } from '@carbon/icons-react';
+import Image from 'next/image';
+import { fetchPlaces } from '../../store/slices/placesSlice';
+import { AppDispatch, RootState } from '../../store';
 
 interface QuestFormModalProps {
   isOpen: boolean;
@@ -17,6 +21,8 @@ export default function QuestFormModal({
   onSubmit,
   quest: initialQuest,
 }: QuestFormModalProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { places } = useSelector((state: RootState) => state.places);
   const [quest, setQuest] = useState<Partial<Quest>>({
     title: '',
     description: '',
@@ -28,6 +34,27 @@ export default function QuestFormModal({
     requirements: {},
   });
   const [loading, setLoading] = useState(false);
+  const [isPlaceDropdownOpen, setIsPlaceDropdownOpen] = useState(false);
+
+  // Fetch places when modal opens
+  useEffect(() => {
+    if (isOpen && places.length === 0) {
+      dispatch(fetchPlaces());
+    }
+  }, [isOpen, dispatch, places.length]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isPlaceDropdownOpen && !target.closest('.place-dropdown-container')) {
+        setIsPlaceDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPlaceDropdownOpen]);
 
   useEffect(() => {
     if (initialQuest) {
@@ -116,20 +143,88 @@ export default function QuestFormModal({
             />
           </div>
 
-          {/* Place ID */}
-          <div>
+          {/* Place */}
+          <div className="relative place-dropdown-container">
             <label htmlFor="placeId" className="block text-sm font-medium text-gray-700 mb-2">
-              Place ID
+              Place
             </label>
-            <input
-              type="text"
-              id="placeId"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              value={quest.placeId || ''}
-              onChange={(e) => setQuest({ ...quest, placeId: e.target.value || null })}
-              placeholder="Optional - Link to a place"
+            {/* Custom Dropdown Button */}
+            <button
+              type="button"
+              onClick={() => !loading && setIsPlaceDropdownOpen(!isPlaceDropdownOpen)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-left flex items-center justify-between disabled:bg-gray-100"
               disabled={loading}
-            />
+            >
+              {quest.placeId ? (
+                <div className="flex items-center gap-2 flex-1">
+                  {places.find(p => p.placeId === quest.placeId)?.imageUrls?.[0] && (
+                    <Image
+                      src={places.find(p => p.placeId === quest.placeId)!.imageUrls![0]}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                  )}
+                  <span className="text-gray-900">{places.find(p => p.placeId === quest.placeId)?.name || 'Unknown'}</span>
+                </div>
+              ) : (
+                <span className="text-gray-500">Select your places</span>
+              )}
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isPlaceDropdownOpen && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {/* None Option */}
+                <div
+                  onClick={() => {
+                    setQuest({ ...quest, placeId: null });
+                    setIsPlaceDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-500"
+                >
+                  Select your places
+                </div>
+
+                {/* Place Options */}
+                {places.map((place) => (
+                  <div
+                    key={place.placeId}
+                    onClick={() => {
+                      setQuest({ ...quest, placeId: place.placeId });
+                      setIsPlaceDropdownOpen(false);
+                    }}
+                    className={`px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center gap-3 ${
+                      quest.placeId === place.placeId ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    {place.imageUrls?.[0] ? (
+                      <Image
+                        src={place.imageUrls[0]}
+                        alt={place.name}
+                        width={48}
+                        height={48}
+                        className="w-12 h-12 rounded object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{place.name}</p>
+                      {place.address && <p className="text-xs text-gray-500 truncate">{place.address}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Type and XP Reward Row */}
@@ -148,9 +243,7 @@ export default function QuestFormModal({
                 disabled={loading}
               >
                 <option value="qr_scan">QR Scan</option>
-                <option value="gps_verify">GPS Verify</option>
                 <option value="checkin_time">Check-in Time</option>
-                <option value="checkin_proof">Check-in Proof</option>
               </select>
             </div>
 

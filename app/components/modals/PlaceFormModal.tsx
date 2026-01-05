@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { toggleSidebar } from '../../store/slices/uiSlice';
-import { Close, Menu } from '@carbon/icons-react';
+import { Close } from '@carbon/icons-react';
+import Image from 'next/image';
 
 export interface Place_ {
   placeId: string;
@@ -17,12 +16,13 @@ export interface Place_ {
   address?: string;
   source: "seed" | "user_contribution";
   status: "active" | "hidden" | "pending";
+  imageUrls?: string[];
 }
 
 interface PlaceFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (place: Place_) => void;
+  onSubmit: (place: Place_, imageFiles: File[]) => void;
   place?: Place_ | null;
 }
 
@@ -32,7 +32,6 @@ export default function PlaceFormModal({
   onSubmit,
   place: initialPlace,
 }: PlaceFormModalProps) {
-  const dispatch = useDispatch();
   const [place, setPlace] = useState<Partial<Place_>>({
     placeId: '',
     name: '',
@@ -42,13 +41,18 @@ export default function PlaceFormModal({
     address: '',
     source: 'seed',
     status: 'active',
+    imageUrls: [],
   });
   const [categoryInput, setCategoryInput] = useState('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPlace) {
       setPlace(initialPlace);
+      setImagePreviews(initialPlace.imageUrls || []);
     } else {
       const newPlaceId = `place_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       setPlace({
@@ -60,9 +64,13 @@ export default function PlaceFormModal({
         address: '',
         source: 'seed',
         status: 'active',
+        imageUrls: [],
       });
+      setImagePreviews([]);
     }
     setCategoryInput('');
+    setImageFiles([]);
+    setUploadError(null);
   }, [initialPlace, isOpen]);
 
   const handleAddCategory = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -81,11 +89,55 @@ export default function PlaceFormModal({
     setPlace({ ...place, categories: newCategories });
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    setUploadError(null);
+
+    // Check max 4 images limit
+    if (imageFiles.length + files.length > 4) {
+      setUploadError('Maximum 4 images allowed');
+      return;
+    }
+
+    // Validate each file
+    for (const file of files) {
+      // Check file size (4MB = 4 * 1024 * 1024 bytes)
+      if (file.size > 4 * 1024 * 1024) {
+        setUploadError(`File "${file.name}" exceeds 4MB limit`);
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        setUploadError(`File "${file.name}" is not an image`);
+        return;
+      }
+    }
+
+    // Add new files to existing ones
+    setImageFiles((prevFiles) => [...prevFiles, ...files]);
+
+    // Create previews for new files
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImagePreviews((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setUploadError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      onSubmit(place as Place_);
+      await onSubmit(place as Place_, imageFiles);
       onClose();
     } catch (error) {
       console.error('Error submitting place:', error);
@@ -114,20 +166,10 @@ export default function PlaceFormModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => dispatch(toggleSidebar())}
-              className="lg:hidden p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-              disabled={loading}
-              type="button"
-            >
-              <Menu size={20} />
-            </button>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {initialPlace ? 'Edit Place' : 'New Place'}
-            </h2>
-          </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded" disabled={loading}>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {initialPlace ? 'Edit Place' : 'New Place'}
+          </h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors" disabled={loading}>
             <Close size={20} />
           </button>
         </div>
@@ -271,15 +313,54 @@ export default function PlaceFormModal({
             </div>
           </div>
 
-          {/* Place ID */}
+          {/* Image Upload */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Place ID</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Upload Place Images <span className="text-gray-400 font-normal">(Max 4 images, 4MB each)</span>
+            </label>
             <input
-              type="text"
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono"
-              value={place.placeId}
-              readOnly
+              type="file"
+              id="placeImages"
+              accept="image/*"
+              multiple
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              onChange={handleImageChange}
+              disabled={loading || imagePreviews.length >= 4}
+              value=""
             />
+            {uploadError && (
+              <p className="text-red-500 text-xs mt-1">{uploadError}</p>
+            )}
+
+            {/* Image Previews Grid */}
+            {imagePreviews.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <Image
+                      src={preview}
+                      alt={`Place Image ${index + 1}`}
+                      width={200}
+                      height={200}
+                      className="object-cover rounded-md border-2 border-gray-200 w-full h-24"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 disabled:opacity-50 text-xs"
+                      disabled={loading}
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {imagePreviews.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">No images uploaded</p>
+            )}
           </div>
         </form>
 

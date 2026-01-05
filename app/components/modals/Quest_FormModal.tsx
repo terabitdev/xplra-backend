@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { toggleSidebar } from '../../store/slices/uiSlice';
-import { Close, Menu } from '@carbon/icons-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Close } from '@carbon/icons-react';
+import Image from 'next/image';
+import { fetchPlaces } from '../../store/slices/placesSlice';
+import { AppDispatch, RootState } from '../../store';
 
 export interface Quest_ {
   questId: string;
@@ -32,7 +34,8 @@ export default function Quest_FormModal({
   onSubmit,
   quest: initialQuest,
 }: Quest_FormModalProps) {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const { places } = useSelector((state: RootState) => state.places);
   const [quest, setQuest] = useState<Partial<Quest_>>({
     questId: '',
     placeId: null,
@@ -49,17 +52,35 @@ export default function Quest_FormModal({
   const [requirementsJson, setRequirementsJson] = useState('{}');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isPlaceDropdownOpen, setIsPlaceDropdownOpen] = useState(false);
+  const [minTimeSeconds, setMinTimeSeconds] = useState<number>(300);
+
+  // Fetch places when modal opens
+  useEffect(() => {
+    if (isOpen && places.length === 0) {
+      dispatch(fetchPlaces());
+    }
+  }, [isOpen, dispatch, places.length]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isPlaceDropdownOpen && !target.closest('.place-dropdown-container')) {
+        setIsPlaceDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPlaceDropdownOpen]);
 
   const getRequirementsPlaceholder = (type: Quest_['type']) => {
     switch (type) {
       case 'checkin_time':
-        return '{"minTime": 300}';
-      case 'checkin_proof':
-        return '{"photoRequired": true}';
+        return '{"minTimeSeconds": 300}';
       case 'qr_scan':
         return '{"qrCode": "QUEST_QR_123"}';
-      case 'gps_verify':
-        return '{"latitude": 24.8607, "longitude": 67.0011, "radius": 100}';
       default:
         return '{}';
     }
@@ -69,6 +90,10 @@ export default function Quest_FormModal({
     if (initialQuest) {
       setQuest(initialQuest);
       setRequirementsJson(JSON.stringify(initialQuest.requirements, null, 2));
+      // Extract minTimeSeconds if it exists
+      if (initialQuest.type === 'checkin_time' && initialQuest.requirements?.minTimeSeconds) {
+        setMinTimeSeconds(initialQuest.requirements.minTimeSeconds);
+      }
     } else {
       const newQuestId = `quest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       setQuest({
@@ -85,6 +110,7 @@ export default function Quest_FormModal({
         endAt: '',
       });
       setRequirementsJson('{}');
+      setMinTimeSeconds(300);
     }
     setJsonError(null);
   }, [initialQuest, isOpen]);
@@ -98,6 +124,13 @@ export default function Quest_FormModal({
     } catch {
       setJsonError('Invalid JSON format');
     }
+  };
+
+  const handleMinTimeSecondsChange = (value: number) => {
+    setMinTimeSeconds(value);
+    const newRequirements = { minTimeSeconds: value };
+    setQuest({ ...quest, requirements: newRequirements });
+    setRequirementsJson(JSON.stringify(newRequirements, null, 2));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,37 +157,27 @@ export default function Quest_FormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-3">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-0 sm:p-3">
+      <div className="bg-white rounded-none sm:rounded-xl shadow-xl w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col safe-area-inset">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => dispatch(toggleSidebar())}
-              className="lg:hidden p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-              disabled={loading}
-              type="button"
-            >
-              <Menu size={20} />
-            </button>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {initialQuest ? 'Edit Quest' : 'New Quest'}
-            </h2>
-          </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded" disabled={loading}>
-            <Close size={20} />
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-3 border-b border-gray-200 bg-white pt-safe">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+            {initialQuest ? 'Edit Quest' : 'New Quest'}
+          </h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors" disabled={loading}>
+            <Close size={22} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Title & Description */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* Title & Place */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Title *</label>
               <input
                 type="text"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={quest.title}
                 onChange={(e) => setQuest({ ...quest, title: e.target.value })}
                 required
@@ -162,24 +185,93 @@ export default function Quest_FormModal({
                 placeholder="Quest title"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Place ID</label>
-              <input
-                type="text"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={quest.placeId || ''}
-                onChange={(e) => setQuest({ ...quest, placeId: e.target.value || null })}
+            <div className="relative place-dropdown-container">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Place</label>
+              {/* Custom Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => !loading && setIsPlaceDropdownOpen(!isPlaceDropdownOpen)}
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-left flex items-center justify-between disabled:bg-gray-100"
                 disabled={loading}
-                placeholder="Optional"
-              />
+              >
+                {quest.placeId ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    {places.find(p => p.placeId === quest.placeId)?.imageUrls?.[0] && (
+                      <Image
+                        src={places.find(p => p.placeId === quest.placeId)!.imageUrls![0]}
+                        alt=""
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded object-cover"
+                      />
+                    )}
+                    <span className="text-gray-900">{places.find(p => p.placeId === quest.placeId)?.name || 'Unknown'}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-500">Select your places</span>
+                )}
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {isPlaceDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 sm:max-h-60 overflow-y-auto">
+                  {/* None Option */}
+                  <div
+                    onClick={() => {
+                      setQuest({ ...quest, placeId: null });
+                      setIsPlaceDropdownOpen(false);
+                    }}
+                    className="px-3 sm:px-3 py-3 sm:py-2 hover:bg-gray-100 active:bg-gray-200 cursor-pointer text-sm sm:text-sm text-gray-500 border-b border-gray-100"
+                  >
+                    Select your places
+                  </div>
+
+                  {/* Place Options */}
+                  {places.map((place) => (
+                    <div
+                      key={place.placeId}
+                      onClick={() => {
+                        setQuest({ ...quest, placeId: place.placeId });
+                        setIsPlaceDropdownOpen(false);
+                      }}
+                      className={`px-3 py-3 sm:py-2.5 hover:bg-indigo-50 active:bg-indigo-100 cursor-pointer flex items-center gap-3 transition-colors ${
+                        quest.placeId === place.placeId ? 'bg-indigo-50' : ''
+                      }`}
+                    >
+                      {place.imageUrls?.[0] ? (
+                        <Image
+                          src={place.imageUrls[0]}
+                          alt={place.name}
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 sm:w-10 sm:h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-6 h-6 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm sm:text-sm font-medium text-gray-900 truncate">{place.name}</p>
+                        {place.address && <p className="text-xs text-gray-500 truncate mt-0.5">{place.address}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Description *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description *</label>
             <textarea
-              rows={2}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+              rows={3}
+              className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               value={quest.description}
               onChange={(e) => setQuest({ ...quest, description: e.target.value })}
               required
@@ -188,59 +280,97 @@ export default function Quest_FormModal({
             />
           </div>
 
-          {/* Type, XP, Cooldown, Status */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Type & XP Reward */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Type *</label>
               <select
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={quest.type}
                 onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest_['type'] })}
                 disabled={loading}
               >
                 <option value="checkin_time">Check-in Time</option>
-                <option value="checkin_proof">Check-in Proof</option>
                 <option value="qr_scan">QR Scan</option>
-                <option value="gps_verify">GPS Verify</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">XP Reward *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                XP Reward *
+              </label>
               <input
                 type="number"
                 min="0"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={quest.xpReward || ''}
                 onChange={(e) => setQuest({ ...quest, xpReward: parseInt(e.target.value) || 0 })}
                 required
                 disabled={loading}
-                placeholder="0"
+                placeholder="100"
               />
             </div>
+          </div>
+
+          {/* Min Time (for checkin_time) or QR Code (for qr_scan) */}
+          {quest.type === 'checkin_time' && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cooldown *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Min Time <span className="text-blue-600 font-semibold">(seconds)</span> *
+              </label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={minTimeSeconds}
+                onChange={(e) => handleMinTimeSecondsChange(parseInt(e.target.value) || 0)}
+                required
+                disabled={loading}
+                placeholder="300"
+              />
+            </div>
+          )}
+          {quest.type === 'qr_scan' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">QR Code</label>
+              <button
+                type="button"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                disabled={loading}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Scan QR Code
+              </button>
+            </div>
+          )}
+
+          {/* Cooldown & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Cooldown (seconds) *</label>
               <div className="relative">
                 <input
                   type="number"
                   min="0"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 pr-10"
+                  className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-16"
                   value={quest.cooldownSeconds || ''}
                   onChange={(e) => setQuest({ ...quest, cooldownSeconds: parseInt(e.target.value) || 0 })}
                   required
                   disabled={loading}
                   placeholder="3600"
                 />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium">
                   {quest.cooldownSeconds ? formatCooldown(quest.cooldownSeconds) : ''}
                 </span>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
               <button
                 type="button"
                 onClick={() => setQuest({ ...quest, active: !quest.active })}
-                className={`w-full px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                className={`w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base rounded-lg border transition-colors font-medium ${
                   quest.active
                     ? 'bg-green-50 border-green-300 text-green-700'
                     : 'bg-gray-50 border-gray-300 text-gray-600'
@@ -253,22 +383,22 @@ export default function Quest_FormModal({
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
               <input
                 type="datetime-local"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={quest.startAt ? quest.startAt.slice(0, 16) : ''}
                 onChange={(e) => setQuest({ ...quest, startAt: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                 disabled={loading}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">End Date</label>
               <input
                 type="datetime-local"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={quest.endAt ? quest.endAt.slice(0, 16) : ''}
                 onChange={(e) => setQuest({ ...quest, endAt: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                 disabled={loading}
@@ -278,40 +408,30 @@ export default function Quest_FormModal({
 
           {/* Requirements */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Requirements (JSON) <span className="text-gray-400 font-normal">— {getRequirementsPlaceholder(quest.type || 'checkin_time')}</span>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Requirements (JSON) <span className="text-gray-500 text-xs font-normal">— {getRequirementsPlaceholder(quest.type || 'checkin_time')}</span>
             </label>
             <textarea
-              rows={2}
-              className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono resize-none ${
+              rows={3}
+              className={`w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-xs sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono resize-none ${
                 jsonError ? 'border-red-400' : 'border-gray-300'
               }`}
               value={requirementsJson}
               onChange={(e) => handleRequirementsChange(e.target.value)}
-              disabled={loading}
+              disabled={quest.type === 'checkin_time' || loading}
               placeholder={getRequirementsPlaceholder(quest.type || 'checkin_time')}
             />
-            {jsonError && <p className="text-red-500 text-xs mt-0.5">{jsonError}</p>}
+            {jsonError && <p className="text-red-500 text-sm mt-1">{jsonError}</p>}
           </div>
 
-          {/* Quest ID */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quest ID</label>
-            <input
-              type="text"
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono"
-              value={quest.questId}
-              readOnly
-            />
-          </div>
         </form>
 
         {/* Footer */}
-        <div className="flex gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        <div className="flex gap-3 px-4 sm:px-5 py-3.5 sm:py-3 pb-safe border-t border-gray-200 bg-gray-50 rounded-none sm:rounded-b-xl">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            className="flex-1 px-4 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
             disabled={loading}
           >
             Cancel
@@ -319,10 +439,10 @@ export default function Quest_FormModal({
           <button
             type="submit"
             onClick={handleSubmit}
-            className="flex-1 px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 sm:py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
             disabled={loading || !!jsonError}
           >
-            {loading ? 'Saving...' : (initialQuest ? 'Update' : 'Create')}
+            {loading ? 'Saving...' : (initialQuest ? 'Update Quest' : 'Create Quest')}
           </button>
         </div>
       </div>
