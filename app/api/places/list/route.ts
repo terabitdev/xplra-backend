@@ -19,6 +19,7 @@ export async function GET() {
         address: data.address,
         source: data.source || 'seed',
         status: data.status || 'active',
+        imageUrls: data.imageUrls || [],
         createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
       } as Place);

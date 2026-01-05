@@ -56,12 +56,19 @@ export const fetchPlaceById = createAsyncThunk(
 
 export const createPlace = createAsyncThunk(
   'places/create',
-  async (placeData: Partial<Place>, { rejectWithValue }) => {
+  async ({ placeData, imageFiles }: { placeData: Partial<Place>, imageFiles: File[] }, { rejectWithValue }) => {
     try {
+      const formData = new FormData();
+      formData.append('placeData', JSON.stringify(placeData));
+
+      // Append image files
+      imageFiles.forEach((file, index) => {
+        formData.append(`image_${index}`, file);
+      });
+
       const response = await fetch('/api/places/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(placeData),
+        body: formData,
       });
 
       const data = await response.json();
@@ -80,12 +87,19 @@ export const createPlace = createAsyncThunk(
 
 export const updatePlace = createAsyncThunk(
   'places/update',
-  async (placeData: Place, { rejectWithValue }) => {
+  async ({ placeData, imageFiles }: { placeData: Place, imageFiles: File[] }, { rejectWithValue }) => {
     try {
+      const formData = new FormData();
+      formData.append('placeData', JSON.stringify(placeData));
+
+      // Append image files
+      imageFiles.forEach((file, index) => {
+        formData.append(`image_${index}`, file);
+      });
+
       const response = await fetch(`/api/places/${placeData.placeId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(placeData),
+        body: formData,
       });
 
       const data = await response.json();

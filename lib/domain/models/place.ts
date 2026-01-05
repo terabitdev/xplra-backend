@@ -10,6 +10,7 @@ export interface Place {
     address?: string;
     source: "seed" | "user_contribution";
     status: "active" | "hidden" | "pending";
+    imageUrls?: string[];
     createdAt?: string;
     updatedAt?: string;
 }

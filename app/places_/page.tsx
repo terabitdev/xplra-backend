@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Image from "next/image";
 import DashboardLayout from "../components/DashboardLayout";
 import PlaceFormModal, { Place_ } from "../components/modals/PlaceFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
@@ -64,15 +65,17 @@ export default function Places_Page() {
     setIsModalOpen(true);
   }, []);
 
-  const handleSubmitPlace = useCallback(async (place: Place_) => {
+  const handleSubmitPlace = useCallback(async (place: Place_, imageFiles: File[]) => {
     try {
       if (selectedPlace) {
-        await dispatch(updatePlace(place)).unwrap();
+        await dispatch(updatePlace({ placeData: place, imageFiles })).unwrap();
         setToast({ message: 'Place updated successfully', type: 'success', isVisible: true });
       } else {
-        await dispatch(createPlace(place)).unwrap();
+        await dispatch(createPlace({ placeData: place, imageFiles })).unwrap();
         setToast({ message: 'Place created successfully', type: 'success', isVisible: true });
       }
+      // Refresh places list to show uploaded images
+      await dispatch(fetchPlaces());
     } catch (err) {
       const errorMessage = typeof err === 'string' ? err : 'An error occurred';
       setToast({ message: errorMessage, type: 'error', isVisible: true });
@@ -145,22 +148,38 @@ export default function Places_Page() {
             {/* Mobile View */}
             <div className="lg:hidden space-y-2">
               {places.map((place) => (
-                <div key={place.placeId} className="bg-white rounded-lg border border-gray-200 p-3">
-                  {/* Header */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">{place.name}</h3>
-                    <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(place.status)}`}>
-                      {place.status}
-                    </span>
-                  </div>
+                <div key={place.placeId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  {/* Place Image */}
+                  {place.imageUrls && place.imageUrls.length > 0 ? (
+                    <div className="relative w-full h-40">
+                      <Image
+                        src={place.imageUrls[0]}
+                        alt={place.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
+                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
 
-                  {/* Address */}
+                  <div className="p-3">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">{place.name}</h3>
+                      <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(place.status)}`}>
+                        {place.status}
+                      </span>
+                    </div>
+
+                    {/* Address */}
                   {place.address && (
                     <p className="text-xs text-gray-500 line-clamp-2 mb-2">{place.address}</p>
                   )}
-
-                  {/* Place ID */}
-                  <p className="text-[10px] text-gray-400 font-mono truncate mb-2">{place.placeId}</p>
 
                   {/* Info Grid */}
                   <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
@@ -198,14 +217,15 @@ export default function Places_Page() {
                     </div>
                   )}
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t border-gray-100">
-                    <button onClick={() => handleEditPlace(place as Place_)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
-                      Edit
-                    </button>
-                    <button onClick={() => handleDeleteClick(place as Place_)} className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                      Delete
-                    </button>
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <button onClick={() => handleEditPlace(place as Place_)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteClick(place as Place_)} className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -216,6 +236,7 @@ export default function Places_Page() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5 w-20">Image</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Place</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Location</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Geohash</th>
@@ -229,9 +250,25 @@ export default function Places_Page() {
                   {places.map((place) => (
                     <tr key={place.placeId} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-3 py-2.5">
+                        {place.imageUrls && place.imageUrls.length > 0 ? (
+                          <Image
+                            src={place.imageUrls[0]}
+                            alt={place.name}
+                            width={56}
+                            height={56}
+                            className="rounded-md object-cover h-10 w-10 sm:h-14 sm:w-14"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-md bg-gray-100 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{place.name}</p>
                         <p className="text-xs text-gray-500 truncate max-w-[200px]">{place.address || '—'}</p>
-                        <p className="text-xs text-gray-400 font-mono truncate max-w-[200px]">{place.placeId}</p>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-gray-700 font-mono text-xs">
