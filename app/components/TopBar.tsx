@@ -2,17 +2,19 @@
 
 import { useState, useRef, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Logout, Edit } from "@carbon/icons-react";
+import { ChevronDown, Logout, Edit, Menu } from "@carbon/icons-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchUserProfile, updateUserProfile, setEditModalOpen } from "../store/slices/userSlice";
 import SearchBar from "./SearchBar";
 import { useSearch } from "../contexts/SearchContext";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../store";
+import { toggleSidebar } from "../store/slices/uiSlice";
 
 function TopBar() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const userDispatch = useAppDispatch();
+  const dispatch = useDispatch();
   const { email, displayName, photoURL, loading, isEditModalOpen, isSaving } = useAppSelector((state) => state.user);
   const { setSearchQuery } = useSearch();
   const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
@@ -31,7 +33,7 @@ function TopBar() {
 
     // Only fetch if we don't have user data
     if (token && !email) {
-      dispatch(fetchUserProfile(token)).unwrap()
+      userDispatch(fetchUserProfile(token)).unwrap()
         .then((data) => {
           setEditName(data.displayName || data.email?.split("@")[0] || "");
         })
@@ -86,7 +88,7 @@ function TopBar() {
 
   const handleOpenEditModal = () => {
     setIsDropdownOpen(false);
-    dispatch(setEditModalOpen(true));
+    userDispatch(setEditModalOpen(true));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +106,7 @@ function TopBar() {
   const handleSaveProfile = async () => {
     const token = localStorage.getItem("token");
     if (token) {
-      dispatch(updateUserProfile({ token, displayName: editName, photo: editPhoto || undefined }));
+      userDispatch(updateUserProfile({ token, displayName: editName, photo: editPhoto || undefined }));
     }
   };
 
@@ -113,11 +115,19 @@ function TopBar() {
   };
 
   return (
-    <div className={`h-14 bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[999] flex items-center justify-between px-3 lg:px-4 transition-all duration-300 ease-in-out ${
-      isSidebarOpen ? 'lg:left-64' : 'lg:left-16'
-    }`}>
+    <div className={`h-14 bg-white border-b border-gray-200 fixed top-0 right-0 z-[999] flex items-center justify-between px-3 lg:px-4 transition-all duration-300 ease-in-out
+      left-0 ${isSidebarOpen ? 'lg:left-64' : 'lg:left-16'}
+    `}>
+      {/* Hamburger Menu - Only visible on mobile */}
+      <button
+        onClick={() => dispatch(toggleSidebar())}
+        className="lg:hidden p-2 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+      >
+        <Menu size={22} />
+      </button>
+
       {/* Search Bar - Hidden on small mobile, visible on tablet and up */}
-      <div className=" flex-1 ml-14 sm:ml-16 lg:ml-2 max-w-[14rem] sm:max-w-xs">
+      <div className="flex-1 ml-2 sm:ml-3 lg:ml-2 max-w-[14rem] sm:max-w-xs">
         <SearchBar
           placeholder="Search analytics, or data..."
           onSearch={handleSearch}
@@ -207,7 +217,7 @@ function TopBar() {
         <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center  z-[100] p-3">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-5 relative max-h-[90vh] scrollbar-hide overflow-y-auto">
             <button
-              onClick={() => dispatch(setEditModalOpen(false))}
+              onClick={() => userDispatch(setEditModalOpen(false))}
               className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
             >
               ×
@@ -292,7 +302,7 @@ function TopBar() {
               {/* Action Buttons */}
               <div className="flex gap-2.5 pt-2">
                 <button
-                  onClick={() => dispatch(setEditModalOpen(false))}
+                  onClick={() => userDispatch(setEditModalOpen(false))}
                   className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                   disabled={isSaving}
                 >

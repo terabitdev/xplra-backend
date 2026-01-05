@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Sidebar />
             <div
                 className={`flex-1 sm:mt-8 transition-all duration-300 ease-in-out ${
-                    isSidebarOpen ? 'ml-64' : 'ml-16'
+                    isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
                 }`}
             >
                 <TopBar />

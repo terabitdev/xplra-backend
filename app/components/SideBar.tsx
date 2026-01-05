@@ -10,7 +10,6 @@ import {
   Dashboard,
   EarthEuropeAfrica,
   Logout,
-  Trophy,
   Tag,
   Task,
   Location,
@@ -52,7 +51,6 @@ export default function Sidebar() {
     { href: "/users", icon: User, label: "Users" },
     { href: "/adventures", icon: EarthEuropeAfrica, label: "Adventures" },
     { href: "/categories", icon: Tag, label: "Categories" },
-    { href: "/achievements", icon: Trophy, label: "Achievements" },
   ];
 
   const closeMobileMenu = () => {
@@ -74,9 +72,11 @@ export default function Sidebar() {
 
       {/* Sidebar - Collapsed/Expanded */}
       <div
-        className={`flex flex-col h-screen bg-white border-r border-gray-200 shadow-lg fixed top-0 left-0 bottom-0 z-[1000] transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? "w-64" : "w-16"
-        }`}
+        className={`flex flex-col h-screen bg-white border-r border-gray-200 shadow-lg fixed top-0 bottom-0 z-[1000] transition-all duration-300 ease-in-out
+          ${isSidebarOpen ? "w-64" : "w-16"}
+          lg:left-0
+          ${isSidebarOpen ? "left-0" : "-left-64"}
+        `}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 h-16">
           {/* Logo - Shows when expanded */}
