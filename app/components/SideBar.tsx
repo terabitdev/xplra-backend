@@ -8,7 +8,6 @@ import { toggleSidebar, closeSidebar } from "../store/slices/uiSlice";
 import { RootState } from "../store";
 import {
   Dashboard,
-  EarthEuropeAfrica,
   Logout,
   Tag,
   Task,
@@ -49,7 +48,6 @@ export default function Sidebar() {
     { href: "/places_", icon: Location, label: "Places" },
     { href: "/contributions", icon: Checkmark, label: "Contributions" },
     { href: "/users", icon: User, label: "Users" },
-    { href: "/adventures", icon: EarthEuropeAfrica, label: "Adventures" },
     { href: "/categories", icon: Tag, label: "Categories" },
   ];
 
