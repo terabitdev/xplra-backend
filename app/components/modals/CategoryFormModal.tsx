@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Category } from '@/lib/domain/models/category';
 import { Close } from '@carbon/icons-react';
 
@@ -24,6 +24,22 @@ export default function CategoryFormModal({
     userId: adminId,
   });
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Blur any currently focused element (like search bar)
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      // Small delay to ensure modal is rendered, then focus input
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (initialCategory) {
@@ -53,7 +69,10 @@ export default function CategoryFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[9999] bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      onKeyDown={(e) => e.stopPropagation()}
+    >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col my-auto">
         {/* Modal Header */}
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-2xl">
@@ -77,6 +96,7 @@ export default function CategoryFormModal({
               Category Name *
             </label>
             <input
+              ref={inputRef}
               type="text"
               id="name"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"

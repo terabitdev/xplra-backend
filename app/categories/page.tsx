@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Category } from '@/lib/domain/models/category';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -8,7 +8,6 @@ import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice
 import CategoryFormModal from '../components/modals/CategoryFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Toaster from '../components/ui/Toaster';
-import { useSearch } from '../contexts/SearchContext';
 
 export default function CategoriesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,21 +18,10 @@ export default function CategoriesPage() {
     const [adminId, setAdminId] = useState<string>('');
     const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
     const dispatch = useAppDispatch();
-    const { searchQuery } = useSearch();
 
     // Get categories from Redux store
     const { categories, loading, error } = useAppSelector((state) => state.categories);
     const { uid } = useAppSelector((state) => state.user);
-
-    // Filter categories based on search query
-    const filteredCategories = useMemo(() => {
-        if (!searchQuery.trim()) return categories;
-
-        const query = searchQuery.toLowerCase();
-        return categories.filter(category =>
-            category.name.toLowerCase().includes(query)
-        );
-    }, [categories, searchQuery]);
 
     // Set admin ID from user uid
     useEffect(() => {
@@ -148,15 +136,6 @@ export default function CategoriesPage() {
                     </button>
                 </div>
 
-                {/* Search Results Count */}
-                {searchQuery && (
-                    <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                            <span className="font-semibold">{filteredCategories.length}</span> {filteredCategories.length === 1 ? 'category' : 'categories'} found for "{searchQuery}"
-                        </p>
-                    </div>
-                )}
-
                 {/* Loading State */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -173,18 +152,14 @@ export default function CategoriesPage() {
                         </svg>
                         <p className="text-red-800 font-medium">Error: {error}</p>
                     </div>
-                ) : filteredCategories.length === 0 ? (
+                ) : categories.length === 0 ? (
                     /* Empty State */
                     <div className="flex flex-col items-center justify-center py-20">
                         <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                         </svg>
-                        <p className="text-gray-600 text-lg font-medium">
-                            {searchQuery ? 'No categories match your search' : 'No categories found'}
-                        </p>
-                        <p className="text-gray-400 text-sm mt-1">
-                            {searchQuery ? 'Try adjusting your search terms' : 'Create your first category to get started'}
-                        </p>
+                        <p className="text-gray-600 text-lg font-medium">No categories found</p>
+                        <p className="text-gray-400 text-sm mt-1">Create your first category to get started</p>
                     </div>
                 ) : (
                     /* Categories Table */
@@ -203,7 +178,7 @@ export default function CategoriesPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {filteredCategories.map((category) => (
+                                    {categories.map((category) => (
                                         <tr key={category.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <span className="text-gray-900 font-medium">{category.name}</span>
@@ -240,7 +215,7 @@ export default function CategoriesPage() {
 
                         {/* Mobile List View */}
                         <div className="sm:hidden divide-y divide-gray-200">
-                            {filteredCategories.map((category) => (
+                            {categories.map((category) => (
                                 <div key={category.id} className="p-4 flex items-center justify-between gap-3">
                                     <span className="text-gray-900 font-medium truncate flex-1">{category.name}</span>
                                     <div className="flex items-center gap-2 flex-shrink-0">
