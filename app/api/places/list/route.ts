@@ -109,6 +109,6 @@ export async function GET(req: NextRequest) {
 }
 
 // Function to invalidate cache (call after create/update/delete)
-export function invalidatePlacesCache() {
+function invalidatePlacesCache() {
   placesCache = null;
 }

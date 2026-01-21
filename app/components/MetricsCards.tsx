@@ -59,7 +59,7 @@ export default function MetricsCards() {
 
   // Fetch all data on mount
   useEffect(() => {
-    dispatch(fetchQuests());
+    dispatch(fetchQuests({}));
     dispatch(fetchAdventures());
     dispatch(fetchCategories());
   }, [dispatch]);

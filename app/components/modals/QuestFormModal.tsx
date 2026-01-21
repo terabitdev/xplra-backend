@@ -39,7 +39,7 @@ export default function QuestFormModal({
   // Fetch places when modal opens
   useEffect(() => {
     if (isOpen && places.length === 0) {
-      dispatch(fetchPlaces());
+      dispatch(fetchPlaces({}));
     }
   }, [isOpen, dispatch, places.length]);
 

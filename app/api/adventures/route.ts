@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Invalidate cache after mutations
-export function invalidateAdventuresCache() {
+// Invalidate cache after mutations (internal use only)
+function invalidateAdventuresCache() {
   adventuresCache = null;
 }
 
