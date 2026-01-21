@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Invalidate cache after mutations
-export function invalidateAchievementsCache() {
+// Invalidate cache after mutations (internal use only)
+function invalidateAchievementsCache() {
   achievementsCache = null;
 }
