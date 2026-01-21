@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Close } from '@carbon/icons-react';
 import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 
 export interface Place_ {
   placeId: string;
@@ -14,9 +15,21 @@ export interface Place_ {
   geohash: string;
   categories: string[];
   address?: string;
+  description?: string;
   source: "seed" | "user_contribution";
   status: "active" | "hidden" | "pending";
+  type?: "checkin_time" | "qr_scan";
+  requirements?: {
+    minTimeSeconds?: number;
+    radiusMeters?: number;
+    qrData?: string;
+  };
   imageUrls?: string[];
+}
+
+interface CategoryOption {
+  id: string;
+  name: string;
 }
 
 interface PlaceFormModalProps {
@@ -24,6 +37,7 @@ interface PlaceFormModalProps {
   onClose: () => void;
   onSubmit: (place: Place_, imageFiles: File[]) => void;
   place?: Place_ | null;
+  availableCategories?: CategoryOption[];
 }
 
 export default function PlaceFormModal({
@@ -31,6 +45,7 @@ export default function PlaceFormModal({
   onClose,
   onSubmit,
   place: initialPlace,
+  availableCategories = [],
 }: PlaceFormModalProps) {
   const [place, setPlace] = useState<Partial<Place_>>({
     placeId: '',
@@ -39,20 +54,34 @@ export default function PlaceFormModal({
     geohash: '',
     categories: [],
     address: '',
+    description: '',
     source: 'seed',
     status: 'active',
+    type: 'checkin_time',
+    requirements: {},
     imageUrls: [],
   });
-  const [categoryInput, setCategoryInput] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [minTimeSeconds, setMinTimeSeconds] = useState<number>(0);
+  const [radiusMeters, setRadiusMeters] = useState<number>(0);
+  const [qrData, setQrData] = useState<string>('');
+  const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialPlace) {
       setPlace(initialPlace);
       setImagePreviews(initialPlace.imageUrls || []);
+      // Extract type-specific requirements
+      if (initialPlace.type === 'checkin_time' && initialPlace.requirements) {
+        setMinTimeSeconds(initialPlace.requirements.minTimeSeconds || 0);
+        setRadiusMeters(initialPlace.requirements.radiusMeters || 0);
+      }
+      if (initialPlace.type === 'qr_scan' && initialPlace.requirements?.qrData) {
+        setQrData(initialPlace.requirements.qrData);
+      }
     } else {
       const newPlaceId = `place_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       setPlace({
@@ -62,31 +91,77 @@ export default function PlaceFormModal({
         geohash: '',
         categories: [],
         address: '',
+        description: '',
         source: 'seed',
         status: 'active',
+        type: 'checkin_time',
+        requirements: {},
         imageUrls: [],
       });
       setImagePreviews([]);
+      setMinTimeSeconds(0);
+      setRadiusMeters(0);
+      setQrData('');
     }
-    setCategoryInput('');
     setImageFiles([]);
     setUploadError(null);
   }, [initialPlace, isOpen]);
 
-  const handleAddCategory = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const category = categoryInput.trim();
-      if (category && !place.categories?.includes(category)) {
-        setPlace({ ...place, categories: [...(place.categories || []), category] });
-        setCategoryInput('');
-      }
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedCategory = e.target.value;
+    if (selectedCategory) {
+      setPlace({ ...place, categories: [selectedCategory] });
+    } else {
+      setPlace({ ...place, categories: [] });
     }
   };
 
-  const handleRemoveCategory = (index: number) => {
-    const newCategories = place.categories?.filter((_, i) => i !== index) || [];
-    setPlace({ ...place, categories: newCategories });
+  const handleMinTimeSecondsChange = (value: number) => {
+    setMinTimeSeconds(value);
+    const newRequirements = { minTimeSeconds: value, radiusMeters };
+    setPlace({ ...place, requirements: newRequirements });
+  };
+
+  const handleRadiusMetersChange = (value: number) => {
+    setRadiusMeters(value);
+    const newRequirements = { minTimeSeconds, radiusMeters: value };
+    setPlace({ ...place, requirements: newRequirements });
+  };
+
+  // Generate unique QR code data
+  const generateQRCode = () => {
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const newQrData = `${place.placeId}_verify_${randomString}`;
+    setQrData(newQrData);
+    setPlace({ ...place, requirements: { qrData: newQrData } });
+  };
+
+  // Download QR code as PNG
+  const downloadQRCode = () => {
+    if (!qrRef.current || !qrData) return;
+
+    const svg = qrRef.current.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+
+    img.onload = () => {
+      canvas.width = 256;
+      canvas.height = 256;
+      ctx?.fillStyle && (ctx.fillStyle = '#ffffff');
+      ctx?.fillRect(0, 0, canvas.width, canvas.height);
+      ctx?.drawImage(img, 0, 0, 256, 256);
+
+      const link = document.createElement('a');
+      link.download = `qr_${place.placeId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,19 +295,6 @@ export default function PlaceFormModal({
             </div>
           </div>
 
-          {/* Geohash */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Geohash</label>
-            <input
-              type="text"
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              value={place.geohash}
-              onChange={(e) => setPlace({ ...place, geohash: e.target.value })}
-              disabled={loading}
-              placeholder="tt3q8c9"
-            />
-          </div>
-
           {/* Address */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
@@ -246,43 +308,146 @@ export default function PlaceFormModal({
             />
           </div>
 
-          {/* Categories */}
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+            <textarea
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+              rows={3}
+              value={place.description || ''}
+              onChange={(e) => setPlace({ ...place, description: e.target.value })}
+              disabled={loading}
+              placeholder="Brief description of the place (optional)"
+            />
+          </div>
+
+          {/* Category */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              Categories <span className="text-gray-400 font-normal">— Press Enter to add</span>
+              Category
             </label>
-
-            <input
-              type="text"
+            <select
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              value={categoryInput}
-              onChange={(e) => setCategoryInput(e.target.value)}
-              onKeyDown={handleAddCategory}
+              value={place.categories?.[0] || ''}
+              onChange={handleCategoryChange}
               disabled={loading}
-              placeholder="Type category and press Enter"
-            />
+            >
+              <option value="">Select a category</option>
+              {availableCategories.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Category chips */}
-            {place.categories && place.categories.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {place.categories.map((cat, index) => (
-                  <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs">
-                    {cat}
+          {/* Type Section - Different fields based on type */}
+          {place.type === 'checkin_time' ? (
+            /* Time & Location: Type | Min Time | Radius */
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                <select
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  value={place.type}
+                  onChange={(e) => setPlace({ ...place, type: e.target.value as Place_['type'], requirements: {} })}
+                  disabled={loading}
+                >
+                  <option value="checkin_time">Time & Location</option>
+                  <option value="qr_scan">QR Scan</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Min Time <span className="text-blue-600 font-semibold">(sec)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  value={minTimeSeconds || ''}
+                  onChange={(e) => handleMinTimeSecondsChange(parseInt(e.target.value) || 0)}
+                  disabled={loading}
+                  placeholder="100sec"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Radius <span className="text-blue-600 font-semibold">(meters)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  value={radiusMeters || ''}
+                  onChange={(e) => handleRadiusMetersChange(parseInt(e.target.value) || 0)}
+                  disabled={loading}
+                  placeholder="100meter"
+                />
+              </div>
+            </div>
+          ) : (
+            /* QR Scan: Type | QR Code Button */
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                  <select
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    value={place.type}
+                    onChange={(e) => {
+                      setPlace({ ...place, type: e.target.value as Place_['type'], requirements: {} });
+                      setQrData('');
+                    }}
+                    disabled={loading}
+                  >
+                    <option value="checkin_time">Time & Location</option>
+                    <option value="qr_scan">QR Scan</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">QR Code</label>
+                  <button
+                    type="button"
+                    onClick={generateQRCode}
+                    className="w-full px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                    disabled={loading}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
+                    {qrData ? 'Regenerate QR' : 'Generate QR Code'}
+                  </button>
+                </div>
+              </div>
+
+              {/* QR Code Display */}
+              {qrData && (
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div ref={qrRef} className="bg-white p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                    <QRCodeSVG value={qrData} size={80} level="H" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] text-gray-400 font-mono break-all leading-tight mb-1.5">
+                      {qrData}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => handleRemoveCategory(index)}
-                      className="hover:text-indigo-900"
-                      disabled={loading}
+                      onClick={downloadQRCode}
+                      className="px-2 py-1 text-[10px] bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded transition-colors font-medium inline-flex items-center gap-1"
                     >
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
+                      Download PNG
                     </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Source & Status */}
           <div className="grid grid-cols-2 gap-3">

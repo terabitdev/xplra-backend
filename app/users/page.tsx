@@ -5,6 +5,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../components/DashboardLayout';
 import Toaster from '../components/ui/Toaster';
+import Pagination from '../components/ui/Pagination';
+import TableSkeleton from '../components/ui/TableSkeleton';
+import CardSkeleton from '../components/ui/CardSkeleton';
 import { AppDispatch, RootState } from '../store';
 import { fetchUsers } from '../store/slices/usersSlice';
 import { User as UserIcon } from '@carbon/icons-react';
@@ -12,12 +15,24 @@ import { User as UserIcon } from '@carbon/icons-react';
 export default function UsersPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { users, loading, error } = useSelector((state: RootState) => state.users);
+  const { users, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.users);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Check if data is stale (older than 5 minutes)
+  const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
+
+  // Fetch users on mount or when page changes
   useEffect(() => {
-    dispatch(fetchUsers(100));
-  }, [dispatch]);
+    if (users.length === 0 || isDataStale || pagination.page !== currentPage) {
+      dispatch(fetchUsers({ page: currentPage, limit: 20 }));
+    }
+  }, [dispatch, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    dispatch(fetchUsers({ page, limit: 20 }));
+  };
 
   useEffect(() => {
     if (error) {
@@ -52,10 +67,17 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          </div>
+        {loading && users.length === 0 ? (
+          <>
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:block">
+              <TableSkeleton rows={10} columns={6} showImage={true} />
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden">
+              <CardSkeleton count={6} />
+            </div>
+          </>
         ) : users.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
             <UserIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
@@ -74,7 +96,6 @@ export default function UsersPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">XP Total</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">XP Earned</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last XP Update</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Joined</th>
                     </tr>
@@ -111,7 +132,6 @@ export default function UsersPage() {
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-semibold text-indigo-600">{user.xpTotal?.toLocaleString() || 0}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-600">{user.xpEarnedAllTime?.toLocaleString() || 0}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(user.lastXpUpdate)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
                       </tr>
@@ -150,14 +170,10 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <span className="text-gray-400 text-xs block">XP Total</span>
                       <span className="font-semibold text-indigo-600">{user.xpTotal?.toLocaleString() || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-xs block">XP Earned</span>
-                      <span className="text-gray-700">{user.xpEarnedAllTime?.toLocaleString() || 0}</span>
                     </div>
                     <div>
                       <span className="text-gray-400 text-xs block">Last XP Update</span>
@@ -171,6 +187,17 @@ export default function UsersPage() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.limit}
+              />
+            )}
           </>
         )}
       </div>

@@ -6,6 +6,9 @@ import DashboardLayout from "../components/DashboardLayout";
 import Quest_FormModal, { Quest_ } from "../components/modals/Quest_FormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import Toaster from "../components/ui/Toaster";
+import Pagination from "../components/ui/Pagination";
+import TableSkeleton from "../components/ui/TableSkeleton";
+import CardSkeleton from "../components/ui/CardSkeleton";
 import { AppDispatch, RootState } from "../store";
 import {
   fetchQuests,
@@ -18,7 +21,7 @@ import { fetchPlaces } from "../store/slices/placesSlice";
 
 export default function Quests_Page() {
   const dispatch = useDispatch<AppDispatch>();
-  const { quests, loading, error } = useSelector((state: RootState) => state.quests);
+  const { quests, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.quests);
   const { places } = useSelector((state: RootState) => state.places);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,11 +30,25 @@ export default function Quests_Page() {
   const [questToDelete, setQuestToDelete] = useState<Quest_ | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Check if data is stale (older than 5 minutes)
+  const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
+
+  // Fetch quests on mount or when page changes
   useEffect(() => {
-    dispatch(fetchQuests());
-    dispatch(fetchPlaces());
-  }, [dispatch]);
+    if (quests.length === 0 || isDataStale || pagination.page !== currentPage) {
+      dispatch(fetchQuests({ page: currentPage, limit: 20 }));
+    }
+    if (places.length === 0) {
+      dispatch(fetchPlaces({}));
+    }
+  }, [dispatch, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    dispatch(fetchQuests({ page, limit: 20 }));
+  };
 
   useEffect(() => {
     if (error) {
@@ -135,10 +152,17 @@ export default function Quests_Page() {
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          </div>
+        {loading && quests.length === 0 ? (
+          <>
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:block">
+              <TableSkeleton rows={8} columns={8} />
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden">
+              <CardSkeleton count={6} />
+            </div>
+          </>
         ) : quests.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
             <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,14 +228,6 @@ export default function Quests_Page() {
                     </div>
                   )}
 
-                  {/* Requirements */}
-                  {Object.keys(quest.requirements).length > 0 && (
-                    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5 mb-2 text-xs">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">Requirements</span>
-                      <code className="text-gray-600 font-mono text-[10px] block overflow-x-auto" title={JSON.stringify(quest.requirements)}>{JSON.stringify(quest.requirements)}</code>
-                    </div>
-                  )}
-
                   {/* Actions */}
                   <div className="flex gap-2 pt-2 border-t border-gray-100">
                     <button onClick={() => handleEditQuest(quest as Quest_)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
@@ -237,7 +253,6 @@ export default function Quests_Page() {
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Cooldown</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Status</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Duration</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Requirements</th>
                     <th className="text-center font-medium text-gray-600 px-3 py-2.5 w-20">Actions</th>
                   </tr>
                 </thead>
@@ -282,11 +297,6 @@ export default function Quests_Page() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <code className="text-xs text-gray-600 bg-gray-50 rounded px-1.5 py-0.5 inline-block max-w-[120px] truncate" title={JSON.stringify(quest.requirements)}>
-                          {JSON.stringify(quest.requirements)}
-                        </code>
-                      </td>
-                      <td className="px-3 py-2.5">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => handleEditQuest(quest as Quest_)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,6 +315,17 @@ export default function Quests_Page() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.limit}
+              />
+            )}
           </>
         )}
       </div>

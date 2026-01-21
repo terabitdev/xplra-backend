@@ -8,7 +8,6 @@ import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice
 import CategoryFormModal from '../components/modals/CategoryFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Toaster from '../components/ui/Toaster';
-import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 
 export default function CategoriesPage() {
@@ -43,10 +42,12 @@ export default function CategoriesPage() {
         }
     }, [uid]);
 
-    // Fetch categories using Redux on mount
+    // Only fetch categories if not already in Redux store
     useEffect(() => {
-        dispatch(fetchCategories());
-    }, [dispatch]);
+        if (categories.length === 0) {
+            dispatch(fetchCategories());
+        }
+    }, [dispatch, categories.length]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((category: Category) => {
@@ -96,14 +97,10 @@ export default function CategoriesPage() {
     }, []);
 
     // Handle form submission
-    const handleSubmitCategory = async (category: Partial<Category>, imageFile: File | null) => {
+    const handleSubmitCategory = async (category: Partial<Category>) => {
         try {
             const formData = new FormData();
             formData.append('category', JSON.stringify(category));
-
-            if (imageFile) {
-                formData.append('image', imageFile);
-            }
 
             const url = selectedCategory ? `/api/categories/${selectedCategory.id}` : '/api/categories';
             const method = selectedCategory ? 'PATCH' : 'POST';
@@ -132,7 +129,7 @@ export default function CategoriesPage() {
 
     return (
         <DashboardLayout>
-            <div className="w-full mt-5 sm:mt-7 lg:mt-0  p-2 sm:p-4 lg:py-6">
+            <div className="w-full mt-5 sm:mt-7 lg:mt-0 p-2 sm:p-4 lg:py-6">
                 {/* Header Section */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
@@ -176,78 +173,99 @@ export default function CategoriesPage() {
                         </svg>
                         <p className="text-red-800 font-medium">Error: {error}</p>
                     </div>
+                ) : filteredCategories.length === 0 ? (
+                    /* Empty State */
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <p className="text-gray-600 text-lg font-medium">
+                            {searchQuery ? 'No categories match your search' : 'No categories found'}
+                        </p>
+                        <p className="text-gray-400 text-sm mt-1">
+                            {searchQuery ? 'Try adjusting your search terms' : 'Create your first category to get started'}
+                        </p>
+                    </div>
                 ) : (
-                    /* Categories Grid */
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-                        {filteredCategories.length === 0 ? (
-                            <div className="col-span-full flex flex-col items-center justify-center py-20">
-                                <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
-                                <p className="text-gray-600 text-lg font-medium">
-                                    {searchQuery ? 'No categories match your search' : 'No categories found'}
-                                </p>
-                                <p className="text-gray-400 text-sm mt-1">
-                                    {searchQuery ? 'Try adjusting your search terms' : 'Create your first category to get started'}
-                                </p>
-                            </div>
-                        ) : (
-                            filteredCategories.map((category) => (
-                                <div
-                                    key={category.id}
-                                    className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 group"
-                                >
-                                    {/* Category Image */}
-                                    <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                                        {category.imageUrl ? (
-                                            <Image
-                                                src={category.imageUrl}
-                                                alt={category.name}
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                                unoptimized
-                                            />
-                                        ) : (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                                </svg>
-                                            </div>
-                                        )}
-                                    </div>
+                    /* Categories Table */
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        {/* Desktop Table */}
+                        <div className="hidden sm:block overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                                            Category Name
+                                        </th>
+                                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {filteredCategories.map((category) => (
+                                        <tr key={category.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <span className="text-gray-900 font-medium">{category.name}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors duration-150 font-medium flex items-center gap-1"
+                                                        onClick={() => handleEditCategory(category)}
+                                                        title="Edit category"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        className="px-3 py-1.5 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors duration-150 font-medium flex items-center gap-1"
+                                                        onClick={() => handleDeleteClick(category)}
+                                                        title="Delete category"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
 
-                                    {/* Category Info */}
-                                    <div className="p-4">
-                                        <h3 className="text-lg font-semibold text-gray-900 truncate mb-3">
-                                            {category.name}
-                                        </h3>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2">
-                                            <button
-                                                className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors duration-150 font-medium flex items-center justify-center gap-1"
-                                                onClick={() => handleEditCategory(category)}
-                                                title="Edit category"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                                Edit
-                                            </button>
-                                            <button
-                                                className="px-3 py-2 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors duration-150 font-medium flex items-center justify-center"
-                                                onClick={() => handleDeleteClick(category)}
-                                                title="Delete category"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </div>
+                        {/* Mobile List View */}
+                        <div className="sm:hidden divide-y divide-gray-200">
+                            {filteredCategories.map((category) => (
+                                <div key={category.id} className="p-4 flex items-center justify-between gap-3">
+                                    <span className="text-gray-900 font-medium truncate flex-1">{category.name}</span>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button
+                                            className="p-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors duration-150"
+                                            onClick={() => handleEditCategory(category)}
+                                            title="Edit category"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            className="p-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors duration-150"
+                                            onClick={() => handleDeleteClick(category)}
+                                            title="Delete category"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
-                            ))
-                        )}
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

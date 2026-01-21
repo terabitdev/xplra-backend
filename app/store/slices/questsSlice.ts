@@ -1,11 +1,22 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Quest } from '@/lib/domain/models/quest';
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
 interface QuestsState {
   quests: Quest[];
   currentQuest: Quest | null;
   loading: boolean;
   error: string | null;
+  pagination: PaginationInfo;
+  lastFetched: number | null;
 }
 
 const initialState: QuestsState = {
@@ -13,21 +24,50 @@ const initialState: QuestsState = {
   currentQuest: null,
   loading: false,
   error: null,
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  },
+  lastFetched: null,
 };
+
+interface FetchQuestsParams {
+  page?: number;
+  limit?: number;
+  fresh?: boolean;
+}
+
+interface FetchQuestsResponse {
+  data: Quest[];
+  pagination: PaginationInfo;
+  cached: boolean;
+}
 
 // Async thunks
 export const fetchQuests = createAsyncThunk(
   'quests/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (params: FetchQuestsParams = {}, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/quests/list');
+      const { page = 1, limit = 20, fresh = false } = params;
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (fresh) queryParams.append('fresh', 'true');
+
+      const response = await fetch(`/api/quests/list?${queryParams}`);
       const data = await response.json();
 
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to fetch quests');
       }
 
-      return data;
+      return data as FetchQuestsResponse;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Network error');
     }
@@ -130,6 +170,12 @@ const questsSlice = createSlice({
     clearCurrentQuest: (state) => {
       state.currentQuest = null;
     },
+    setPage: (state, action: PayloadAction<number>) => {
+      state.pagination.page = action.payload;
+    },
+    invalidateCache: (state) => {
+      state.lastFetched = null;
+    },
   },
   extraReducers: (builder) => {
     // Fetch All Quests
@@ -138,9 +184,11 @@ const questsSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchQuests.fulfilled, (state, action: PayloadAction<Quest[]>) => {
+      .addCase(fetchQuests.fulfilled, (state, action: PayloadAction<FetchQuestsResponse>) => {
         state.loading = false;
-        state.quests = action.payload;
+        state.quests = action.payload.data;
+        state.pagination = action.payload.pagination;
+        state.lastFetched = Date.now();
         state.error = null;
       })
       .addCase(fetchQuests.rejected, (state, action) => {
@@ -217,5 +265,5 @@ const questsSlice = createSlice({
   },
 });
 
-export const { clearError, clearCurrentQuest } = questsSlice.actions;
+export const { clearError, clearCurrentQuest, setPage, invalidateCache } = questsSlice.actions;
 export default questsSlice.reducer;

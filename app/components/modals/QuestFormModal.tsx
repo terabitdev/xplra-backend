@@ -227,42 +227,129 @@ export default function QuestFormModal({
             )}
           </div>
 
-          {/* Type and XP Reward Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Quest Type */}
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                Quest Type *
-              </label>
-              <select
-                id="type"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.type || 'qr_scan'}
-                onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest['type'] })}
-                required
-                disabled={loading}
-              >
-                <option value="qr_scan">QR Scan</option>
-                <option value="checkin_time">Check-in Time</option>
-              </select>
-            </div>
+          {/* Type Row - Different fields based on quest type */}
+          {quest.type === 'checkin_time' ? (
+            /* Check-in Time: Type | Min Time | Radius */
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Quest Type */}
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Quest Type *
+                </label>
+                <select
+                  id="type"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  value={quest.type || 'qr_scan'}
+                  onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest['type'], requirements: {} })}
+                  required
+                  disabled={loading}
+                >
+                  <option value="qr_scan">QR Scan</option>
+                  <option value="checkin_time">Check-in Time</option>
+                </select>
+              </div>
 
-            {/* XP Reward */}
-            <div>
-              <label htmlFor="xpReward" className="block text-sm font-medium text-gray-700 mb-2">
-                XP Reward *
-              </label>
-              <input
-                type="number"
-                id="xpReward"
-                min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                value={quest.xpReward || 0}
-                onChange={(e) => setQuest({ ...quest, xpReward: parseInt(e.target.value) || 0 })}
-                required
-                disabled={loading}
-              />
+              {/* Min Time (seconds) */}
+              <div>
+                <label htmlFor="minTimeSeconds" className="block text-sm font-medium text-gray-700 mb-2">
+                  Min Time (seconds) *
+                </label>
+                <input
+                  type="number"
+                  id="minTimeSeconds"
+                  min="0"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  value={(quest.requirements as { minTimeSeconds?: number })?.minTimeSeconds || 0}
+                  onChange={(e) => setQuest({
+                    ...quest,
+                    requirements: {
+                      ...quest.requirements,
+                      minTimeSeconds: parseInt(e.target.value) || 0
+                    }
+                  })}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Radius (meters) */}
+              <div>
+                <label htmlFor="radiusMeters" className="block text-sm font-medium text-gray-700 mb-2">
+                  Radius (meters) *
+                </label>
+                <input
+                  type="number"
+                  id="radiusMeters"
+                  min="1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  value={(quest.requirements as { radiusMeters?: number })?.radiusMeters || 50}
+                  onChange={(e) => setQuest({
+                    ...quest,
+                    requirements: {
+                      ...quest.requirements,
+                      radiusMeters: parseInt(e.target.value) || 50
+                    }
+                  })}
+                  required
+                  disabled={loading}
+                />
+              </div>
             </div>
+          ) : (
+            /* QR Scan: Type | QR Code Button */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Quest Type */}
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Quest Type *
+                </label>
+                <select
+                  id="type"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  value={quest.type || 'qr_scan'}
+                  onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest['type'], requirements: {} })}
+                  required
+                  disabled={loading}
+                >
+                  <option value="qr_scan">QR Scan</option>
+                  <option value="checkin_time">Check-in Time</option>
+                </select>
+              </div>
+
+              {/* QR Code Button */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  QR Code
+                </label>
+                <button
+                  type="button"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium transition-colors disabled:bg-gray-100 flex items-center justify-center gap-2"
+                  disabled={loading}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  Scan QR Code
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* XP Reward */}
+          <div>
+            <label htmlFor="xpReward" className="block text-sm font-medium text-gray-700 mb-2">
+              XP Reward *
+            </label>
+            <input
+              type="number"
+              id="xpReward"
+              min="0"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              value={quest.xpReward || 0}
+              onChange={(e) => setQuest({ ...quest, xpReward: parseInt(e.target.value) || 0 })}
+              required
+              disabled={loading}
+            />
           </div>
 
           {/* Cooldown */}

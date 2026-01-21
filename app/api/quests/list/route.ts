@@ -1,15 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Quest } from '@/lib/domain/models/quest';
 
-export async function GET() {
+// In-memory cache
+let questsCache: { data: Quest[]; timestamp: number } | null = null;
+const CACHE_DURATION = 60 * 1000; // 60 seconds
+
+export async function GET(req: NextRequest) {
   try {
-    // Get all quest documents from adminQuests collection
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const skipCache = searchParams.get('fresh') === 'true';
+
+    const now = Date.now();
+
+    // Check cache
+    if (!skipCache && questsCache && (now - questsCache.timestamp) < CACHE_DURATION) {
+      const total = questsCache.data.length;
+      const totalPages = Math.ceil(total / limit);
+      const startIndex = (page - 1) * limit;
+      const paginatedData = questsCache.data.slice(startIndex, startIndex + limit);
+
+      return NextResponse.json({
+        data: paginatedData,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+        cached: true,
+      });
+    }
+
+    // Fetch from Firestore
     const questsSnapshot = await adminDb.collection('adminQuests').get();
 
     const allQuests: Quest[] = [];
 
-    // Each document is now a quest
     questsSnapshot.forEach((doc) => {
       const data = doc.data();
       allQuests.push({
@@ -29,7 +60,27 @@ export async function GET() {
       } as Quest);
     });
 
-    return NextResponse.json(allQuests);
+    // Update cache
+    questsCache = { data: allQuests, timestamp: now };
+
+    // Apply pagination
+    const total = allQuests.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const paginatedData = allQuests.slice(startIndex, startIndex + limit);
+
+    return NextResponse.json({
+      data: paginatedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      cached: false,
+    });
   } catch (error: any) {
     console.error('Get quests error:', error);
     return NextResponse.json(

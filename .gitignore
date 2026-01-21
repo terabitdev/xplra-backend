@@ -91,3 +91,12 @@ secrets.json
 *.sqlite
 *.sqlite3
 
+# Windows null file
+nul
+
+# Claude Code local settings
+.claude/
+
+# Documentation (local)
+doc/
+

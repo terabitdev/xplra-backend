@@ -1,10 +1,23 @@
-import { NextResponse } from 'next/server';
-import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 import { Category } from '@/lib/domain/models/category';
 import admin from '@/lib/firebase-admin';
 
-export async function GET() {
+// In-memory cache
+let categoriesCache: { data: Category[]; timestamp: number } | null = null;
+const CACHE_DURATION = 120 * 1000; // 2 minutes (categories change less frequently)
+
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const skipCache = searchParams.get('fresh') === 'true';
+    const now = Date.now();
+
+    // Check cache
+    if (!skipCache && categoriesCache && (now - categoriesCache.timestamp) < CACHE_DURATION) {
+      return NextResponse.json(categoriesCache.data);
+    }
+
     // Get all admin category documents
     const adminCategoriesSnapshot = await adminDb.collection('adminCategories').get();
 
@@ -21,6 +34,9 @@ export async function GET() {
       });
     });
 
+    // Update cache
+    categoriesCache = { data: allCategories, timestamp: now };
+
     return NextResponse.json(allCategories);
   } catch (error: any) {
     console.error('Get categories error:', error);
@@ -31,11 +47,15 @@ export async function GET() {
   }
 }
 
+// Invalidate cache after mutations
+export function invalidateCategoriesCache() {
+  categoriesCache = null;
+}
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const categoryData = JSON.parse(formData.get('category') as string);
-    const imageFile = formData.get('image') as File | null;
     const adminId = categoryData.userId; // Admin ID from the form
 
     if (!adminId) {
@@ -45,27 +65,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!imageFile) {
-      return NextResponse.json(
-        { error: 'Image is required' },
-        { status: 400 }
-      );
-    }
-
-    let imageUrl = '';
-
-    // Upload image
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
-    const fileName = `categories/${Date.now()}_${imageFile.name}`;
-    const file = adminStorage.bucket().file(fileName);
-
-    await file.save(buffer, {
-      metadata: { contentType: imageFile.type },
-    });
-
-    await file.makePublic();
-    imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
-
     // Generate unique category ID
     const categoryId = `category_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -73,7 +72,6 @@ export async function POST(req: Request) {
     const newCategory: Category = {
       id: categoryId,
       name: categoryData.name,
-      imageUrl,
       userId: adminId,
     };
 

@@ -1,31 +1,73 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PlaceContribution } from '@/lib/domain/models/placeContribution';
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
 interface ContributionsState {
   contributions: PlaceContribution[];
   loading: boolean;
   error: string | null;
+  pagination: PaginationInfo;
+  lastFetched: number | null;
 }
 
 const initialState: ContributionsState = {
   contributions: [],
   loading: false,
   error: null,
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  },
+  lastFetched: null,
 };
+
+interface FetchContributionsParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  fresh?: boolean;
+}
+
+interface FetchContributionsResponse {
+  data: PlaceContribution[];
+  pagination: PaginationInfo;
+  cached: boolean;
+}
 
 // Async thunks
 export const fetchContributions = createAsyncThunk(
   'contributions/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (params: FetchContributionsParams = {}, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/contributions/places/list');
+      const { page = 1, limit = 20, status, fresh = false } = params;
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (status) queryParams.append('status', status);
+      if (fresh) queryParams.append('fresh', 'true');
+
+      const response = await fetch(`/api/contributions/places/list?${queryParams}`);
       const data = await response.json();
 
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to fetch contributions');
       }
 
-      return data;
+      return data as FetchContributionsResponse;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);
@@ -87,6 +129,12 @@ const contributionsSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setPage: (state, action: PayloadAction<number>) => {
+      state.pagination.page = action.payload;
+    },
+    invalidateCache: (state) => {
+      state.lastFetched = null;
+    },
   },
   extraReducers: (builder) => {
     // Fetch All Contributions
@@ -95,9 +143,11 @@ const contributionsSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchContributions.fulfilled, (state, action: PayloadAction<PlaceContribution[]>) => {
+      .addCase(fetchContributions.fulfilled, (state, action: PayloadAction<FetchContributionsResponse>) => {
         state.loading = false;
-        state.contributions = action.payload;
+        state.contributions = action.payload.data;
+        state.pagination = action.payload.pagination;
+        state.lastFetched = Date.now();
         state.error = null;
       })
       .addCase(fetchContributions.rejected, (state, action) => {
@@ -142,5 +192,5 @@ const contributionsSlice = createSlice({
   },
 });
 
-export const { clearError } = contributionsSlice.actions;
+export const { clearError, setPage, invalidateCache } = contributionsSlice.actions;
 export default contributionsSlice.reducer;

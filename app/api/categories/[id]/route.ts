@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
 import { Category } from '@/lib/domain/models/category';
 import admin from '@/lib/firebase-admin';
 
@@ -37,7 +37,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   try {
     const formData = await req.formData();
     const categoryData = JSON.parse(formData.get('category') as string);
-    const imageFile = formData.get('image') as File | null;
     const categoryId = params.id;
     const adminId = categoryData.userId;
 
@@ -46,22 +45,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { error: 'Admin ID is required' },
         { status: 400 }
       );
-    }
-
-    let imageUrl = categoryData.imageUrl || '';
-
-    // Upload new image if provided
-    if (imageFile) {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const fileName = `categories/${Date.now()}_${imageFile.name}`;
-      const file = adminStorage.bucket().file(fileName);
-
-      await file.save(buffer, {
-        metadata: { contentType: imageFile.type },
-      });
-
-      await file.makePublic();
-      imageUrl = `https://storage.googleapis.com/${adminStorage.bucket().name}/${fileName}`;
     }
 
     // Get admin's category document
@@ -92,7 +75,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     categories[categoryIndex] = {
       ...categories[categoryIndex],
       name: categoryData.name,
-      imageUrl,
     };
 
     // Update the document

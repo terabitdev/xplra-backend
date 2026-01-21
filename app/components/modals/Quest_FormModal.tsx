@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Close } from '@carbon/icons-react';
 import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 import { fetchPlaces } from '../../store/slices/placesSlice';
 import { AppDispatch, RootState } from '../../store';
 
@@ -49,11 +50,12 @@ export default function Quest_FormModal({
     startAt: '',
     endAt: '',
   });
-  const [requirementsJson, setRequirementsJson] = useState('{}');
-  const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPlaceDropdownOpen, setIsPlaceDropdownOpen] = useState(false);
   const [minTimeSeconds, setMinTimeSeconds] = useState<number>(300);
+  const [radiusMeters, setRadiusMeters] = useState<number>(50);
+  const [qrData, setQrData] = useState<string>('');
+  const qrRef = useRef<HTMLDivElement>(null);
 
   // Fetch places when modal opens
   useEffect(() => {
@@ -75,24 +77,21 @@ export default function Quest_FormModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isPlaceDropdownOpen]);
 
-  const getRequirementsPlaceholder = (type: Quest_['type']) => {
-    switch (type) {
-      case 'checkin_time':
-        return '{"minTimeSeconds": 300}';
-      case 'qr_scan':
-        return '{"qrCode": "QUEST_QR_123"}';
-      default:
-        return '{}';
-    }
-  };
-
   useEffect(() => {
     if (initialQuest) {
       setQuest(initialQuest);
-      setRequirementsJson(JSON.stringify(initialQuest.requirements, null, 2));
-      // Extract minTimeSeconds if it exists
-      if (initialQuest.type === 'checkin_time' && initialQuest.requirements?.minTimeSeconds) {
-        setMinTimeSeconds(initialQuest.requirements.minTimeSeconds);
+      // Extract minTimeSeconds and radiusMeters if they exist
+      if (initialQuest.type === 'checkin_time' && initialQuest.requirements) {
+        if (initialQuest.requirements.minTimeSeconds) {
+          setMinTimeSeconds(initialQuest.requirements.minTimeSeconds);
+        }
+        if (initialQuest.requirements.radiusMeters) {
+          setRadiusMeters(initialQuest.requirements.radiusMeters);
+        }
+      }
+      // Extract qrData if it exists (for QR Scan type)
+      if (initialQuest.type === 'qr_scan' && initialQuest.requirements?.qrData) {
+        setQrData(initialQuest.requirements.qrData);
       }
     } else {
       const newQuestId = `quest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -109,33 +108,62 @@ export default function Quest_FormModal({
         startAt: '',
         endAt: '',
       });
-      setRequirementsJson('{}');
       setMinTimeSeconds(300);
+      setRadiusMeters(50);
+      setQrData('');
     }
-    setJsonError(null);
   }, [initialQuest, isOpen]);
-
-  const handleRequirementsChange = (value: string) => {
-    setRequirementsJson(value);
-    try {
-      const parsed = JSON.parse(value);
-      setQuest({ ...quest, requirements: parsed });
-      setJsonError(null);
-    } catch {
-      setJsonError('Invalid JSON format');
-    }
-  };
 
   const handleMinTimeSecondsChange = (value: number) => {
     setMinTimeSeconds(value);
-    const newRequirements = { minTimeSeconds: value };
+    const newRequirements = { minTimeSeconds: value, radiusMeters };
     setQuest({ ...quest, requirements: newRequirements });
-    setRequirementsJson(JSON.stringify(newRequirements, null, 2));
+  };
+
+  const handleRadiusMetersChange = (value: number) => {
+    setRadiusMeters(value);
+    const newRequirements = { minTimeSeconds, radiusMeters: value };
+    setQuest({ ...quest, requirements: newRequirements });
+  };
+
+  // Generate unique QR code data
+  const generateQRCode = () => {
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const newQrData = `${quest.questId}_verify_${randomString}`;
+    setQrData(newQrData);
+    setQuest({ ...quest, requirements: { qrData: newQrData } });
+  };
+
+  // Download QR code as PNG
+  const downloadQRCode = () => {
+    if (!qrRef.current || !qrData) return;
+
+    const svg = qrRef.current.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+
+    img.onload = () => {
+      canvas.width = 256;
+      canvas.height = 256;
+      ctx?.fillStyle && (ctx.fillStyle = '#ffffff');
+      ctx?.fillRect(0, 0, canvas.width, canvas.height);
+      ctx?.drawImage(img, 0, 0, 256, 256);
+
+      const link = document.createElement('a');
+      link.download = `qr_${quest.questId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (jsonError) return;
     setLoading(true);
     try {
       onSubmit(quest as Quest_);
@@ -280,68 +308,111 @@ export default function Quest_FormModal({
             />
           </div>
 
-          {/* Type & XP Reward */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Type *</label>
-              <select
-                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={quest.type}
-                onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest_['type'] })}
-                disabled={loading}
-              >
-                <option value="checkin_time">Check-in Time</option>
-                <option value="qr_scan">QR Scan</option>
-              </select>
+          {/* Type & Min Time / Radius or QR Code */}
+          {quest.type === 'checkin_time' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Type *</label>
+                <select
+                  className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={quest.type}
+                  onChange={(e) => setQuest({ ...quest, type: e.target.value as Quest_['type'], requirements: {} })}
+                  disabled={loading}
+                >
+                  <option value="checkin_time">Time & Location</option>
+                  <option value="qr_scan">QR Scan</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Min Time <span className="text-blue-600 font-semibold">(sec)</span> *
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={minTimeSeconds || ''}
+                  onChange={(e) => handleMinTimeSecondsChange(parseInt(e.target.value) || 0)}
+                  required
+                  disabled={loading}
+                  placeholder="100sec"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Radius <span className="text-blue-600 font-semibold">(meters)</span> *
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={radiusMeters || ''}
+                  onChange={(e) => handleRadiusMetersChange(parseInt(e.target.value) || 0)}
+                  required
+                  disabled={loading}
+                  placeholder="100meter"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                XP Reward *
-              </label>
-              <input
-                type="number"
-                min="0"
-                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={quest.xpReward || ''}
-                onChange={(e) => setQuest({ ...quest, xpReward: parseInt(e.target.value) || 0 })}
-                required
-                disabled={loading}
-                placeholder="100"
-              />
-            </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Type *</label>
+                  <select
+                    className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={quest.type}
+                    onChange={(e) => {
+                      setQuest({ ...quest, type: e.target.value as Quest_['type'], requirements: {} });
+                      setQrData('');
+                    }}
+                    disabled={loading}
+                  >
+                    <option value="checkin_time">Time & Location</option>
+                    <option value="qr_scan">QR Scan</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">QR Code</label>
+                  <button
+                    type="button"
+                    onClick={generateQRCode}
+                    className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                    disabled={loading}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
+                    {qrData ? 'Regenerate QR' : 'Generate QR Code'}
+                  </button>
+                </div>
+              </div>
 
-          {/* Min Time (for checkin_time) or QR Code (for qr_scan) */}
-          {quest.type === 'checkin_time' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Min Time <span className="text-blue-600 font-semibold">(seconds)</span> *
-              </label>
-              <input
-                type="number"
-                min="0"
-                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={minTimeSeconds}
-                onChange={(e) => handleMinTimeSecondsChange(parseInt(e.target.value) || 0)}
-                required
-                disabled={loading}
-                placeholder="300"
-              />
-            </div>
-          )}
-          {quest.type === 'qr_scan' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">QR Code</label>
-              <button
-                type="button"
-                className="w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm sm:text-base bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
-                disabled={loading}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
-                Scan QR Code
-              </button>
+              {/* QR Code Display */}
+              {qrData && (
+                <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div ref={qrRef} className="bg-white p-2 rounded-lg shadow-sm flex-shrink-0">
+                    <QRCodeSVG value={qrData} size={100} level="H" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-gray-400 font-mono break-all leading-tight mb-2">
+                      {qrData}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={downloadQRCode}
+                      className="px-3 py-1.5 text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md transition-colors font-medium inline-flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download PNG
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -406,24 +477,6 @@ export default function Quest_FormModal({
             </div>
           </div>
 
-          {/* Requirements */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Requirements (JSON) <span className="text-gray-500 text-xs font-normal">— {getRequirementsPlaceholder(quest.type || 'checkin_time')}</span>
-            </label>
-            <textarea
-              rows={3}
-              className={`w-full px-3 sm:px-3.5 py-2.5 sm:py-2 text-xs sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono resize-none ${
-                jsonError ? 'border-red-400' : 'border-gray-300'
-              }`}
-              value={requirementsJson}
-              onChange={(e) => handleRequirementsChange(e.target.value)}
-              disabled={quest.type === 'checkin_time' || loading}
-              placeholder={getRequirementsPlaceholder(quest.type || 'checkin_time')}
-            />
-            {jsonError && <p className="text-red-500 text-sm mt-1">{jsonError}</p>}
-          </div>
-
         </form>
 
         {/* Footer */}
@@ -440,7 +493,7 @@ export default function Quest_FormModal({
             type="submit"
             onClick={handleSubmit}
             className="flex-1 px-4 py-2.5 sm:py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-            disabled={loading || !!jsonError}
+            disabled={loading}
           >
             {loading ? 'Saving...' : (initialQuest ? 'Update Quest' : 'Create Quest')}
           </button>

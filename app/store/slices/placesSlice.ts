@@ -1,11 +1,22 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Place } from '@/lib/domain/models/place';
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
 interface PlacesState {
   places: Place[];
   currentPlace: Place | null;
   loading: boolean;
   error: string | null;
+  pagination: PaginationInfo;
+  lastFetched: number | null;
 }
 
 const initialState: PlacesState = {
@@ -13,21 +24,52 @@ const initialState: PlacesState = {
   currentPlace: null,
   loading: false,
   error: null,
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  },
+  lastFetched: null,
 };
+
+interface FetchPlacesParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  fresh?: boolean;
+}
+
+interface FetchPlacesResponse {
+  data: Place[];
+  pagination: PaginationInfo;
+  cached: boolean;
+}
 
 // Async thunks
 export const fetchPlaces = createAsyncThunk(
   'places/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (params: FetchPlacesParams = {}, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/places/list');
+      const { page = 1, limit = 20, status, fresh = false } = params;
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (status) queryParams.append('status', status);
+      if (fresh) queryParams.append('fresh', 'true');
+
+      const response = await fetch(`/api/places/list?${queryParams}`);
       const data = await response.json();
 
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to fetch places');
       }
 
-      return data;
+      return data as FetchPlacesResponse;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);
@@ -149,6 +191,12 @@ const placesSlice = createSlice({
     clearCurrentPlace: (state) => {
       state.currentPlace = null;
     },
+    setPage: (state, action: PayloadAction<number>) => {
+      state.pagination.page = action.payload;
+    },
+    invalidateCache: (state) => {
+      state.lastFetched = null;
+    },
   },
   extraReducers: (builder) => {
     // Fetch All Places
@@ -157,9 +205,11 @@ const placesSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchPlaces.fulfilled, (state, action: PayloadAction<Place[]>) => {
+      .addCase(fetchPlaces.fulfilled, (state, action: PayloadAction<FetchPlacesResponse>) => {
         state.loading = false;
-        state.places = action.payload;
+        state.places = action.payload.data;
+        state.pagination = action.payload.pagination;
+        state.lastFetched = Date.now();
         state.error = null;
       })
       .addCase(fetchPlaces.rejected, (state, action) => {
@@ -191,7 +241,8 @@ const placesSlice = createSlice({
       })
       .addCase(createPlace.fulfilled, (state, action: PayloadAction<Place>) => {
         state.loading = false;
-        state.places.push(action.payload);
+        state.places.unshift(action.payload);
+        state.pagination.total += 1;
         state.error = null;
       })
       .addCase(createPlace.rejected, (state, action) => {
@@ -227,6 +278,7 @@ const placesSlice = createSlice({
       .addCase(deletePlace.fulfilled, (state, action: PayloadAction<string>) => {
         state.loading = false;
         state.places = state.places.filter((place) => place.placeId !== action.payload);
+        state.pagination.total -= 1;
         state.error = null;
       })
       .addCase(deletePlace.rejected, (state, action) => {
@@ -236,5 +288,5 @@ const placesSlice = createSlice({
   },
 });
 
-export const { clearError, clearCurrentPlace } = placesSlice.actions;
+export const { clearError, clearCurrentPlace, setPage, invalidateCache } = placesSlice.actions;
 export default placesSlice.reducer;

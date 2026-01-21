@@ -71,10 +71,12 @@ export default function AdventuresPage() {
         }
     }, [uid]);
 
-    // Fetch adventures using Redux on mount
+    // Only fetch adventures if not already in Redux store
     useEffect(() => {
-        dispatch(fetchAdventures());
-    }, [dispatch]);
+        if (adventures.length === 0) {
+            dispatch(fetchAdventures());
+        }
+    }, [dispatch, adventures.length]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((adventure: Adventure) => {

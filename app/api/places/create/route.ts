@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Place } from '@/lib/domain/models/place';
 import admin from '@/lib/firebase-admin';
+import ngeohash from 'ngeohash';
 
 export async function POST(req: Request) {
   try {
@@ -50,15 +51,22 @@ export async function POST(req: Request) {
       imageUrls.push(publicUrl);
     }
 
+    // Auto-generate geohash from lat/lng
+    const geo = placeData.geo || { lat: 0, lng: 0 };
+    const geohash = geo.lat && geo.lng ? ngeohash.encode(geo.lat, geo.lng, 9) : '';
+
     const newPlace: Place = {
       placeId,
       name: placeData.name,
-      geo: placeData.geo || { lat: 0, lng: 0 },
-      geohash: placeData.geohash || '',
+      geo,
+      geohash,
       categories: placeData.categories || [],
       address: placeData.address || undefined,
+      description: placeData.description || undefined,
       source: placeData.source || 'seed',
       status: placeData.status || 'active',
+      type: placeData.type || 'checkin_time',
+      requirements: placeData.requirements || {},
       imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

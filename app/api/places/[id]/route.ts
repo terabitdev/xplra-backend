@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Place } from '@/lib/domain/models/place';
 import admin from '@/lib/firebase-admin';
+import ngeohash from 'ngeohash';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -24,8 +25,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       geohash: data?.geohash || '',
       categories: data?.categories || [],
       address: data?.address,
+      description: data?.description,
       source: data?.source || 'seed',
       status: data?.status || 'active',
+      type: data?.type || 'checkin_time',
+      requirements: data?.requirements || {},
       imageUrls: data?.imageUrls || [],
       createdAt: data?.createdAt?.toDate?.()?.toISOString() || data?.createdAt,
       updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || data?.updatedAt,
@@ -102,14 +106,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const existingImageUrls = placeData.imageUrls || [];
     const combinedImageUrls = [...existingImageUrls, ...newImageUrls];
 
+    // Auto-generate geohash from lat/lng
+    const geo = placeData.geo || { lat: 0, lng: 0 };
+    const geohash = geo.lat && geo.lng ? ngeohash.encode(geo.lat, geo.lng, 9) : '';
+
     const updatedPlace: Partial<Place> = {
       name: placeData.name,
-      geo: placeData.geo,
-      geohash: placeData.geohash,
+      geo,
+      geohash,
       categories: placeData.categories || [],
       address: placeData.address || undefined,
+      description: placeData.description || undefined,
       source: placeData.source,
       status: placeData.status,
+      type: placeData.type || 'checkin_time',
+      requirements: placeData.requirements || {},
       imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : undefined,
       updatedAt: new Date().toISOString(),
     };

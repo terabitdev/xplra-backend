@@ -1,10 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Adventure } from '@/lib/domain/models/adventures';
 import admin from '@/lib/firebase-admin';
 
-export async function GET() {
+// In-memory cache
+let adventuresCache: { data: Adventure[]; timestamp: number } | null = null;
+const CACHE_DURATION = 60 * 1000; // 60 seconds
+
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const skipCache = searchParams.get('fresh') === 'true';
+    const now = Date.now();
+
+    // Check cache
+    if (!skipCache && adventuresCache && (now - adventuresCache.timestamp) < CACHE_DURATION) {
+      return NextResponse.json(adventuresCache.data);
+    }
+
     // Get all admin adventure documents
     const adminAdventuresSnapshot = await adminDb.collection('adminAdventures').get();
 
@@ -21,6 +34,9 @@ export async function GET() {
       });
     });
 
+    // Update cache
+    adventuresCache = { data: allAdventures, timestamp: now };
+
     return NextResponse.json(allAdventures);
   } catch (error: any) {
     console.error('Get adventures error:', error);
@@ -29,6 +45,11 @@ export async function GET() {
       { status: 500 }
     );
   }
+}
+
+// Invalidate cache after mutations
+export function invalidateAdventuresCache() {
+  adventuresCache = null;
 }
 
 export async function POST(req: Request) {

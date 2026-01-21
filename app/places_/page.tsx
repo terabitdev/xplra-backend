@@ -7,6 +7,9 @@ import DashboardLayout from "../components/DashboardLayout";
 import PlaceFormModal, { Place_ } from "../components/modals/PlaceFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import Toaster from "../components/ui/Toaster";
+import Pagination from "../components/ui/Pagination";
+import CardSkeleton from "../components/ui/CardSkeleton";
+import TableSkeleton from "../components/ui/TableSkeleton";
 import { AppDispatch, RootState } from "../store";
 import {
   fetchPlaces,
@@ -15,10 +18,16 @@ import {
   deletePlace,
   clearError,
 } from "../store/slices/placesSlice";
+import { fetchCategories } from "../store/slices/categoriesSlice";
+
+const ITEMS_PER_PAGE = 20;
 
 export default function Places_Page() {
   const dispatch = useDispatch<AppDispatch>();
-  const { places, loading, error } = useSelector((state: RootState) => state.places);
+  const { places, loading, error, pagination, lastFetched } = useSelector(
+    (state: RootState) => state.places
+  );
+  const { categories } = useSelector((state: RootState) => state.categories);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<Place_ | null>(null);
@@ -26,10 +35,20 @@ export default function Places_Page() {
   const [placeToDelete, setPlaceToDelete] = useState<Place_ | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Check if data is stale (older than 5 minutes)
+  const isDataStale = lastFetched ? Date.now() - lastFetched > 5 * 60 * 1000 : true;
+
+  // Fetch data on mount or page change
   useEffect(() => {
-    dispatch(fetchPlaces());
-  }, [dispatch]);
+    if (places.length === 0 || isDataStale || pagination.page !== currentPage) {
+      dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE }));
+    }
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, currentPage]);
 
   useEffect(() => {
     if (error) {
@@ -37,6 +56,11 @@ export default function Places_Page() {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -74,15 +98,15 @@ export default function Places_Page() {
         await dispatch(createPlace({ placeData: place, imageFiles })).unwrap();
         setToast({ message: 'Place created successfully', type: 'success', isVisible: true });
       }
-      // Refresh places list to show uploaded images
-      await dispatch(fetchPlaces());
+      // Refresh places list with fresh data
+      await dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE, fresh: true }));
     } catch (err) {
       const errorMessage = typeof err === 'string' ? err : 'An error occurred';
       setToast({ message: errorMessage, type: 'error', isVisible: true });
     }
     setIsModalOpen(false);
     setSelectedPlace(null);
-  }, [selectedPlace, dispatch]);
+  }, [selectedPlace, dispatch, currentPage]);
 
   const handleDeleteClick = useCallback((place: Place_) => {
     setPlaceToDelete(place);
@@ -110,6 +134,9 @@ export default function Places_Page() {
     setPlaceToDelete(null);
   }, []);
 
+  // Show initial loading state
+  const showInitialLoading = loading && places.length === 0;
+
   return (
     <DashboardLayout>
       <div className="w-full p-4 sm:p-5 lg:p-6">
@@ -117,7 +144,12 @@ export default function Places_Page() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Places</h1>
-            <p className="text-gray-500 text-sm">Manage physical locations for discovery & quests</p>
+            <p className="text-gray-500 text-sm">
+              Manage physical locations for discovery & quests
+              {pagination.total > 0 && (
+                <span className="ml-2 text-gray-400">({pagination.total} total)</span>
+              )}
+            </p>
           </div>
           <button
             onClick={handleCreatePlace}
@@ -130,10 +162,17 @@ export default function Places_Page() {
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          </div>
+        {showInitialLoading ? (
+          <>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden">
+              <CardSkeleton count={6} showImage={true} />
+            </div>
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:block">
+              <TableSkeleton rows={8} columns={8} showImage={true} />
+            </div>
+          </>
         ) : places.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
             <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,6 +184,13 @@ export default function Places_Page() {
           </div>
         ) : (
           <>
+            {/* Loading overlay for page changes */}
+            {loading && places.length > 0 && (
+              <div className="fixed inset-0 bg-white/50 z-10 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+              </div>
+            )}
+
             {/* Mobile View */}
             <div className="lg:hidden space-y-2">
               {places.map((place) => (
@@ -157,6 +203,7 @@ export default function Places_Page() {
                         alt={place.name}
                         fill
                         className="object-cover"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
                       />
                     </div>
                   ) : (
@@ -257,6 +304,7 @@ export default function Places_Page() {
                             width={56}
                             height={56}
                             className="rounded-md object-cover h-10 w-10 sm:h-14 sm:w-14"
+                            sizes="56px"
                           />
                         ) : (
                           <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-md bg-gray-100 flex items-center justify-center">
@@ -320,6 +368,15 @@ export default function Places_Page() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+              totalItems={pagination.total}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </>
         )}
       </div>
@@ -329,6 +386,7 @@ export default function Places_Page() {
         onClose={() => { setIsModalOpen(false); setSelectedPlace(null); }}
         onSubmit={handleSubmitPlace}
         place={selectedPlace}
+        availableCategories={categories}
       />
 
       <DeleteDialog

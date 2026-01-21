@@ -5,6 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import DashboardLayout from "../components/DashboardLayout";
 import DeleteDialog from "../components/ui/DeleteDialog";
 import Toaster from "../components/ui/Toaster";
+import Pagination from "../components/ui/Pagination";
+import CardSkeleton from "../components/ui/CardSkeleton";
 import { AppDispatch, RootState } from "../store";
 import {
   fetchContributions,
@@ -16,7 +18,7 @@ import { PlaceContribution } from "@/lib/domain/models/placeContribution";
 
 export default function ContributionsPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const { contributions, loading, error } = useSelector((state: RootState) => state.contributions);
+  const { contributions, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.contributions);
 
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [selectedContribution, setSelectedContribution] = useState<PlaceContribution | null>(null);
@@ -25,10 +27,22 @@ export default function ContributionsPage() {
   const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Check if data is stale (older than 5 minutes)
+  const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
+
+  // Fetch contributions on mount or when page/filter changes
   useEffect(() => {
-    dispatch(fetchContributions());
-  }, [dispatch]);
+    if (contributions.length === 0 || isDataStale || pagination.page !== currentPage) {
+      dispatch(fetchContributions({ page: currentPage, limit: 20 }));
+    }
+  }, [dispatch, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    dispatch(fetchContributions({ page, limit: 20 }));
+  };
 
   useEffect(() => {
     if (error) {
@@ -69,7 +83,7 @@ export default function ContributionsPage() {
         adminUid: "admin_uid_placeholder", // Should be from auth context
       })).unwrap();
       setToast({ message: `Contribution ${reviewAction}d successfully`, type: 'success', isVisible: true });
-      dispatch(fetchContributions());
+      dispatch(fetchContributions({ page: currentPage, limit: 20, fresh: true }));
     } catch (err) {
       const errorMessage = typeof err === 'string' ? err : 'Failed to review contribution';
       setToast({ message: errorMessage, type: 'error', isVisible: true });
@@ -126,10 +140,8 @@ export default function ContributionsPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          </div>
+        {loading && contributions.length === 0 ? (
+          <CardSkeleton count={6} />
         ) : filteredContributions.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
             <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,88 +151,101 @@ export default function ContributionsPage() {
             <p className="text-gray-400 text-sm">User submissions will appear here</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredContributions.map((contribution) => (
-              <div key={contribution.contributionId} className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  {/* Place Info */}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{contribution.placeDraft.name}</h3>
-                        <p className="text-xs text-gray-400 font-mono mt-1">{contribution.contributionId}</p>
-                      </div>
-                      <span className={`shrink-0 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(contribution.status)}`}>
-                        {contribution.status}
-                      </span>
-                    </div>
-
-                    {contribution.placeDraft.description && (
-                      <p className="text-sm text-gray-600 mb-2">{contribution.placeDraft.description}</p>
-                    )}
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-400 text-xs">Location</span>
-                        <p className="text-gray-700 font-mono text-xs">
-                          {contribution.placeDraft.geo?.lat.toFixed(4)}, {contribution.placeDraft.geo?.lng.toFixed(4)}
-                        </p>
-                      </div>
-                      {contribution.placeDraft.address && (
+          <>
+            <div className="space-y-3">
+              {filteredContributions.map((contribution) => (
+                <div key={contribution.contributionId} className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    {/* Place Info */}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
-                          <span className="text-gray-400 text-xs">Address</span>
-                          <p className="text-gray-700 text-xs">{contribution.placeDraft.address}</p>
+                          <h3 className="font-semibold text-gray-900">{contribution.placeDraft.name}</h3>
+                          <p className="text-xs text-gray-400 font-mono mt-1">{contribution.contributionId}</p>
+                        </div>
+                        <span className={`shrink-0 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(contribution.status)}`}>
+                          {contribution.status}
+                        </span>
+                      </div>
+
+                      {contribution.placeDraft.description && (
+                        <p className="text-sm text-gray-600 mb-2">{contribution.placeDraft.description}</p>
+                      )}
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-400 text-xs">Location</span>
+                          <p className="text-gray-700 font-mono text-xs">
+                            {contribution.placeDraft.geo?.lat.toFixed(4)}, {contribution.placeDraft.geo?.lng.toFixed(4)}
+                          </p>
+                        </div>
+                        {contribution.placeDraft.address && (
+                          <div>
+                            <span className="text-gray-400 text-xs">Address</span>
+                            <p className="text-gray-700 text-xs">{contribution.placeDraft.address}</p>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-gray-400 text-xs">Submitted By</span>
+                          <p className="text-gray-700 font-mono text-xs">{contribution.uid}</p>
+                        </div>
+                        {contribution.createdAt && (
+                          <div>
+                            <span className="text-gray-400 text-xs">Submitted</span>
+                            <p className="text-gray-700 text-xs">{new Date(contribution.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {contribution.placeDraft.categories && contribution.placeDraft.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {contribution.placeDraft.categories.map((cat, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{cat}</span>
+                          ))}
                         </div>
                       )}
-                      <div>
-                        <span className="text-gray-400 text-xs">Submitted By</span>
-                        <p className="text-gray-700 font-mono text-xs">{contribution.uid}</p>
-                      </div>
-                      {contribution.createdAt && (
-                        <div>
-                          <span className="text-gray-400 text-xs">Submitted</span>
-                          <p className="text-gray-700 text-xs">{new Date(contribution.createdAt).toLocaleDateString()}</p>
+
+                      {contribution.reviewNote && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-300">
+                          <span className="text-xs text-gray-500 font-medium">Review Note:</span>
+                          <p className="text-sm text-gray-700 mt-0.5">{contribution.reviewNote}</p>
                         </div>
                       )}
                     </div>
 
-                    {contribution.placeDraft.categories && contribution.placeDraft.categories.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {contribution.placeDraft.categories.map((cat, i) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{cat}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {contribution.reviewNote && (
-                      <div className="mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-300">
-                        <span className="text-xs text-gray-500 font-medium">Review Note:</span>
-                        <p className="text-sm text-gray-700 mt-0.5">{contribution.reviewNote}</p>
+                    {/* Actions */}
+                    {contribution.status === "pending" && (
+                      <div className="flex lg:flex-col gap-2 lg:w-32">
+                        <button
+                          onClick={() => handleReviewClick(contribution, "approve")}
+                          className="flex-1 lg:w-full py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleReviewClick(contribution, "reject")}
+                          className="flex-1 lg:w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          Reject
+                        </button>
                       </div>
                     )}
                   </div>
-
-                  {/* Actions */}
-                  {contribution.status === "pending" && (
-                    <div className="flex lg:flex-col gap-2 lg:w-32">
-                      <button
-                        onClick={() => handleReviewClick(contribution, "approve")}
-                        className="flex-1 lg:w-full py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleReviewClick(contribution, "reject")}
-                        className="flex-1 lg:w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.limit}
+              />
+            )}
+          </>
         )}
       </div>
 

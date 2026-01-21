@@ -57,10 +57,12 @@ export default function AchievementsPage() {
         }
     }, [uid]);
 
-    // Fetch achievements using Redux on mount
+    // Only fetch achievements if not already in Redux store
     useEffect(() => {
-        dispatch(fetchAchievements());
-    }, [dispatch]);
+        if (achievements.length === 0) {
+            dispatch(fetchAchievements());
+        }
+    }, [dispatch, achievements.length]);
 
     // Open delete dialog
     const handleDeleteClick = useCallback((achievement: Achievement) => {
