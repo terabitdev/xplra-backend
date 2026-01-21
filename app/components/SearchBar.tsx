@@ -1,21 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Close } from "@carbon/icons-react";
 
 interface SearchBarProps {
   placeholder?: string;
   onSearch?: (query: string) => void;
   className?: string;
+  value?: string;
 }
 
 export default function SearchBar({
   placeholder = "Search...",
   onSearch,
-  className = ""
+  className = "",
+  value: externalValue
 }: SearchBarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(externalValue || "");
   const [isFocused, setIsFocused] = useState(false);
+
+  // Sync local state with external value when it changes
+  useEffect(() => {
+    if (externalValue !== undefined) {
+      setSearchQuery(externalValue);
+    }
+  }, [externalValue]);
 
   const handleSearch = (value: string) => {
     setSearchQuery(value);

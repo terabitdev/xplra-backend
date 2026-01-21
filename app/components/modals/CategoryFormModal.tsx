@@ -72,6 +72,8 @@ export default function CategoryFormModal({
     <div
       className="fixed inset-0 z-[9999] bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
       onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
+      onInput={(e) => e.stopPropagation()}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col my-auto">
         {/* Modal Header */}
@@ -92,18 +94,29 @@ export default function CategoryFormModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="category-name-input" className="block text-sm font-medium text-gray-700 mb-2">
               Category Name *
             </label>
             <input
               ref={inputRef}
               type="text"
-              id="name"
+              id="category-name-input"
+              name="category-name-field"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               value={category.name}
-              onChange={(e) => setCategory({ ...category, name: e.target.value })}
+              onChange={(e) => {
+                e.stopPropagation();
+                setCategory({ ...category, name: e.target.value });
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
               required
               disabled={loading}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              data-form-type="other"
+              data-lpignore="true"
             />
           </div>
 

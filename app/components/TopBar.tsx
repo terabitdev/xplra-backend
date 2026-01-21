@@ -11,12 +11,16 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../store";
 import { toggleSidebar } from "../store/slices/uiSlice";
 
-function TopBar() {
+interface TopBarProps {
+  hideSearch?: boolean;
+}
+
+function TopBar({ hideSearch = false }: TopBarProps) {
   const router = useRouter();
   const userDispatch = useAppDispatch();
   const dispatch = useDispatch();
   const { email, displayName, photoURL, loading, isEditModalOpen, isSaving } = useAppSelector((state) => state.user);
-  const { setSearchQuery } = useSearch();
+  const { searchQuery, setSearchQuery } = useSearch();
   const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -127,16 +131,19 @@ function TopBar() {
       </button>
 
       {/* Search Bar - Hidden on small mobile, visible on tablet and up */}
-      <div className="flex-1 ml-2 sm:ml-3 lg:ml-2 max-w-[14rem] sm:max-w-xs">
-        <SearchBar
-          placeholder="Search analytics, or data..."
-          onSearch={handleSearch}
-          className="w-full"
-        />
-      </div>
+      {!hideSearch && (
+        <div className="flex-1 ml-2 sm:ml-3 lg:ml-2 max-w-[14rem] sm:max-w-xs">
+          <SearchBar
+            placeholder="Search categories..."
+            onSearch={handleSearch}
+            value={searchQuery}
+            className="w-full"
+          />
+        </div>
+      )}
 
-      {/* Spacer for mobile to push profile to the right */}
-      <div className="flex-1 sm:hidden"></div>
+      {/* Spacer to push profile to the right */}
+      <div className={`flex-1 ${hideSearch ? '' : 'sm:hidden'}`}></div>
 
       {/* User Profile Section */}
       <div className="relative" ref={dropdownRef}>

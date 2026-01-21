@@ -8,9 +8,10 @@ import TopBar from './TopBar';
 
 interface DashboardLayoutProps {
     children: ReactNode;
+    hideSearch?: boolean;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, hideSearch = false }: DashboardLayoutProps) {
     const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
 
     return (
@@ -21,7 +22,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
                 }`}
             >
-                <TopBar />
+                <TopBar hideSearch={hideSearch} />
                 <main className="pt-14 p-3 sm:p-4 lg:p-6 min-h-screen bg-gray-50">
                     {children}
                 </main>
