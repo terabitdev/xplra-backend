@@ -5,12 +5,11 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     images: {
-        domains: [
-            '*',
-            'firebasestorage.googleapis.com',
-            'storage.googleapis.com',
-            'picsum.photos',
-        ], // Add your allowed domains here
+        remotePatterns: [
+            { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+            { protocol: 'https', hostname: 'storage.googleapis.com' },
+            { protocol: 'https', hostname: 'picsum.photos' },
+        ],
     },
     reactStrictMode: false, // Disable to reduce console warnings in development
 };
