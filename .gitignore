@@ -99,4 +99,6 @@ nul
 
 # Documentation (local)
 doc/
+docs/
+**/*.md
 

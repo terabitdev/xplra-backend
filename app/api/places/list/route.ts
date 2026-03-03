@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fetch from Firestore with only needed fields
+    // Fetch from Firestore (places collection)
     const placesSnapshot = await adminDb.collection('places')
       .orderBy('createdAt', 'desc')
       .get();
@@ -53,13 +53,19 @@ export async function GET(req: NextRequest) {
 
     placesSnapshot.forEach((doc) => {
       const data = doc.data();
+      // Handle both old format (geo: {lat, lng}) and new Flutter format (geo: {geopoint, geohash})
+      const geopoint = data.geo?.geopoint;
+      const geo = geopoint
+        ? { lat: geopoint.latitude, lng: geopoint.longitude }
+        : (data.geo?.lat !== undefined ? { lat: data.geo.lat, lng: data.geo.lng } : { lat: 0, lng: 0 });
+
       allPlaces.push({
         placeId: data.placeId || doc.id,
         name: data.name || '',
-        geo: data.geo || { lat: 0, lng: 0 },
-        geohash: data.geohash || '',
-        categories: data.categories || [],
-        address: data.address,
+        geo,
+        geohash: data.geo?.geohash || data.geohash || '',
+        categorySelections: data.categorySelections || (data.categoryIds ? data.categoryIds.map((id: string) => ({ selectedId: id, path: [id] })) : []),
+        location: data.location,
         description: data.description,
         source: data.source || 'seed',
         status: data.status || 'active',

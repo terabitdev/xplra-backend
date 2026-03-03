@@ -1,3 +1,5 @@
+import { CategorySelection } from './place';
+
 export interface PlaceDraft {
     name: string;
     geo: {
@@ -6,8 +8,8 @@ export interface PlaceDraft {
     };
     images?: string[];
     description?: string;
-    categories?: string[];
-    address?: string;
+    categorySelections?: CategorySelection[];
+    location?: string;
 }
 
 export interface PlaceContribution {

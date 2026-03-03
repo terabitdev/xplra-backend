@@ -219,7 +219,7 @@ export default function QuestFormModal({
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{place.name}</p>
-                      {place.address && <p className="text-xs text-gray-500 truncate">{place.address}</p>}
+                      {place.location && <p className="text-xs text-gray-500 truncate">{place.location}</p>}
                     </div>
                   </div>
                 ))}

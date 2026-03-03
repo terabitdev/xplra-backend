@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Image from "next/image";
 import DashboardLayout from "../components/DashboardLayout";
@@ -19,7 +19,6 @@ import {
   clearError,
 } from "../store/slices/placesSlice";
 import { fetchCategories } from "../store/slices/categoriesSlice";
-
 const ITEMS_PER_PAGE = 20;
 
 export default function Places_Page() {
@@ -28,6 +27,10 @@ export default function Places_Page() {
     (state: RootState) => state.places
   );
   const { categories } = useSelector((state: RootState) => state.categories);
+
+  const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
+  const resolveCatName = useCallback((id: string) => categoryMap.get(id) || id, [categoryMap]);
+  const getCatIds = useCallback((place: Place_) => (place.categorySelections || []).map(cs => cs.selectedId), []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<Place_ | null>(null);
@@ -223,9 +226,9 @@ export default function Places_Page() {
                       </span>
                     </div>
 
-                    {/* Address */}
-                  {place.address && (
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">{place.address}</p>
+                    {/* Location */}
+                  {place.location && (
+                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">{place.location}</p>
                   )}
 
                   {/* Info Grid */}
@@ -233,7 +236,7 @@ export default function Places_Page() {
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
                       <span className="text-gray-400 block text-[10px] mb-0.5">Location</span>
                       <span className="text-gray-700 font-medium text-[11px]">
-                        {place.geo.lat.toFixed(4)}, {place.geo.lng.toFixed(4)}
+                        {place.geo?.lat != null ? place.geo.lat.toFixed(4) : '—'}, {place.geo?.lng != null ? place.geo.lng.toFixed(4) : '—'}
                       </span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
@@ -248,18 +251,18 @@ export default function Places_Page() {
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
                       <span className="text-gray-400 block text-[10px] mb-0.5">Categories</span>
-                      <span className="text-gray-700 font-medium text-[11px]">{place.categories.length || 0}</span>
+                      <span className="text-gray-700 font-medium text-[11px]">{getCatIds(place).length}</span>
                     </div>
                   </div>
 
                   {/* Categories */}
-                  {place.categories.length > 0 && (
+                  {getCatIds(place).length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {place.categories.slice(0, 3).map((cat, i) => (
-                        <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{cat}</span>
+                      {getCatIds(place).slice(0, 3).map((catId) => (
+                        <span key={catId} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{resolveCatName(catId)}</span>
                       ))}
-                      {place.categories.length > 3 && (
-                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">+{place.categories.length - 3}</span>
+                      {getCatIds(place).length > 3 && (
+                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">+{getCatIds(place).length - 3}</span>
                       )}
                     </div>
                   )}
@@ -316,11 +319,11 @@ export default function Places_Page() {
                       </td>
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{place.name}</p>
-                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{place.address || '—'}</p>
+                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{place.location || '—'}</p>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-gray-700 font-mono text-xs">
-                          {place.geo.lat.toFixed(4)}, {place.geo.lng.toFixed(4)}
+                          {place.geo?.lat != null ? place.geo.lat.toFixed(4) : '—'}, {place.geo?.lng != null ? place.geo.lng.toFixed(4) : '—'}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
@@ -330,13 +333,13 @@ export default function Places_Page() {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
-                          {place.categories.slice(0, 2).map((cat, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{cat}</span>
+                          {getCatIds(place).slice(0, 2).map((catId) => (
+                            <span key={catId} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{resolveCatName(catId)}</span>
                           ))}
-                          {place.categories.length > 2 && (
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">+{place.categories.length - 2}</span>
+                          {getCatIds(place).length > 2 && (
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">+{getCatIds(place).length - 2}</span>
                           )}
-                          {place.categories.length === 0 && <span className="text-gray-400 text-xs">—</span>}
+                          {getCatIds(place).length === 0 && <span className="text-gray-400 text-xs">—</span>}
                         </div>
                       </td>
                       <td className="px-3 py-2.5">

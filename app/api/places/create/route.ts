@@ -52,19 +52,46 @@ export async function POST(req: Request) {
     }
 
     // Auto-generate geohash from lat/lng
-    const geo = placeData.geo || { lat: 0, lng: 0 };
-    const geohash = geo.lat && geo.lng ? ngeohash.encode(geo.lat, geo.lng, 9) : '';
+    const geoInput = placeData.geo || { lat: 0, lng: 0 };
+    const geohash = geoInput.lat && geoInput.lng ? ngeohash.encode(geoInput.lat, geoInput.lng, 9) : '';
+    const status = placeData.status || 'active';
 
-    const newPlace: Place = {
+    // Build Firestore document in Flutter-compatible format
+    const firestoreDoc = {
       placeId,
       name: placeData.name,
-      geo,
+      geo: {
+        geohash,
+        geopoint: new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng),
+      },
+      categorySelections: placeData.categorySelections || [],
+      xp: placeData.xp || 0,
+      location: placeData.location || '',
+      description: placeData.description || '',
+      source: placeData.source || 'seed',
+      status,
+      type: placeData.type || 'checkin_time',
+      requirements: placeData.requirements || {},
+      imageUrls: imageUrls.length > 0 ? imageUrls : [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const placeDocRef = adminDb.collection('places').doc(placeId);
+    await placeDocRef.set(firestoreDoc);
+
+    // Return admin-friendly format for the dashboard
+    const responsePlace: Place = {
+      placeId,
+      name: placeData.name,
+      geo: geoInput,
       geohash,
-      categories: placeData.categories || [],
-      address: placeData.address || undefined,
+      categorySelections: placeData.categorySelections || [],
+      xp: placeData.xp || 0,
+      location: placeData.location || undefined,
       description: placeData.description || undefined,
       source: placeData.source || 'seed',
-      status: placeData.status || 'active',
+      status,
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
       imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
@@ -72,14 +99,7 @@ export async function POST(req: Request) {
       updatedAt: new Date().toISOString(),
     };
 
-    const placeDocRef = adminDb.collection('places').doc(placeId);
-    await placeDocRef.set({
-      ...newPlace,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return NextResponse.json(newPlace);
+    return NextResponse.json(responsePlace);
   } catch (error: unknown) {
     console.error('Create place error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to create place';

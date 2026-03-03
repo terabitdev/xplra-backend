@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import DashboardLayout from "../components/DashboardLayout";
 import DeleteDialog from "../components/ui/DeleteDialog";
@@ -14,11 +14,16 @@ import {
   deleteContribution,
   clearError,
 } from "../store/slices/contributionsSlice";
+import { fetchCategories } from "../store/slices/categoriesSlice";
 import { PlaceContribution } from "@/lib/domain/models/placeContribution";
 
 export default function ContributionsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const { contributions, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.contributions);
+  const { categories } = useSelector((state: RootState) => state.categories);
+
+  const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
+  const resolveCatName = useCallback((id: string) => categoryMap.get(id) || id, [categoryMap]);
 
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [selectedContribution, setSelectedContribution] = useState<PlaceContribution | null>(null);
@@ -36,6 +41,9 @@ export default function ContributionsPage() {
   useEffect(() => {
     if (contributions.length === 0 || isDataStale || pagination.page !== currentPage) {
       dispatch(fetchContributions({ page: currentPage, limit: 20 }));
+    }
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
     }
   }, [dispatch, currentPage]);
 
@@ -179,10 +187,10 @@ export default function ContributionsPage() {
                             {contribution.placeDraft.geo?.lat.toFixed(4)}, {contribution.placeDraft.geo?.lng.toFixed(4)}
                           </p>
                         </div>
-                        {contribution.placeDraft.address && (
+                        {contribution.placeDraft.location && (
                           <div>
-                            <span className="text-gray-400 text-xs">Address</span>
-                            <p className="text-gray-700 text-xs">{contribution.placeDraft.address}</p>
+                            <span className="text-gray-400 text-xs">Location</span>
+                            <p className="text-gray-700 text-xs">{contribution.placeDraft.location}</p>
                           </div>
                         )}
                         <div>
@@ -197,10 +205,10 @@ export default function ContributionsPage() {
                         )}
                       </div>
 
-                      {contribution.placeDraft.categories && contribution.placeDraft.categories.length > 0 && (
+                      {contribution.placeDraft.categorySelections && contribution.placeDraft.categorySelections.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {contribution.placeDraft.categories.map((cat, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{cat}</span>
+                          {contribution.placeDraft.categorySelections.map((cs) => (
+                            <span key={cs.selectedId} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{resolveCatName(cs.selectedId)}</span>
                           ))}
                         </div>
                       )}

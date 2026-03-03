@@ -4,20 +4,18 @@ import { Category } from '@/lib/domain/models/category';
 
 export async function GET() {
   try {
-    // Get all admin category documents
-    const adminCategoriesSnapshot = await adminDb.collection('adminCategories').get();
+    const snapshot = await adminDb.collection('adminCategories')
+      .orderBy('interestsOrder', 'asc')
+      .get();
 
-    const allCategories: Category[] = [];
-
-    // Iterate through each admin document and collect all categories
-    adminCategoriesSnapshot.forEach((doc) => {
+    const allCategories: Category[] = snapshot.docs.map((doc) => {
       const data = doc.data();
-      const categories = data.categories || [];
-
-      // Add all categories from this admin
-      categories.forEach((category: Category) => {
-        allCategories.push(category);
-      });
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || '',
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt || '',
+      } as Category;
     });
 
     return NextResponse.json(allCategories);

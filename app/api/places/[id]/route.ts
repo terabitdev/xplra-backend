@@ -18,13 +18,19 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
 
     const data = placeDoc.data();
+    // Handle both old format (geo: {lat, lng}) and new Flutter format (geo: {geopoint, geohash})
+    const geopoint = data?.geo?.geopoint;
+    const geo = geopoint
+      ? { lat: geopoint.latitude, lng: geopoint.longitude }
+      : (data?.geo?.lat !== undefined ? { lat: data.geo.lat, lng: data.geo.lng } : { lat: 0, lng: 0 });
+
     const place: Place = {
       placeId: data?.placeId || placeDoc.id,
       name: data?.name || '',
-      geo: data?.geo || { lat: 0, lng: 0 },
-      geohash: data?.geohash || '',
-      categories: data?.categories || [],
-      address: data?.address,
+      geo,
+      geohash: data?.geo?.geohash || data?.geohash || '',
+      categorySelections: data?.categorySelections || (data?.categoryIds ? data.categoryIds.map((id: string) => ({ selectedId: id, path: [id] })) : []),
+      location: data?.location,
       description: data?.description,
       source: data?.source || 'seed',
       status: data?.status || 'active',
@@ -107,28 +113,47 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const combinedImageUrls = [...existingImageUrls, ...newImageUrls];
 
     // Auto-generate geohash from lat/lng
-    const geo = placeData.geo || { lat: 0, lng: 0 };
-    const geohash = geo.lat && geo.lng ? ngeohash.encode(geo.lat, geo.lng, 9) : '';
+    const geoInput = placeData.geo || { lat: 0, lng: 0 };
+    const geohash = geoInput.lat && geoInput.lng ? ngeohash.encode(geoInput.lat, geoInput.lng, 9) : '';
+    const status = placeData.status;
 
+    // Build Firestore update in Flutter-compatible format
+    const firestoreUpdate = {
+      name: placeData.name,
+      geo: {
+        geohash,
+        geopoint: new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng),
+      },
+      categorySelections: placeData.categorySelections || [],
+      xp: placeData.xp || 0,
+      location: placeData.location || '',
+      description: placeData.description || '',
+      source: placeData.source,
+      status,
+      type: placeData.type || 'checkin_time',
+      requirements: placeData.requirements || {},
+      imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : [],
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await placeDocRef.update(firestoreUpdate);
+
+    // Return admin-friendly format
     const updatedPlace: Partial<Place> = {
       name: placeData.name,
-      geo,
+      geo: geoInput,
       geohash,
-      categories: placeData.categories || [],
-      address: placeData.address || undefined,
+      categorySelections: placeData.categorySelections || [],
+      xp: placeData.xp || 0,
+      location: placeData.location || undefined,
       description: placeData.description || undefined,
       source: placeData.source,
-      status: placeData.status,
+      status,
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
       imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : undefined,
       updatedAt: new Date().toISOString(),
     };
-
-    await placeDocRef.update({
-      ...updatedPlace,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
 
     return NextResponse.json({
       message: 'Place updated successfully',

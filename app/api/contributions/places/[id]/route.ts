@@ -20,19 +20,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const contributionData = contributionDoc.data();
 
     if (action === 'approve') {
-      // Create place in main places collection
+      // Create place in places collection (Flutter compatible format)
       const placeId = `place_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const placeDraft = contributionData?.placeDraft || {};
+      const geoInput = placeDraft.geo || { lat: 0, lng: 0 };
+      const ngeohash = (await import('ngeohash')).default;
+      const geohash = geoInput.lat && geoInput.lng ? ngeohash.encode(geoInput.lat, geoInput.lng, 9) : '';
 
       const newPlace = {
         placeId,
         name: placeDraft.name || '',
-        geo: placeDraft.geo || { lat: 0, lng: 0 },
-        geohash: '', // Would calculate geohash here
-        categories: placeDraft.categories || [],
-        address: placeDraft.address,
+        geo: {
+          geohash,
+          geopoint: new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng),
+        },
+        isVisible: false, // pending = not visible
+        categorySelections: placeDraft.categorySelections || [],
+        location: placeDraft.location,
         source: 'user_contribution' as const,
-        status: 'active' as const,
+        status: 'pending' as const,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -47,7 +53,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      return NextResponse.json({ message: 'Contribution approved and place created' });
+      return NextResponse.json({
+        message: 'Contribution approved. Place created as pending — edit on Places page to add categories and publish.',
+        placeId,
+      });
     } else if (action === 'reject') {
       // Update contribution status
       await contributionRef.update({

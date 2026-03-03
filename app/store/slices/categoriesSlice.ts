@@ -18,9 +18,13 @@ const initialState: CategoriesState = {
 // Async thunks
 export const fetchCategories = createAsyncThunk(
   'categories/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (params: { fresh?: boolean } | undefined, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/categories');
+      const queryParams = new URLSearchParams();
+      if (params?.fresh) queryParams.set('fresh', 'true');
+
+      const url = `/api/categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await fetch(url);
       const data = await response.json();
 
       if (!response.ok) {
@@ -89,7 +93,7 @@ export const updateCategory = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to update category');
       }
 
-      return { id, ...data };
+      return data.category || data;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Network error');
     }
@@ -184,7 +188,7 @@ const categoriesSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(updateCategory.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(updateCategory.fulfilled, (state, action: PayloadAction<Category>) => {
         state.loading = false;
         const index = state.categories.findIndex((category) => category.id === action.payload.id);
         if (index !== -1) {

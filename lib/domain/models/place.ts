@@ -1,3 +1,8 @@
+export interface CategorySelection {
+    selectedId: string;
+    path: string[];
+}
+
 export interface Place {
     placeId: string;
     name: string;
@@ -6,9 +11,11 @@ export interface Place {
         lng: number;
     };
     geohash: string;
-    categories: string[];
-    address?: string;
+    categorySelections: CategorySelection[];
+    imageUrls?: string[];
+    location?: string;
     description?: string;
+    xp?: number;
     source: "seed" | "user_contribution";
     status: "active" | "hidden" | "pending";
     type?: "checkin_time" | "qr_scan";
@@ -17,7 +24,6 @@ export interface Place {
         radiusMeters?: number;
         qrData?: string;
     };
-    imageUrls?: string[];
     createdAt?: string;
     updatedAt?: string;
 }

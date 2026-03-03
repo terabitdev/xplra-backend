@@ -80,7 +80,7 @@ export default function MetricsCards() {
       // Note: Quests are global entities, so we count all of them
       totalQuests: quests.length,
       totalAdventures: adventures.filter(adventure => adventure.userId === userId).length,
-      totalCategories: categories.filter(category => category.userId === userId).length,
+      totalCategories: categories.filter(category => category.isActive).length,
     };
   }, [quests, adventures, categories, currentUser]);
 
