@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     const status = placeData.status || 'active';
 
     // Derive categoryIds from categorySelections
-    const categoryIds = [...new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path))];
+    const categoryIds = Array.from(new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path)));
 
     // Build Firestore document in Flutter-compatible format
     const firestoreDoc = {

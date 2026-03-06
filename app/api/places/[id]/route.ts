@@ -118,7 +118,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const status = placeData.status;
 
     // Derive categoryIds from categorySelections
-    const categoryIds = [...new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path))];
+    const categoryIds = Array.from(new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path)));
 
     // Build Firestore update in Flutter-compatible format
     const firestoreUpdate = {
