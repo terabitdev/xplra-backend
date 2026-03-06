@@ -117,6 +117,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const geohash = geoInput.lat && geoInput.lng ? ngeohash.encode(geoInput.lat, geoInput.lng, 9) : '';
     const status = placeData.status;
 
+    // Derive categoryIds from categorySelections
+    const categoryIds = [...new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path))];
+
     // Build Firestore update in Flutter-compatible format
     const firestoreUpdate = {
       name: placeData.name,
@@ -125,6 +128,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         geopoint: new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng),
       },
       categorySelections: placeData.categorySelections || [],
+      categoryIds,
       xp: placeData.xp || 0,
       location: placeData.location || '',
       description: placeData.description || '',

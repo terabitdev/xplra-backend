@@ -12,6 +12,7 @@ export interface Place {
     };
     geohash: string;
     categorySelections: CategorySelection[];
+    categoryIds?: string[];
     imageUrls?: string[];
     location?: string;
     description?: string;

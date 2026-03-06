@@ -56,6 +56,9 @@ export async function POST(req: Request) {
     const geohash = geoInput.lat && geoInput.lng ? ngeohash.encode(geoInput.lat, geoInput.lng, 9) : '';
     const status = placeData.status || 'active';
 
+    // Derive categoryIds from categorySelections
+    const categoryIds = [...new Set((placeData.categorySelections || []).flatMap((cs: { path: string[] }) => cs.path))];
+
     // Build Firestore document in Flutter-compatible format
     const firestoreDoc = {
       placeId,
@@ -65,6 +68,7 @@ export async function POST(req: Request) {
         geopoint: new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng),
       },
       categorySelections: placeData.categorySelections || [],
+      categoryIds,
       xp: placeData.xp || 0,
       location: placeData.location || '',
       description: placeData.description || '',
