@@ -19,6 +19,7 @@ import {
   clearError,
 } from "../store/slices/placesSlice";
 import { fetchCategories } from "../store/slices/categoriesSlice";
+import { fetchValidationConfigs } from "../store/slices/validationConfigsSlice";
 const ITEMS_PER_PAGE = 20;
 
 export default function Places_Page() {
@@ -27,6 +28,7 @@ export default function Places_Page() {
     (state: RootState) => state.places
   );
   const { categories } = useSelector((state: RootState) => state.categories);
+  const { configs: validationConfigs } = useSelector((state: RootState) => state.validationConfigs);
 
   const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
   const resolveCatName = useCallback((id: string) => categoryMap.get(id) || id, [categoryMap]);
@@ -50,6 +52,9 @@ export default function Places_Page() {
     }
     if (categories.length === 0) {
       dispatch(fetchCategories());
+    }
+    if (validationConfigs.length === 0) {
+      dispatch(fetchValidationConfigs());
     }
   }, [dispatch, currentPage]);
 
@@ -390,6 +395,7 @@ export default function Places_Page() {
         onSubmit={handleSubmitPlace}
         place={selectedPlace}
         availableCategories={categories}
+        availableValidationConfigs={validationConfigs}
       />
 
       <DeleteDialog

@@ -1,0 +1,351 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Close } from '@carbon/icons-react';
+import { ValidationConfig } from '@/lib/domain/models/validationConfig';
+
+interface ValidationConfigFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (config: Partial<ValidationConfig>) => void;
+  config?: ValidationConfig | null;
+  usageCount?: number;
+}
+
+export default function ValidationConfigFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  config: initialConfig,
+  usageCount = 0,
+}: ValidationConfigFormModalProps) {
+  const [form, setForm] = useState<Partial<ValidationConfig>>({});
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (initialConfig) {
+      setForm({ ...initialConfig });
+    } else {
+      setForm({
+        name: '',
+        radiusM: 50,
+        minAccuracyM: 20,
+        maxSpeedMps: undefined,
+        requireLocationServices: true,
+        minAcceptedSamplesToLock: 3,
+        checkInRequiredPings: 3,
+        pingRecommendedIntervalSec: 10,
+        maxStalePingSec: 30,
+        sessionTtlSec: 600,
+        timeToValidateSec: 10,
+        dwellRequiredSec: 60,
+        graceConsecutiveOutsideSec: 10,
+        graceTotalOutsideSec: 30,
+        requireInsideOnComplete: true,
+        useScheduleWindow: false,
+        schedule: { startTime: '', endTime: '', daysOfWeek: [] },
+        oneTimeOnly: false,
+        cooldownSec: undefined,
+        requireQrOrCode: false,
+        qrTokenTtlSec: 300,
+        maxCodeAttempts: 5,
+        codeAttemptWindowSec: 600,
+        maxActiveSessionsPerUser: 1,
+        denyIfMockLocationSuspected: true,
+        auditLogLevel: 'basic',
+      });
+    }
+    setErrors({});
+  }, [initialConfig, isOpen]);
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!form.name?.trim()) errs.name = 'Name is required';
+    if (form.timeToValidateSec !== undefined && (form.timeToValidateSec < 5 || form.timeToValidateSec > 20)) {
+      errs.timeToValidateSec = 'Must be between 5 and 20 seconds';
+    }
+    if ((form.checkInRequiredPings ?? 0) < (form.minAcceptedSamplesToLock ?? 0)) {
+      errs.checkInRequiredPings = 'Must be >= Min Accepted Samples';
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await onSubmit(form);
+      onClose();
+    } catch {
+      // Error handled by parent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setField = (field: string, value: any) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const handleDayToggle = (day: number) => {
+    const current = form.schedule?.daysOfWeek || [];
+    const updated = current.includes(day) ? current.filter(d => d !== day) : [...current, day].sort();
+    setForm(prev => ({ ...prev, schedule: { ...prev.schedule, daysOfWeek: updated } }));
+  };
+
+  if (!isOpen) return null;
+
+  const inputClass = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  const labelClass = "block text-xs font-medium text-gray-600 mb-1";
+  const sectionClass = "space-y-3 border-t border-gray-200 pt-3";
+  const sectionTitle = "text-sm font-semibold text-gray-800 mb-2";
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-3">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {initialConfig ? 'Edit Validation Config' : 'New Validation Config'}
+          </h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors" disabled={loading}>
+            <Close size={20} />
+          </button>
+        </div>
+
+        {/* Usage warning */}
+        {initialConfig && usageCount > 0 && (
+          <div className="mx-4 mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs text-amber-700 font-medium">
+              This config is used by {usageCount} place(s). Changes will affect all of them.
+            </p>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Name */}
+          <div>
+            <label className={labelClass}>Name *</label>
+            <input
+              type="text"
+              className={`${inputClass} ${errors.name ? 'border-red-400' : ''}`}
+              value={form.name || ''}
+              onChange={(e) => setField('name', e.target.value)}
+              required
+              disabled={loading}
+              placeholder="e.g. Caf\u00e9 Standard"
+            />
+            {errors.name && <p className="text-red-500 text-xs mt-0.5">{errors.name}</p>}
+          </div>
+
+          {/* Geofence */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Geofence</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Radius (m) *</label>
+                <input type="number" min="0" className={inputClass} value={form.radiusM ?? ''} onChange={(e) => setField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Min Accuracy (m) *</label>
+                <input type="number" min="0" className={inputClass} value={form.minAccuracyM ?? ''} onChange={(e) => setField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Max Speed (m/s)</label>
+                <input type="number" min="0" step="any" className={inputClass} value={form.maxSpeedMps ?? ''} onChange={(e) => setField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.requireLocationServices ?? true} onChange={(e) => setField('requireLocationServices', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Require Location Services
+            </label>
+          </div>
+
+          {/* Sampling & Timing */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Sampling & Timing</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Min Accepted Samples *</label>
+                <input type="number" min="1" className={inputClass} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Check-In Required Pings *</label>
+                <input type="number" min="1" className={`${inputClass} ${errors.checkInRequiredPings ? 'border-red-400' : ''}`} value={form.checkInRequiredPings ?? ''} onChange={(e) => setField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} />
+                {errors.checkInRequiredPings && <p className="text-red-500 text-xs mt-0.5">{errors.checkInRequiredPings}</p>}
+              </div>
+              <div>
+                <label className={labelClass}>Ping Interval (sec) *</label>
+                <input type="number" min="1" className={inputClass} value={form.pingRecommendedIntervalSec ?? ''} onChange={(e) => setField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Max Stale Ping (sec) *</label>
+                <input type="number" min="0" className={inputClass} value={form.maxStalePingSec ?? ''} onChange={(e) => setField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Session TTL (sec) *</label>
+                <input type="number" min="0" className={inputClass} value={form.sessionTtlSec ?? ''} onChange={(e) => setField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Time to Validate (sec) *</label>
+                <input type="number" min="5" max="20" className={`${inputClass} ${errors.timeToValidateSec ? 'border-red-400' : ''}`} value={form.timeToValidateSec ?? ''} onChange={(e) => setField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
+                {errors.timeToValidateSec && <p className="text-red-500 text-xs mt-0.5">{errors.timeToValidateSec}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Dwell */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Dwell</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Dwell Required (sec) *</label>
+                <input type="number" min="0" className={inputClass} value={form.dwellRequiredSec ?? ''} onChange={(e) => setField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Grace Consecutive Outside (sec) *</label>
+                <input type="number" min="0" className={inputClass} value={form.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Grace Total Outside (sec) *</label>
+                <input type="number" min="0" className={inputClass} value={form.graceTotalOutsideSec ?? ''} onChange={(e) => setField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.requireInsideOnComplete ?? true} onChange={(e) => setField('requireInsideOnComplete', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Require Inside On Complete
+            </label>
+          </div>
+
+          {/* Availability Window */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Availability Window</h3>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.useScheduleWindow ?? false} onChange={(e) => setField('useScheduleWindow', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Use Schedule Window
+            </label>
+            {form.useScheduleWindow && (
+              <div className="space-y-3 ml-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Start Time</label>
+                    <input type="time" className={inputClass} value={form.schedule?.startTime || ''} onChange={(e) => setForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>End Time</label>
+                    <input type="time" className={inputClass} value={form.schedule?.endTime || ''} onChange={(e) => setForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Days of Week</label>
+                  <div className="flex gap-1.5">
+                    {dayNames.map((name, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleDayToggle(i)}
+                        className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
+                          (form.schedule?.daysOfWeek || []).includes(i)
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                        }`}
+                        disabled={loading}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Completion */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Completion</h3>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.oneTimeOnly ?? false} onChange={(e) => setField('oneTimeOnly', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              One-Time Only
+            </label>
+            <div className="w-48">
+              <label className={labelClass}>Cooldown (sec)</label>
+              <input type="number" min="0" className={inputClass} value={form.cooldownSec ?? ''} onChange={(e) => setField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+            </div>
+          </div>
+
+          {/* QR / Code Gating */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>QR / Code Gating</h3>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.requireQrOrCode ?? false} onChange={(e) => setField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Require QR or Code
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>QR Token TTL (sec)</label>
+                <input type="number" min="0" className={inputClass} value={form.qrTokenTtlSec ?? ''} onChange={(e) => setField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Max Code Attempts</label>
+                <input type="number" min="0" className={inputClass} value={form.maxCodeAttempts ?? ''} onChange={(e) => setField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Code Attempt Window (sec)</label>
+                <input type="number" min="0" className={inputClass} value={form.codeAttemptWindowSec ?? ''} onChange={(e) => setField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+              </div>
+            </div>
+          </div>
+
+          {/* Fraud & Limits */}
+          <div className={sectionClass}>
+            <h3 className={sectionTitle}>Fraud & Limits</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Max Active Sessions/User *</label>
+                <input type="number" min="1" className={inputClass} value={form.maxActiveSessionsPerUser ?? ''} onChange={(e) => setField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} />
+              </div>
+              <div>
+                <label className={labelClass}>Audit Log Level *</label>
+                <select className={inputClass} value={form.auditLogLevel || 'basic'} onChange={(e) => setField('auditLogLevel', e.target.value)} disabled={loading}>
+                  <option value="off">Off</option>
+                  <option value="basic">Basic</option>
+                  <option value="verbose">Verbose</option>
+                </select>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={form.denyIfMockLocationSuspected ?? true} onChange={(e) => setField('denyIfMockLocationSuspected', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Deny If Mock Location Suspected
+            </label>
+          </div>
+        </form>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            className="flex-1 px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : (initialConfig ? 'Update' : 'Create')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

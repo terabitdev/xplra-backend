@@ -36,6 +36,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       status: data?.status || 'active',
       type: data?.type || 'checkin_time',
       requirements: data?.requirements || {},
+      validationConfigId: data?.validationConfigId || undefined,
       imageUrls: data?.imageUrls || [],
       createdAt: data?.createdAt?.toDate?.()?.toISOString() || data?.createdAt,
       updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || data?.updatedAt,
@@ -136,6 +137,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       status,
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
+      validationConfigId: placeData.validationConfigId || null,
       imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : [],
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -155,6 +157,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       status,
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
+      validationConfigId: placeData.validationConfigId || undefined,
       imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : undefined,
       updatedAt: new Date().toISOString(),
     };

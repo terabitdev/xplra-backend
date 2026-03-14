@@ -11,6 +11,7 @@ import achievementsReducer from './slices/achievementsSlice';
 import filterReducer from './slices/filterSlice';
 import uiReducer from './slices/uiSlice';
 import xpLedgerReducer from './slices/xpLedgerSlice';
+import validationConfigsReducer from './slices/validationConfigsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     filter: filterReducer,
     ui: uiReducer,
     xpLedger: xpLedgerReducer,
+    validationConfigs: validationConfigsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

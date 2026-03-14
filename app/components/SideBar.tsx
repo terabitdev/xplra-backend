@@ -14,6 +14,7 @@ import {
   Location,
   Checkmark,
   User,
+  Settings,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -49,6 +50,7 @@ export default function Sidebar() {
     { href: "/contributions", icon: Checkmark, label: "Contributions" },
     { href: "/users", icon: User, label: "Users" },
     { href: "/categories", icon: Tag, label: "Categories" },
+    { href: "/validation-configs", icon: Settings, label: "Validation Configs" },
   ];
 
   const closeMobileMenu = () => {

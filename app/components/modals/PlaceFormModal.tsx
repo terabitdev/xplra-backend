@@ -5,6 +5,7 @@ import { Close, ChevronDown, ChevronRight } from '@carbon/icons-react';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { Category } from '@/lib/domain/models/category';
+import { ValidationConfig } from '@/lib/domain/models/validationConfig';
 
 export interface CategorySelection_ {
   selectedId: string;
@@ -32,6 +33,7 @@ export interface Place_ {
   };
   xp?: number;
   imageUrls?: string[];
+  validationConfigId?: string;
 }
 
 interface PlaceFormModalProps {
@@ -40,6 +42,7 @@ interface PlaceFormModalProps {
   onSubmit: (place: Place_, imageFiles: File[]) => void;
   place?: Place_ | null;
   availableCategories?: Category[];
+  availableValidationConfigs?: ValidationConfig[];
 }
 
 export default function PlaceFormModal({
@@ -48,6 +51,7 @@ export default function PlaceFormModal({
   onSubmit,
   place: initialPlace,
   availableCategories = [],
+  availableValidationConfigs = [],
 }: PlaceFormModalProps) {
   const [place, setPlace] = useState<Partial<Place_>>({
     placeId: '',
@@ -613,6 +617,22 @@ export default function PlaceFormModal({
                 <option value="pending">Pending</option>
               </select>
             </div>
+          </div>
+
+          {/* Validation Config */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Validation Config</label>
+            <select
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              value={place.validationConfigId || ''}
+              onChange={(e) => setPlace(prev => ({ ...prev, validationConfigId: e.target.value || undefined }))}
+              disabled={loading}
+            >
+              <option value="">Select a validation config...</option>
+              {availableValidationConfigs.map((vc) => (
+                <option key={vc.id} value={vc.id}>{vc.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Image Upload */}

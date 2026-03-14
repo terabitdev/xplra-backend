@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
         status: data.status || 'active',
         type: data.type || 'checkin_time',
         requirements: data.requirements || {},
+        validationConfigId: data.validationConfigId || undefined,
         imageUrls: data.imageUrls || [],
         createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,

@@ -25,6 +25,7 @@ export interface Place {
         radiusMeters?: number;
         qrData?: string;
     };
+    validationConfigId?: string;
     createdAt?: string;
     updatedAt?: string;
 }
