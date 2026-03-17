@@ -54,7 +54,7 @@ export default function Places_Page() {
       dispatch(fetchCategories());
     }
     if (validationConfigs.length === 0) {
-      dispatch(fetchValidationConfigs());
+      dispatch(fetchValidationConfigs({ fresh: true }));
     }
   }, [dispatch, currentPage]);
 

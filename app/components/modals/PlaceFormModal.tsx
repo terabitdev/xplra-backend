@@ -633,6 +633,130 @@ export default function PlaceFormModal({
                 <option key={vc.id} value={vc.id}>{vc.name}</option>
               ))}
             </select>
+
+            {/* Validation Config Preview */}
+            {place.validationConfigId && (() => {
+              const vc = availableValidationConfigs.find(c => c.id === place.validationConfigId);
+              if (!vc) return null;
+              const readonlyInput = "w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700";
+              const readonlyLabel = "block text-xs font-medium text-gray-600 mb-1";
+              const sectionCls = "space-y-3 border-t border-gray-200 pt-3";
+              const sectionTitleCls = "text-sm font-semibold text-gray-800 mb-2";
+              return (
+                <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg space-y-4">
+                  {/* Name */}
+                  <div>
+                    <label className={readonlyLabel}>Name</label>
+                    <div className={readonlyInput}>{vc.name}</div>
+                  </div>
+
+                  {/* Geofence */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Geofence</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div><label className={readonlyLabel}>Radius (m)</label><div className={readonlyInput}>{vc.radiusM}</div></div>
+                      <div><label className={readonlyLabel}>Min Accuracy (m)</label><div className={readonlyInput}>{vc.minAccuracyM}</div></div>
+                      <div><label className={readonlyLabel}>Max Speed (m/s)</label><div className={readonlyInput}>{vc.maxSpeedMps ?? 'Optional'}</div></div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.requireLocationServices ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      Require Location Services
+                    </div>
+                  </div>
+
+                  {/* Sampling & Timing */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Sampling & Timing</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div><label className={readonlyLabel}>Min Accepted Samples</label><div className={readonlyInput}>{vc.minAcceptedSamplesToLock}</div></div>
+                      <div><label className={readonlyLabel}>Check-In Required Pings</label><div className={readonlyInput}>{vc.checkInRequiredPings}</div></div>
+                      <div><label className={readonlyLabel}>Ping Interval (sec)</label><div className={readonlyInput}>{vc.pingRecommendedIntervalSec}</div></div>
+                      <div><label className={readonlyLabel}>Max Stale Ping (sec)</label><div className={readonlyInput}>{vc.maxStalePingSec}</div></div>
+                      <div><label className={readonlyLabel}>Session TTL (sec)</label><div className={readonlyInput}>{vc.sessionTtlSec}</div></div>
+                      <div><label className={readonlyLabel}>Time to Validate (sec)</label><div className={readonlyInput}>{vc.timeToValidateSec}</div></div>
+                    </div>
+                  </div>
+
+                  {/* Dwell */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Dwell</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div><label className={readonlyLabel}>Dwell Required (sec)</label><div className={readonlyInput}>{vc.dwellRequiredSec}</div></div>
+                      <div><label className={readonlyLabel}>Grace Consecutive Outside (sec)</label><div className={readonlyInput}>{vc.graceConsecutiveOutsideSec}</div></div>
+                      <div><label className={readonlyLabel}>Grace Total Outside (sec)</label><div className={readonlyInput}>{vc.graceTotalOutsideSec}</div></div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.requireInsideOnComplete ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      Require Inside On Complete
+                    </div>
+                  </div>
+
+                  {/* Availability Window */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Availability Window</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.useScheduleWindow ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      Use Schedule Window
+                    </div>
+                    {vc.useScheduleWindow && vc.schedule && (
+                      <div className="ml-6 space-y-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div><label className={readonlyLabel}>Start Time</label><div className={readonlyInput}>{vc.schedule.startTime || '—'}</div></div>
+                          <div><label className={readonlyLabel}>End Time</label><div className={readonlyInput}>{vc.schedule.endTime || '—'}</div></div>
+                        </div>
+                        <div>
+                          <label className={readonlyLabel}>Days of Week</label>
+                          <div className="flex gap-1.5">
+                            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name, i) => (
+                              <span key={i} className={`px-2 py-1 text-xs rounded-lg border ${(vc.schedule?.daysOfWeek || []).includes(i) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-400 border-gray-200'}`}>{name}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Completion */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Completion</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.oneTimeOnly ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      One-Time Only
+                    </div>
+                    <div className="w-48"><label className={readonlyLabel}>Cooldown (sec)</label><div className={readonlyInput}>{vc.cooldownSec ?? 'Optional'}</div></div>
+                  </div>
+
+                  {/* QR / Code Gating */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>QR / Code Gating</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.requireQrOrCode ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      Require QR or Code
+                    </div>
+                    {vc.requireQrOrCode && (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div><label className={readonlyLabel}>QR Token TTL (sec)</label><div className={readonlyInput}>{vc.qrTokenTtlSec}</div></div>
+                        <div><label className={readonlyLabel}>Max Code Attempts</label><div className={readonlyInput}>{vc.maxCodeAttempts}</div></div>
+                        <div><label className={readonlyLabel}>Code Attempt Window (sec)</label><div className={readonlyInput}>{vc.codeAttemptWindowSec}</div></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fraud & Limits */}
+                  <div className={sectionCls}>
+                    <h3 className={sectionTitleCls}>Fraud & Limits</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><label className={readonlyLabel}>Max Active Sessions/User</label><div className={readonlyInput}>{vc.maxActiveSessionsPerUser}</div></div>
+                      <div><label className={readonlyLabel}>Audit Log Level</label><div className={readonlyInput}>{vc.auditLogLevel}</div></div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={vc.denyIfMockLocationSuspected ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
+                      Deny If Mock Location Suspected
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Image Upload */}

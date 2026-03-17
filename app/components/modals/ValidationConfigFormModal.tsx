@@ -29,29 +29,29 @@ export default function ValidationConfigFormModal({
     } else {
       setForm({
         name: '',
-        radiusM: 50,
-        minAccuracyM: 20,
+        radiusM: undefined,
+        minAccuracyM: undefined,
         maxSpeedMps: undefined,
         requireLocationServices: true,
-        minAcceptedSamplesToLock: 3,
-        checkInRequiredPings: 3,
-        pingRecommendedIntervalSec: 10,
-        maxStalePingSec: 30,
-        sessionTtlSec: 600,
-        timeToValidateSec: 10,
-        dwellRequiredSec: 60,
-        graceConsecutiveOutsideSec: 10,
-        graceTotalOutsideSec: 30,
+        minAcceptedSamplesToLock: undefined,
+        checkInRequiredPings: undefined,
+        pingRecommendedIntervalSec: undefined,
+        maxStalePingSec: undefined,
+        sessionTtlSec: undefined,
+        timeToValidateSec: undefined,
+        dwellRequiredSec: undefined,
+        graceConsecutiveOutsideSec: undefined,
+        graceTotalOutsideSec: undefined,
         requireInsideOnComplete: true,
         useScheduleWindow: false,
         schedule: { startTime: '', endTime: '', daysOfWeek: [] },
         oneTimeOnly: false,
         cooldownSec: undefined,
         requireQrOrCode: false,
-        qrTokenTtlSec: 300,
-        maxCodeAttempts: 5,
-        codeAttemptWindowSec: 600,
-        maxActiveSessionsPerUser: 1,
+        qrTokenTtlSec: undefined,
+        maxCodeAttempts: undefined,
+        codeAttemptWindowSec: undefined,
+        maxActiveSessionsPerUser: undefined,
         denyIfMockLocationSuspected: true,
         auditLogLevel: 'basic',
       });
@@ -67,6 +67,13 @@ export default function ValidationConfigFormModal({
     }
     if ((form.checkInRequiredPings ?? 0) < (form.minAcceptedSamplesToLock ?? 0)) {
       errs.checkInRequiredPings = 'Must be >= Min Accepted Samples';
+    }
+    if (form.useScheduleWindow) {
+      if (!form.schedule?.startTime) errs.startTime = 'Start time is required';
+      if (!form.schedule?.endTime) errs.endTime = 'End time is required';
+      if (!form.schedule?.daysOfWeek || form.schedule.daysOfWeek.length === 0) {
+        errs.daysOfWeek = 'Select at least one day';
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -234,16 +241,19 @@ export default function ValidationConfigFormModal({
               <div className="space-y-3 ml-6">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={labelClass}>Start Time</label>
-                    <input type="time" className={inputClass} value={form.schedule?.startTime || ''} onChange={(e) => setForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                    <label className={labelClass}>Start Time *</label>
+                    <input type="time" className={`${inputClass} ${errors.startTime ? 'border-red-400' : ''}`} value={form.schedule?.startTime || ''} onChange={(e) => { setForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } })); if (errors.startTime) setErrors(prev => ({ ...prev, startTime: '' })); }} disabled={loading} />
+                    {errors.startTime && <p className="text-red-500 text-xs mt-0.5">{errors.startTime}</p>}
                   </div>
                   <div>
-                    <label className={labelClass}>End Time</label>
-                    <input type="time" className={inputClass} value={form.schedule?.endTime || ''} onChange={(e) => setForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                    <label className={labelClass}>End Time *</label>
+                    <input type="time" className={`${inputClass} ${errors.endTime ? 'border-red-400' : ''}`} value={form.schedule?.endTime || ''} onChange={(e) => { setForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } })); if (errors.endTime) setErrors(prev => ({ ...prev, endTime: '' })); }} disabled={loading} />
+                    {errors.endTime && <p className="text-red-500 text-xs mt-0.5">{errors.endTime}</p>}
                   </div>
                 </div>
+                <p className="text-xs text-gray-500">Overnight windows supported (e.g., 22:00 to 06:00)</p>
                 <div>
-                  <label className={labelClass}>Days of Week</label>
+                  <label className={labelClass}>Days of Week *</label>
                   <div className="flex gap-1.5">
                     {dayNames.map((name, i) => (
                       <button
@@ -261,6 +271,7 @@ export default function ValidationConfigFormModal({
                       </button>
                     ))}
                   </div>
+                  {errors.daysOfWeek && <p className="text-red-500 text-xs mt-0.5">{errors.daysOfWeek}</p>}
                 </div>
               </div>
             )}
@@ -286,20 +297,22 @@ export default function ValidationConfigFormModal({
               <input type="checkbox" checked={form.requireQrOrCode ?? false} onChange={(e) => setField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
               Require QR or Code
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>QR Token TTL (sec)</label>
-                <input type="number" min="0" className={inputClass} value={form.qrTokenTtlSec ?? ''} onChange={(e) => setField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+            {form.requireQrOrCode && (
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelClass}>QR Token TTL (sec) *</label>
+                  <input type="number" min="0" className={inputClass} value={form.qrTokenTtlSec ?? ''} onChange={(e) => setField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                </div>
+                <div>
+                  <label className={labelClass}>Max Code Attempts *</label>
+                  <input type="number" min="0" className={inputClass} value={form.maxCodeAttempts ?? ''} onChange={(e) => setField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+                </div>
+                <div>
+                  <label className={labelClass}>Code Attempt Window (sec) *</label>
+                  <input type="number" min="0" className={inputClass} value={form.codeAttemptWindowSec ?? ''} onChange={(e) => setField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                </div>
               </div>
-              <div>
-                <label className={labelClass}>Max Code Attempts</label>
-                <input type="number" min="0" className={inputClass} value={form.maxCodeAttempts ?? ''} onChange={(e) => setField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
-              </div>
-              <div>
-                <label className={labelClass}>Code Attempt Window (sec)</label>
-                <input type="number" min="0" className={inputClass} value={form.codeAttemptWindowSec ?? ''} onChange={(e) => setField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Fraud & Limits */}
