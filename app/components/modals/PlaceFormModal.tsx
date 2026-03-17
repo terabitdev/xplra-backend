@@ -74,6 +74,7 @@ export default function PlaceFormModal({
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [formErrorMsg, setFormErrorMsg] = useState<string | null>(null);
   const [minTimeSeconds, setMinTimeSeconds] = useState<number>(0);
   const [radiusMeters, setRadiusMeters] = useState<number>(0);
   const [qrData, setQrData] = useState<string>('');
@@ -164,6 +165,7 @@ export default function PlaceFormModal({
       setQrData('');
     }
     setVcForm({});
+    setFormErrorMsg(null);
     setImageFiles([]);
     setUploadError(null);
     setCatPickerOpen(false);
@@ -263,12 +265,49 @@ export default function PlaceFormModal({
     setUploadError(null);
   };
 
+  const validateForm = (): boolean => {
+    const missing: string[] = [];
+
+    // Place fields
+    if (!place.name?.trim()) missing.push('Name');
+    if (!place.geo?.lat) missing.push('Latitude');
+    if (!place.geo?.lng) missing.push('Longitude');
+    if (!place.description?.trim()) missing.push('Description');
+    if (!place.categorySelections || place.categorySelections.length === 0) missing.push('Categories');
+
+    // Validation config fields with labels
+    const requiredVcFields: { key: keyof ValidationConfig; label: string }[] = [
+      { key: 'radiusM', label: 'Radius (m)' },
+      { key: 'minAccuracyM', label: 'Min Accuracy (m)' },
+      { key: 'minAcceptedSamplesToLock', label: 'Min Accepted Samples' },
+      { key: 'checkInRequiredPings', label: 'Check-In Required Pings' },
+      { key: 'pingRecommendedIntervalSec', label: 'Ping Interval (sec)' },
+      { key: 'maxStalePingSec', label: 'Max Stale Ping (sec)' },
+      { key: 'sessionTtlSec', label: 'Session TTL (sec)' },
+      { key: 'timeToValidateSec', label: 'Time to Validate (sec)' },
+      { key: 'dwellRequiredSec', label: 'Dwell Required (sec)' },
+      { key: 'graceConsecutiveOutsideSec', label: 'Grace Consecutive Outside (sec)' },
+      { key: 'graceTotalOutsideSec', label: 'Grace Total Outside (sec)' },
+      { key: 'maxActiveSessionsPerUser', label: 'Max Active Sessions/User' },
+    ];
+    for (const { key, label } of requiredVcFields) {
+      const val = vcForm[key];
+      if (val === undefined || val === null || val === '') {
+        missing.push(label);
+      }
+    }
+
+    if (missing.length > 0) {
+      setFormErrorMsg(`Please fill: ${missing.join(', ')}`);
+      return false;
+    }
+    setFormErrorMsg(null);
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!place.categorySelections || place.categorySelections.length === 0) {
-      setCatPickerOpen(true);
-      return;
-    }
+    if (!validateForm()) return;
     if (imagePreviews.length === 0) {
       setUploadError('At least 1 image is required');
       return;
@@ -313,6 +352,11 @@ export default function PlaceFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-3">
+          {formErrorMsg && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-600 font-medium">{formErrorMsg}</p>
+            </div>
+          )}
           {/* Name */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
@@ -320,8 +364,7 @@ export default function PlaceFormModal({
               type="text"
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
               value={place.name}
-              onChange={(e) => setPlace(prev => ({ ...prev, name: e.target.value }))}
-              required
+              onChange={(e) => { setPlace(prev => ({ ...prev, name: e.target.value })); if (formErrorMsg) setFormErrorMsg(null); }}
               disabled={loading}
               placeholder="Place name"
             />
@@ -340,8 +383,8 @@ export default function PlaceFormModal({
                   const lat = parseFloat(e.target.value) || 0;
                   setPlace(prev => ({ ...prev, geo: { ...prev.geo!, lat } }));
                   reverseGeocode(lat, place.geo?.lng || 0);
+                  if (formErrorMsg) setFormErrorMsg(null);
                 }}
-                required
                 disabled={loading}
                 placeholder="24.8607"
               />
@@ -357,8 +400,8 @@ export default function PlaceFormModal({
                   const lng = parseFloat(e.target.value) || 0;
                   setPlace(prev => ({ ...prev, geo: { ...prev.geo!, lng } }));
                   reverseGeocode(place.geo?.lat || 0, lng);
+                  if (formErrorMsg) setFormErrorMsg(null);
                 }}
-                required
                 disabled={loading}
                 placeholder="67.0011"
               />
@@ -392,8 +435,7 @@ export default function PlaceFormModal({
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
               rows={3}
               value={place.description || ''}
-              onChange={(e) => setPlace(prev => ({ ...prev, description: e.target.value }))}
-              required
+              onChange={(e) => { setPlace(prev => ({ ...prev, description: e.target.value })); if (formErrorMsg) setFormErrorMsg(null); }}
               disabled={loading}
               placeholder="Brief description of the place"
             />
@@ -527,7 +569,6 @@ export default function PlaceFormModal({
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={place.xp || ''}
                 onChange={(e) => setPlace(prev => ({ ...prev, xp: parseInt(e.target.value) || 0 }))}
-                required
                 disabled={loading}
                 placeholder="100"
               />
@@ -588,11 +629,14 @@ export default function PlaceFormModal({
 
           {/* Validation Config Fields */}
           {(() => {
-            const vcInput = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500";
+            const vcInputOk = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500";
             const vcLabel = "block text-xs font-medium text-gray-600 mb-1";
             const vcSection = "space-y-3 border-t border-gray-200 pt-3";
             const vcTitle = "text-sm font-semibold text-gray-800 mb-2";
-            const setVcField = (field: string, value: unknown) => setVcForm(prev => ({ ...prev, [field]: value }));
+            const setVcField = (field: string, value: unknown) => {
+              setVcForm(prev => ({ ...prev, [field]: value }));
+              if (formErrorMsg) setFormErrorMsg(null);
+            };
             const cbClass = "rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5";
 
             return (
@@ -603,15 +647,15 @@ export default function PlaceFormModal({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div>
                       <label className={vcLabel}>Radius (m) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.radiusM ?? ''} onChange={(e) => setVcField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk} value={vcForm.radiusM ?? ''} onChange={(e) => setVcField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 150" />
                     </div>
                     <div>
                       <label className={vcLabel}>Min Accuracy (m) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.minAccuracyM ?? ''} onChange={(e) => setVcField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.minAccuracyM ?? ''} onChange={(e) => setVcField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 40" />
                     </div>
                     <div>
                       <label className={vcLabel}>Max Speed (m/s) *</label>
-                      <input type="number" min="0" step="any" className={vcInput} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                      <input type="number" min="0" step="any" className={vcInputOk} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -626,27 +670,27 @@ export default function PlaceFormModal({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div>
                       <label className={vcLabel}>Min Accepted Samples *</label>
-                      <input type="number" min="1" className={vcInput} value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="1" className={vcInputOk}  value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
                     </div>
                     <div>
                       <label className={vcLabel}>Check-In Required Pings *</label>
-                      <input type="number" min="1" className={vcInput} value={vcForm.checkInRequiredPings ?? ''} onChange={(e) => setVcField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="1" className={vcInputOk}  value={vcForm.checkInRequiredPings ?? ''} onChange={(e) => setVcField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
                     </div>
                     <div>
                       <label className={vcLabel}>Ping Interval (sec) *</label>
-                      <input type="number" min="1" className={vcInput} value={vcForm.pingRecommendedIntervalSec ?? ''} onChange={(e) => setVcField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="1" className={vcInputOk}  value={vcForm.pingRecommendedIntervalSec ?? ''} onChange={(e) => setVcField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 20" />
                     </div>
                     <div>
                       <label className={vcLabel}>Max Stale Ping (sec) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.maxStalePingSec ?? ''} onChange={(e) => setVcField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.maxStalePingSec ?? ''} onChange={(e) => setVcField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 90" />
                     </div>
                     <div>
                       <label className={vcLabel}>Session TTL (sec) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.sessionTtlSec ?? ''} onChange={(e) => setVcField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.sessionTtlSec ?? ''} onChange={(e) => setVcField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 1800" />
                     </div>
                     <div>
                       <label className={vcLabel}>Time to Validate (sec) *</label>
-                      <input type="number" min="5" max="20" className={vcInput} value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="5" max="20" className={vcInputOk}  value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
                     </div>
                   </div>
                 </div>
@@ -657,15 +701,15 @@ export default function PlaceFormModal({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div>
                       <label className={vcLabel}>Dwell Required (sec) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.dwellRequiredSec ?? ''} onChange={(e) => setVcField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.dwellRequiredSec ?? ''} onChange={(e) => setVcField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 300" />
                     </div>
                     <div>
                       <label className={vcLabel}>Grace Consecutive Outside (sec) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setVcField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setVcField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 60" />
                     </div>
                     <div>
                       <label className={vcLabel}>Grace Total Outside (sec) *</label>
-                      <input type="number" min="0" className={vcInput} value={vcForm.graceTotalOutsideSec ?? ''} onChange={(e) => setVcField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      <input type="number" min="0" className={vcInputOk}  value={vcForm.graceTotalOutsideSec ?? ''} onChange={(e) => setVcField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 120" />
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -686,11 +730,11 @@ export default function PlaceFormModal({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={vcLabel}>Start Time *</label>
-                          <input type="time" className={vcInput} value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                          <input type="time" className={vcInputOk} value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
                         </div>
                         <div>
                           <label className={vcLabel}>End Time *</label>
-                          <input type="time" className={vcInput} value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                          <input type="time" className={vcInputOk} value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
                         </div>
                       </div>
                       <div>
@@ -718,7 +762,7 @@ export default function PlaceFormModal({
                   </label>
                   <div className="w-48">
                     <label className={vcLabel}>Cooldown (sec) *</label>
-                    <input type="number" min="0" className={vcInput} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                    <input type="number" min="0" className={vcInputOk} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
                   </div>
                 </div>
 
@@ -733,15 +777,15 @@ export default function PlaceFormModal({
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className={vcLabel}>QR Token TTL (sec) *</label>
-                        <input type="number" min="0" className={vcInput} value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                        <input type="number" min="0" className={vcInputOk} value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
                       </div>
                       <div>
                         <label className={vcLabel}>Max Code Attempts *</label>
-                        <input type="number" min="0" className={vcInput} value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+                        <input type="number" min="0" className={vcInputOk} value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
                       </div>
                       <div>
                         <label className={vcLabel}>Code Attempt Window (sec) *</label>
-                        <input type="number" min="0" className={vcInput} value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                        <input type="number" min="0" className={vcInputOk} value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
                       </div>
                     </div>
                   )}
@@ -753,11 +797,11 @@ export default function PlaceFormModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={vcLabel}>Max Active Sessions/User *</label>
-                      <input type="number" min="1" className={vcInput} value={vcForm.maxActiveSessionsPerUser ?? ''} onChange={(e) => setVcField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} />
+                      <input type="number" min="1" className={vcInputOk}  value={vcForm.maxActiveSessionsPerUser ?? ''} onChange={(e) => setVcField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} placeholder="e.g. 1" />
                     </div>
                     <div>
                       <label className={vcLabel}>Audit Log Level *</label>
-                      <select className={vcInput} value={vcForm.auditLogLevel || 'basic'} onChange={(e) => setVcField('auditLogLevel', e.target.value)} disabled={loading}>
+                      <select className={vcInputOk} value={vcForm.auditLogLevel || 'basic'} onChange={(e) => setVcField('auditLogLevel', e.target.value)} disabled={loading}>
                         <option value="off">Off</option>
                         <option value="basic">Basic</option>
                         <option value="verbose">Verbose</option>
@@ -834,7 +878,7 @@ export default function PlaceFormModal({
             Cancel
           </button>
           <button
-            type="submit"
+            type="button"
             onClick={handleSubmit}
             className="flex-1 px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
             disabled={loading}
