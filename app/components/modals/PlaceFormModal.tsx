@@ -34,6 +34,7 @@ export interface Place_ {
   xp?: number;
   imageUrls?: string[];
   validationConfigId?: string;
+  validationConfig?: Partial<ValidationConfig>;
 }
 
 interface PlaceFormModalProps {
@@ -67,6 +68,7 @@ export default function PlaceFormModal({
     requirements: {},
     imageUrls: [],
   });
+  const [vcForm, setVcForm] = useState<Partial<ValidationConfig>>({});
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -161,6 +163,7 @@ export default function PlaceFormModal({
       setRadiusMeters(0);
       setQrData('');
     }
+    setVcForm({});
     setImageFiles([]);
     setUploadError(null);
     setCatPickerOpen(false);
@@ -272,7 +275,8 @@ export default function PlaceFormModal({
     }
     setLoading(true);
     try {
-      await onSubmit(place as Place_, imageFiles);
+      const placeWithVc = { ...place, validationConfig: vcForm } as Place_;
+      await onSubmit(placeWithVc, imageFiles);
       onClose();
     } catch (error) {
       console.error('Error submitting place:', error);
@@ -472,110 +476,46 @@ export default function PlaceFormModal({
             )}
           </div>
 
-          {/* Type Section */}
-          {place.type === 'checkin_time' ? (
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                <select
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={place.type}
-                  onChange={(e) => setPlace(prev => ({ ...prev, type: e.target.value as Place_['type'], requirements: {} }))}
-                  disabled={loading}
-                >
-                  <option value="checkin_time">Time & Location</option>
-                  <option value="qr_scan">QR Scan</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Min Time <span className="text-blue-600 font-semibold">(sec)</span>
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={minTimeSeconds || ''}
-                  onChange={(e) => handleMinTimeSecondsChange(parseInt(e.target.value) || 0)}
-                  disabled={loading}
-                  placeholder="100sec"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Radius <span className="text-blue-600 font-semibold">(meters)</span>
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={radiusMeters || ''}
-                  onChange={(e) => handleRadiusMetersChange(parseInt(e.target.value) || 0)}
-                  disabled={loading}
-                  placeholder="100meter"
-                />
-              </div>
+          {/* QR Scan */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">QR Code</label>
+              <button
+                type="button"
+                onClick={generateQRCode}
+                className="w-full px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                disabled={loading}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                {qrData ? 'Regenerate QR' : 'Generate QR Code'}
+              </button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                  <select
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    value={place.type}
-                    onChange={(e) => {
-                      setPlace(prev => ({ ...prev, type: e.target.value as Place_['type'], requirements: {} }));
-                      setQrData('');
-                    }}
-                    disabled={loading}
-                  >
-                    <option value="checkin_time">Time & Location</option>
-                    <option value="qr_scan">QR Scan</option>
-                  </select>
+
+            {qrData && (
+              <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div ref={qrRef} className="bg-white p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                  <QRCodeSVG value={qrData} size={80} level="H" />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">QR Code</label>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-gray-400 font-mono break-all leading-tight mb-1.5">
+                    {qrData}
+                  </p>
                   <button
                     type="button"
-                    onClick={generateQRCode}
-                    className="w-full px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
-                    disabled={loading}
+                    onClick={downloadQRCode}
+                    className="px-2 py-1 text-[10px] bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded transition-colors font-medium inline-flex items-center gap-1"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    {qrData ? 'Regenerate QR' : 'Generate QR Code'}
+                    Download PNG
                   </button>
                 </div>
               </div>
-
-              {qrData && (
-                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <div ref={qrRef} className="bg-white p-1.5 rounded-lg shadow-sm flex-shrink-0">
-                    <QRCodeSVG value={qrData} size={80} level="H" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[9px] text-gray-400 font-mono break-all leading-tight mb-1.5">
-                      {qrData}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={downloadQRCode}
-                      className="px-2 py-1 text-[10px] bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded transition-colors font-medium inline-flex items-center gap-1"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Download PNG
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* XP, Source & Status */}
           <div className="grid grid-cols-3 gap-3">
@@ -625,7 +565,18 @@ export default function PlaceFormModal({
             <select
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
               value={place.validationConfigId || ''}
-              onChange={(e) => setPlace(prev => ({ ...prev, validationConfigId: e.target.value || undefined }))}
+              onChange={(e) => {
+                const selectedId = e.target.value || undefined;
+                setPlace(prev => ({ ...prev, validationConfigId: selectedId }));
+                if (selectedId) {
+                  const vc = availableValidationConfigs.find(c => c.id === selectedId);
+                  if (vc) {
+                    setVcForm({ ...vc });
+                  }
+                } else {
+                  setVcForm({});
+                }
+              }}
               disabled={loading}
             >
               <option value="">Select a validation config...</option>
@@ -633,131 +584,194 @@ export default function PlaceFormModal({
                 <option key={vc.id} value={vc.id}>{vc.name}</option>
               ))}
             </select>
+          </div>
 
-            {/* Validation Config Preview */}
-            {place.validationConfigId && (() => {
-              const vc = availableValidationConfigs.find(c => c.id === place.validationConfigId);
-              if (!vc) return null;
-              const readonlyInput = "w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700";
-              const readonlyLabel = "block text-xs font-medium text-gray-600 mb-1";
-              const sectionCls = "space-y-3 border-t border-gray-200 pt-3";
-              const sectionTitleCls = "text-sm font-semibold text-gray-800 mb-2";
-              return (
-                <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg space-y-4">
-                  {/* Name */}
-                  <div>
-                    <label className={readonlyLabel}>Name</label>
-                    <div className={readonlyInput}>{vc.name}</div>
-                  </div>
+          {/* Validation Config Fields */}
+          {(() => {
+            const vcInput = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500";
+            const vcLabel = "block text-xs font-medium text-gray-600 mb-1";
+            const vcSection = "space-y-3 border-t border-gray-200 pt-3";
+            const vcTitle = "text-sm font-semibold text-gray-800 mb-2";
+            const setVcField = (field: string, value: unknown) => setVcForm(prev => ({ ...prev, [field]: value }));
+            const cbClass = "rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5";
 
-                  {/* Geofence */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Geofence</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div><label className={readonlyLabel}>Radius (m)</label><div className={readonlyInput}>{vc.radiusM}</div></div>
-                      <div><label className={readonlyLabel}>Min Accuracy (m)</label><div className={readonlyInput}>{vc.minAccuracyM}</div></div>
-                      <div><label className={readonlyLabel}>Max Speed (m/s)</label><div className={readonlyInput}>{vc.maxSpeedMps ?? 'Optional'}</div></div>
+            return (
+              <div className="space-y-4">
+                {/* Geofence */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Geofence</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={vcLabel}>Radius (m) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.radiusM ?? ''} onChange={(e) => setVcField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.requireLocationServices ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      Require Location Services
+                    <div>
+                      <label className={vcLabel}>Min Accuracy (m) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.minAccuracyM ?? ''} onChange={(e) => setVcField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} />
                     </div>
-                  </div>
-
-                  {/* Sampling & Timing */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Sampling & Timing</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div><label className={readonlyLabel}>Min Accepted Samples</label><div className={readonlyInput}>{vc.minAcceptedSamplesToLock}</div></div>
-                      <div><label className={readonlyLabel}>Check-In Required Pings</label><div className={readonlyInput}>{vc.checkInRequiredPings}</div></div>
-                      <div><label className={readonlyLabel}>Ping Interval (sec)</label><div className={readonlyInput}>{vc.pingRecommendedIntervalSec}</div></div>
-                      <div><label className={readonlyLabel}>Max Stale Ping (sec)</label><div className={readonlyInput}>{vc.maxStalePingSec}</div></div>
-                      <div><label className={readonlyLabel}>Session TTL (sec)</label><div className={readonlyInput}>{vc.sessionTtlSec}</div></div>
-                      <div><label className={readonlyLabel}>Time to Validate (sec)</label><div className={readonlyInput}>{vc.timeToValidateSec}</div></div>
+                    <div>
+                      <label className={vcLabel}>Max Speed (m/s) *</label>
+                      <input type="number" min="0" step="any" className={vcInput} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
                     </div>
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.requireLocationServices ?? true} onChange={(e) => setVcField('requireLocationServices', e.target.checked)} className={cbClass} disabled={loading} />
+                    Require Location Services
+                  </label>
+                </div>
 
-                  {/* Dwell */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Dwell</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div><label className={readonlyLabel}>Dwell Required (sec)</label><div className={readonlyInput}>{vc.dwellRequiredSec}</div></div>
-                      <div><label className={readonlyLabel}>Grace Consecutive Outside (sec)</label><div className={readonlyInput}>{vc.graceConsecutiveOutsideSec}</div></div>
-                      <div><label className={readonlyLabel}>Grace Total Outside (sec)</label><div className={readonlyInput}>{vc.graceTotalOutsideSec}</div></div>
+                {/* Sampling & Timing */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Sampling & Timing</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={vcLabel}>Min Accepted Samples *</label>
+                      <input type="number" min="1" className={vcInput} value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.requireInsideOnComplete ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      Require Inside On Complete
+                    <div>
+                      <label className={vcLabel}>Check-In Required Pings *</label>
+                      <input type="number" min="1" className={vcInput} value={vcForm.checkInRequiredPings ?? ''} onChange={(e) => setVcField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
-                  </div>
-
-                  {/* Availability Window */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Availability Window</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.useScheduleWindow ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      Use Schedule Window
+                    <div>
+                      <label className={vcLabel}>Ping Interval (sec) *</label>
+                      <input type="number" min="1" className={vcInput} value={vcForm.pingRecommendedIntervalSec ?? ''} onChange={(e) => setVcField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
-                    {vc.useScheduleWindow && vc.schedule && (
-                      <div className="ml-6 space-y-2">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div><label className={readonlyLabel}>Start Time</label><div className={readonlyInput}>{vc.schedule.startTime || '—'}</div></div>
-                          <div><label className={readonlyLabel}>End Time</label><div className={readonlyInput}>{vc.schedule.endTime || '—'}</div></div>
-                        </div>
-                        <div>
-                          <label className={readonlyLabel}>Days of Week</label>
-                          <div className="flex gap-1.5">
-                            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name, i) => (
-                              <span key={i} className={`px-2 py-1 text-xs rounded-lg border ${(vc.schedule?.daysOfWeek || []).includes(i) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-400 border-gray-200'}`}>{name}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Completion */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Completion</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.oneTimeOnly ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      One-Time Only
+                    <div>
+                      <label className={vcLabel}>Max Stale Ping (sec) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.maxStalePingSec ?? ''} onChange={(e) => setVcField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
-                    <div className="w-48"><label className={readonlyLabel}>Cooldown (sec)</label><div className={readonlyInput}>{vc.cooldownSec ?? 'Optional'}</div></div>
-                  </div>
-
-                  {/* QR / Code Gating */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>QR / Code Gating</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.requireQrOrCode ?? false} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      Require QR or Code
+                    <div>
+                      <label className={vcLabel}>Session TTL (sec) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.sessionTtlSec ?? ''} onChange={(e) => setVcField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
-                    {vc.requireQrOrCode && (
-                      <div className="grid grid-cols-3 gap-3">
-                        <div><label className={readonlyLabel}>QR Token TTL (sec)</label><div className={readonlyInput}>{vc.qrTokenTtlSec}</div></div>
-                        <div><label className={readonlyLabel}>Max Code Attempts</label><div className={readonlyInput}>{vc.maxCodeAttempts}</div></div>
-                        <div><label className={readonlyLabel}>Code Attempt Window (sec)</label><div className={readonlyInput}>{vc.codeAttemptWindowSec}</div></div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Fraud & Limits */}
-                  <div className={sectionCls}>
-                    <h3 className={sectionTitleCls}>Fraud & Limits</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><label className={readonlyLabel}>Max Active Sessions/User</label><div className={readonlyInput}>{vc.maxActiveSessionsPerUser}</div></div>
-                      <div><label className={readonlyLabel}>Audit Log Level</label><div className={readonlyInput}>{vc.auditLogLevel}</div></div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={vc.denyIfMockLocationSuspected ?? true} readOnly className="rounded border-gray-300 text-indigo-600 h-3.5 w-3.5 pointer-events-none" />
-                      Deny If Mock Location Suspected
+                    <div>
+                      <label className={vcLabel}>Time to Validate (sec) *</label>
+                      <input type="number" min="5" max="20" className={vcInput} value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} />
                     </div>
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+
+                {/* Dwell */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Dwell</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={vcLabel}>Dwell Required (sec) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.dwellRequiredSec ?? ''} onChange={(e) => setVcField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className={vcLabel}>Grace Consecutive Outside (sec) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setVcField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className={vcLabel}>Grace Total Outside (sec) *</label>
+                      <input type="number" min="0" className={vcInput} value={vcForm.graceTotalOutsideSec ?? ''} onChange={(e) => setVcField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? true} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className={cbClass} disabled={loading} />
+                    Require Inside On Complete
+                  </label>
+                </div>
+
+                {/* Availability Window */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Availability Window</h3>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.useScheduleWindow ?? false} onChange={(e) => setVcField('useScheduleWindow', e.target.checked)} className={cbClass} disabled={loading} />
+                    Use Schedule Window
+                  </label>
+                  {vcForm.useScheduleWindow && (
+                    <div className="ml-6 space-y-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={vcLabel}>Start Time *</label>
+                          <input type="time" className={vcInput} value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                        </div>
+                        <div>
+                          <label className={vcLabel}>End Time *</label>
+                          <input type="time" className={vcInput} value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={vcLabel}>Days of Week *</label>
+                        <div className="flex gap-1.5">
+                          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name, i) => (
+                            <button key={i} type="button" onClick={() => {
+                              const current = vcForm.schedule?.daysOfWeek || [];
+                              const updated = current.includes(i) ? current.filter((d: number) => d !== i) : [...current, i].sort();
+                              setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, daysOfWeek: updated } }));
+                            }} className={`px-2 py-1 text-xs rounded-lg border transition-colors ${(vcForm.schedule?.daysOfWeek || []).includes(i) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`} disabled={loading}>{name}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Completion */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Completion</h3>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.oneTimeOnly ?? false} onChange={(e) => setVcField('oneTimeOnly', e.target.checked)} className={cbClass} disabled={loading} />
+                    One-Time Only
+                  </label>
+                  <div className="w-48">
+                    <label className={vcLabel}>Cooldown (sec) *</label>
+                    <input type="number" min="0" className={vcInput} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                  </div>
+                </div>
+
+                {/* QR / Code Gating */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>QR / Code Gating</h3>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => setVcField('requireQrOrCode', e.target.checked)} className={cbClass} disabled={loading} />
+                    Require QR or Code
+                  </label>
+                  {vcForm.requireQrOrCode && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className={vcLabel}>QR Token TTL (sec) *</label>
+                        <input type="number" min="0" className={vcInput} value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      </div>
+                      <div>
+                        <label className={vcLabel}>Max Code Attempts *</label>
+                        <input type="number" min="0" className={vcInput} value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+                      </div>
+                      <div>
+                        <label className={vcLabel}>Code Attempt Window (sec) *</label>
+                        <input type="number" min="0" className={vcInput} value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fraud & Limits */}
+                <div className={vcSection}>
+                  <h3 className={vcTitle}>Fraud & Limits</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={vcLabel}>Max Active Sessions/User *</label>
+                      <input type="number" min="1" className={vcInput} value={vcForm.maxActiveSessionsPerUser ?? ''} onChange={(e) => setVcField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className={vcLabel}>Audit Log Level *</label>
+                      <select className={vcInput} value={vcForm.auditLogLevel || 'basic'} onChange={(e) => setVcField('auditLogLevel', e.target.value)} disabled={loading}>
+                        <option value="off">Off</option>
+                        <option value="basic">Basic</option>
+                        <option value="verbose">Verbose</option>
+                      </select>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? true} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className={cbClass} disabled={loading} />
+                    Deny If Mock Location Suspected
+                  </label>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Image Upload */}
           <div>

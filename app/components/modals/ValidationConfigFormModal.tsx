@@ -164,7 +164,7 @@ export default function ValidationConfigFormModal({
                 <input type="number" min="0" className={inputClass} value={form.minAccuracyM ?? ''} onChange={(e) => setField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} />
               </div>
               <div>
-                <label className={labelClass}>Max Speed (m/s)</label>
+                <label className={labelClass}>Max Speed (m/s) *</label>
                 <input type="number" min="0" step="any" className={inputClass} value={form.maxSpeedMps ?? ''} onChange={(e) => setField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
               </div>
             </div>
@@ -285,7 +285,7 @@ export default function ValidationConfigFormModal({
               One-Time Only
             </label>
             <div className="w-48">
-              <label className={labelClass}>Cooldown (sec)</label>
+              <label className={labelClass}>Cooldown (sec) *</label>
               <input type="number" min="0" className={inputClass} value={form.cooldownSec ?? ''} onChange={(e) => setField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
             </div>
           </div>

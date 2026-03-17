@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 
-const GLOBAL_DEFAULT_ID = 'global_default';
+const GLOBAL_DEFAULT_ID = 'globalDefault';
 
 const GLOBAL_DEFAULT_CONFIG = {
   id: GLOBAL_DEFAULT_ID,

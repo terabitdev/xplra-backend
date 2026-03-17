@@ -76,22 +76,12 @@ export async function POST(req: Request) {
       status,
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
-      validationConfigId: null as Record<string, unknown> | null,
+      validationConfigId: placeData.validationConfigId || null,
+      validationConfig: placeData.validationConfig || null,
       imageUrls: imageUrls.length > 0 ? imageUrls : [],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-
-    // Fetch and embed full validation config if selected
-    if (placeData.validationConfigId) {
-      const vcDoc = await adminDb.collection('validationConfigs').doc(placeData.validationConfigId).get();
-      if (vcDoc.exists) {
-        const vcData = vcDoc.data()!;
-        delete vcData.createdAt;
-        delete vcData.updatedAt;
-        firestoreDoc.validationConfigId = vcData;
-      }
-    }
 
     const placeDocRef = adminDb.collection('places').doc(placeId);
     await placeDocRef.set(firestoreDoc);
