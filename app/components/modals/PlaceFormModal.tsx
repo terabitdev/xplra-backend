@@ -289,6 +289,8 @@ export default function PlaceFormModal({
       { key: 'graceConsecutiveOutsideSec', label: 'Grace Consecutive Outside (sec)' },
       { key: 'graceTotalOutsideSec', label: 'Grace Total Outside (sec)' },
       { key: 'maxActiveSessionsPerUser', label: 'Max Active Sessions/User' },
+      { key: 'maxSpeedMps', label: 'Max Speed (m/s)' },
+      { key: 'cooldownSec', label: 'Cooldown (sec)' },
     ];
     for (const { key, label } of requiredVcFields) {
       const val = vcForm[key];
@@ -655,11 +657,11 @@ export default function PlaceFormModal({
                     </div>
                     <div>
                       <label className={vcLabel}>Max Speed (m/s) *</label>
-                      <input type="number" min="0" step="any" className={vcInputOk} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                      <input type="number" min="0" step="any" className={vcInputOk} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 5" />
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.requireLocationServices ?? true} onChange={(e) => setVcField('requireLocationServices', e.target.checked)} className={cbClass} disabled={loading} />
+                    <input type="checkbox" checked={vcForm.requireLocationServices ?? false} onChange={(e) => setVcField('requireLocationServices', e.target.checked)} className={cbClass} disabled={loading} />
                     Require Location Services
                   </label>
                 </div>
@@ -713,7 +715,7 @@ export default function PlaceFormModal({
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? true} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className={cbClass} disabled={loading} />
+                    <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? false} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className={cbClass} disabled={loading} />
                     Require Inside On Complete
                   </label>
                 </div>
@@ -762,7 +764,7 @@ export default function PlaceFormModal({
                   </label>
                   <div className="w-48">
                     <label className={vcLabel}>Cooldown (sec) *</label>
-                    <input type="number" min="0" className={vcInputOk} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                    <input type="number" min="0" className={vcInputOk} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 300" />
                   </div>
                 </div>
 

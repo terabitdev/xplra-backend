@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       radiusM: body.radiusM ?? 0,
       minAccuracyM: body.minAccuracyM ?? 0,
       maxSpeedMps: body.maxSpeedMps ?? null,
-      requireLocationServices: body.requireLocationServices ?? true,
+      requireLocationServices: body.requireLocationServices ?? false,
 
       // Sampling & timing
       minAcceptedSamplesToLock: body.minAcceptedSamplesToLock ?? 0,
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       dwellRequiredSec: body.dwellRequiredSec ?? 0,
       graceConsecutiveOutsideSec: body.graceConsecutiveOutsideSec ?? 0,
       graceTotalOutsideSec: body.graceTotalOutsideSec ?? 0,
-      requireInsideOnComplete: body.requireInsideOnComplete ?? true,
+      requireInsideOnComplete: body.requireInsideOnComplete ?? false,
 
       // Availability window
       useScheduleWindow: body.useScheduleWindow ?? false,

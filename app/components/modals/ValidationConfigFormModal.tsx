@@ -22,6 +22,7 @@ export default function ValidationConfigFormModal({
   const [form, setForm] = useState<Partial<ValidationConfig>>({});
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formErrorMsg, setFormErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialConfig) {
@@ -32,7 +33,7 @@ export default function ValidationConfigFormModal({
         radiusM: undefined,
         minAccuracyM: undefined,
         maxSpeedMps: undefined,
-        requireLocationServices: true,
+        requireLocationServices: false,
         minAcceptedSamplesToLock: undefined,
         checkInRequiredPings: undefined,
         pingRecommendedIntervalSec: undefined,
@@ -42,7 +43,7 @@ export default function ValidationConfigFormModal({
         dwellRequiredSec: undefined,
         graceConsecutiveOutsideSec: undefined,
         graceTotalOutsideSec: undefined,
-        requireInsideOnComplete: true,
+        requireInsideOnComplete: false,
         useScheduleWindow: false,
         schedule: { startTime: '', endTime: '', daysOfWeek: [] },
         oneTimeOnly: false,
@@ -57,11 +58,39 @@ export default function ValidationConfigFormModal({
       });
     }
     setErrors({});
+    setFormErrorMsg(null);
   }, [initialConfig, isOpen]);
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!form.name?.trim()) errs.name = 'Name is required';
+
+    // Required fields check — show "Required" under each empty field
+    const requiredFields: { key: keyof ValidationConfig; label: string }[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'radiusM', label: 'Radius (m)' },
+      { key: 'minAccuracyM', label: 'Min Accuracy (m)' },
+      { key: 'maxSpeedMps', label: 'Max Speed (m/s)' },
+      { key: 'minAcceptedSamplesToLock', label: 'Min Accepted Samples' },
+      { key: 'checkInRequiredPings', label: 'Check-In Required Pings' },
+      { key: 'pingRecommendedIntervalSec', label: 'Ping Interval (sec)' },
+      { key: 'maxStalePingSec', label: 'Max Stale Ping (sec)' },
+      { key: 'sessionTtlSec', label: 'Session TTL (sec)' },
+      { key: 'timeToValidateSec', label: 'Time to Validate (sec)' },
+      { key: 'dwellRequiredSec', label: 'Dwell Required (sec)' },
+      { key: 'graceConsecutiveOutsideSec', label: 'Grace Consecutive Outside (sec)' },
+      { key: 'graceTotalOutsideSec', label: 'Grace Total Outside (sec)' },
+      { key: 'maxActiveSessionsPerUser', label: 'Max Active Sessions/User' },
+      { key: 'cooldownSec', label: 'Cooldown (sec)' },
+    ];
+
+    for (const { key } of requiredFields) {
+      const val = key === 'name' ? form.name?.trim() : form[key];
+      if (val === undefined || val === null || val === '') {
+        errs[key] = 'Required';
+      }
+    }
+
+    // Additional validations
     if (form.timeToValidateSec !== undefined && (form.timeToValidateSec < 5 || form.timeToValidateSec > 20)) {
       errs.timeToValidateSec = 'Must be between 5 and 20 seconds';
     }
@@ -75,8 +104,16 @@ export default function ValidationConfigFormModal({
         errs.daysOfWeek = 'Select at least one day';
       }
     }
+
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+
+    if (Object.keys(errs).length > 0) {
+      setFormErrorMsg('Please fill all required fields');
+      return false;
+    }
+
+    setFormErrorMsg(null);
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +133,7 @@ export default function ValidationConfigFormModal({
   const setField = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+    if (formErrorMsg) setFormErrorMsg(null);
   };
 
   const handleDayToggle = (day: number) => {
@@ -136,6 +174,11 @@ export default function ValidationConfigFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {formErrorMsg && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-600 font-medium">{formErrorMsg}</p>
+            </div>
+          )}
           {/* Name */}
           <div>
             <label className={labelClass}>Name *</label>
@@ -157,19 +200,22 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Radius (m) *</label>
-                <input type="number" min="0" className={inputClass} value={form.radiusM ?? ''} onChange={(e) => setField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.radiusM ? 'border-red-400' : ''}`} value={form.radiusM ?? ''} onChange={(e) => setField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 150" />
+                {errors.radiusM && <p className="text-red-500 text-xs mt-0.5">{errors.radiusM}</p>}
               </div>
               <div>
                 <label className={labelClass}>Min Accuracy (m) *</label>
-                <input type="number" min="0" className={inputClass} value={form.minAccuracyM ?? ''} onChange={(e) => setField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.minAccuracyM ? 'border-red-400' : ''}`} value={form.minAccuracyM ?? ''} onChange={(e) => setField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 40" />
+                {errors.minAccuracyM && <p className="text-red-500 text-xs mt-0.5">{errors.minAccuracyM}</p>}
               </div>
               <div>
                 <label className={labelClass}>Max Speed (m/s) *</label>
-                <input type="number" min="0" step="any" className={inputClass} value={form.maxSpeedMps ?? ''} onChange={(e) => setField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+                <input type="number" min="0" step="any" className={`${inputClass} ${errors.maxSpeedMps ? 'border-red-400' : ''}`} value={form.maxSpeedMps ?? ''} onChange={(e) => setField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 5" />
+                {errors.maxSpeedMps && <p className="text-red-500 text-xs mt-0.5">{errors.maxSpeedMps}</p>}
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={form.requireLocationServices ?? true} onChange={(e) => setField('requireLocationServices', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              <input type="checkbox" checked={form.requireLocationServices ?? false} onChange={(e) => setField('requireLocationServices', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
               Require Location Services
             </label>
           </div>
@@ -180,24 +226,28 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Min Accepted Samples *</label>
-                <input type="number" min="1" className={inputClass} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="1" className={`${inputClass} ${errors.minAcceptedSamplesToLock ? 'border-red-400' : ''}`} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
+                {errors.minAcceptedSamplesToLock && <p className="text-red-500 text-xs mt-0.5">{errors.minAcceptedSamplesToLock}</p>}
               </div>
               <div>
                 <label className={labelClass}>Check-In Required Pings *</label>
-                <input type="number" min="1" className={`${inputClass} ${errors.checkInRequiredPings ? 'border-red-400' : ''}`} value={form.checkInRequiredPings ?? ''} onChange={(e) => setField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="1" className={`${inputClass} ${errors.checkInRequiredPings ? 'border-red-400' : ''}`} value={form.checkInRequiredPings ?? ''} onChange={(e) => setField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
                 {errors.checkInRequiredPings && <p className="text-red-500 text-xs mt-0.5">{errors.checkInRequiredPings}</p>}
               </div>
               <div>
                 <label className={labelClass}>Ping Interval (sec) *</label>
-                <input type="number" min="1" className={inputClass} value={form.pingRecommendedIntervalSec ?? ''} onChange={(e) => setField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="1" className={`${inputClass} ${errors.pingRecommendedIntervalSec ? 'border-red-400' : ''}`} value={form.pingRecommendedIntervalSec ?? ''} onChange={(e) => setField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 20" />
+                {errors.pingRecommendedIntervalSec && <p className="text-red-500 text-xs mt-0.5">{errors.pingRecommendedIntervalSec}</p>}
               </div>
               <div>
                 <label className={labelClass}>Max Stale Ping (sec) *</label>
-                <input type="number" min="0" className={inputClass} value={form.maxStalePingSec ?? ''} onChange={(e) => setField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.maxStalePingSec ? 'border-red-400' : ''}`} value={form.maxStalePingSec ?? ''} onChange={(e) => setField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 90" />
+                {errors.maxStalePingSec && <p className="text-red-500 text-xs mt-0.5">{errors.maxStalePingSec}</p>}
               </div>
               <div>
                 <label className={labelClass}>Session TTL (sec) *</label>
-                <input type="number" min="0" className={inputClass} value={form.sessionTtlSec ?? ''} onChange={(e) => setField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.sessionTtlSec ? 'border-red-400' : ''}`} value={form.sessionTtlSec ?? ''} onChange={(e) => setField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 1800" />
+                {errors.sessionTtlSec && <p className="text-red-500 text-xs mt-0.5">{errors.sessionTtlSec}</p>}
               </div>
               <div>
                 <label className={labelClass}>Time to Validate (sec) *</label>
@@ -213,19 +263,22 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Dwell Required (sec) *</label>
-                <input type="number" min="0" className={inputClass} value={form.dwellRequiredSec ?? ''} onChange={(e) => setField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.dwellRequiredSec ? 'border-red-400' : ''}`} value={form.dwellRequiredSec ?? ''} onChange={(e) => setField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 300" />
+                {errors.dwellRequiredSec && <p className="text-red-500 text-xs mt-0.5">{errors.dwellRequiredSec}</p>}
               </div>
               <div>
                 <label className={labelClass}>Grace Consecutive Outside (sec) *</label>
-                <input type="number" min="0" className={inputClass} value={form.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.graceConsecutiveOutsideSec ? 'border-red-400' : ''}`} value={form.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 60" />
+                {errors.graceConsecutiveOutsideSec && <p className="text-red-500 text-xs mt-0.5">{errors.graceConsecutiveOutsideSec}</p>}
               </div>
               <div>
                 <label className={labelClass}>Grace Total Outside (sec) *</label>
-                <input type="number" min="0" className={inputClass} value={form.graceTotalOutsideSec ?? ''} onChange={(e) => setField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                <input type="number" min="0" className={`${inputClass} ${errors.graceTotalOutsideSec ? 'border-red-400' : ''}`} value={form.graceTotalOutsideSec ?? ''} onChange={(e) => setField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 120" />
+                {errors.graceTotalOutsideSec && <p className="text-red-500 text-xs mt-0.5">{errors.graceTotalOutsideSec}</p>}
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={form.requireInsideOnComplete ?? true} onChange={(e) => setField('requireInsideOnComplete', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              <input type="checkbox" checked={form.requireInsideOnComplete ?? false} onChange={(e) => setField('requireInsideOnComplete', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
               Require Inside On Complete
             </label>
           </div>
@@ -286,7 +339,8 @@ export default function ValidationConfigFormModal({
             </label>
             <div className="w-48">
               <label className={labelClass}>Cooldown (sec) *</label>
-              <input type="number" min="0" className={inputClass} value={form.cooldownSec ?? ''} onChange={(e) => setField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="Optional" />
+              <input type="number" min="0" className={`${inputClass} ${errors.cooldownSec ? 'border-red-400' : ''}`} value={form.cooldownSec ?? ''} onChange={(e) => setField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 300" />
+              {errors.cooldownSec && <p className="text-red-500 text-xs mt-0.5">{errors.cooldownSec}</p>}
             </div>
           </div>
 
@@ -321,7 +375,8 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Max Active Sessions/User *</label>
-                <input type="number" min="1" className={inputClass} value={form.maxActiveSessionsPerUser ?? ''} onChange={(e) => setField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} />
+                <input type="number" min="1" className={`${inputClass} ${errors.maxActiveSessionsPerUser ? 'border-red-400' : ''}`} value={form.maxActiveSessionsPerUser ?? ''} onChange={(e) => setField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} placeholder="e.g. 1" />
+                {errors.maxActiveSessionsPerUser && <p className="text-red-500 text-xs mt-0.5">{errors.maxActiveSessionsPerUser}</p>}
               </div>
               <div>
                 <label className={labelClass}>Audit Log Level *</label>
