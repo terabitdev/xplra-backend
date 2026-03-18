@@ -164,7 +164,16 @@ export default function PlaceFormModal({
       setRadiusMeters(0);
       setQrData('');
     }
-    setVcForm({});
+    // Load validation config for edit: from embedded data or by looking up the selected config
+    if (initialPlace?.validationConfig) {
+      setVcForm({ ...initialPlace.validationConfig });
+    } else if (initialPlace?.validationConfigId) {
+      const vc = availableValidationConfigs.find(c => c.id === initialPlace.validationConfigId);
+      if (vc) setVcForm({ ...vc });
+      else setVcForm({});
+    } else {
+      setVcForm({});
+    }
     setFormErrorMsg(null);
     setImageFiles([]);
     setUploadError(null);
