@@ -289,7 +289,6 @@ export default function PlaceFormModal({
       { key: 'radiusM', label: 'Radius (m)' },
       { key: 'minAccuracyM', label: 'Min Accuracy (m)' },
       { key: 'minAcceptedSamplesToLock', label: 'Min Accepted Samples' },
-      { key: 'checkInRequiredPings', label: 'Check-In Required Pings' },
       { key: 'pingRecommendedIntervalSec', label: 'Ping Interval (sec)' },
       { key: 'maxStalePingSec', label: 'Max Stale Ping (sec)' },
       { key: 'sessionTtlSec', label: 'Session TTL (sec)' },
@@ -682,10 +681,6 @@ export default function PlaceFormModal({
                     <div>
                       <label className={vcLabel}>Min Accepted Samples *</label>
                       <input type="number" min="1" className={vcInputOk}  value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Check-In Required Pings *</label>
-                      <input type="number" min="1" className={vcInputOk}  value={vcForm.checkInRequiredPings ?? ''} onChange={(e) => setVcField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
                     </div>
                     <div>
                       <label className={vcLabel}>Ping Interval (sec) *</label>

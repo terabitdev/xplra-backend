@@ -35,7 +35,6 @@ export default function ValidationConfigFormModal({
         maxSpeedMps: undefined,
         requireLocationServices: false,
         minAcceptedSamplesToLock: undefined,
-        checkInRequiredPings: undefined,
         pingRecommendedIntervalSec: undefined,
         maxStalePingSec: undefined,
         sessionTtlSec: undefined,
@@ -71,7 +70,6 @@ export default function ValidationConfigFormModal({
       { key: 'minAccuracyM', label: 'Min Accuracy (m)' },
       { key: 'maxSpeedMps', label: 'Max Speed (m/s)' },
       { key: 'minAcceptedSamplesToLock', label: 'Min Accepted Samples' },
-      { key: 'checkInRequiredPings', label: 'Check-In Required Pings' },
       { key: 'pingRecommendedIntervalSec', label: 'Ping Interval (sec)' },
       { key: 'maxStalePingSec', label: 'Max Stale Ping (sec)' },
       { key: 'sessionTtlSec', label: 'Session TTL (sec)' },
@@ -93,9 +91,6 @@ export default function ValidationConfigFormModal({
     // Additional validations
     if (form.timeToValidateSec !== undefined && (form.timeToValidateSec < 5 || form.timeToValidateSec > 20)) {
       errs.timeToValidateSec = 'Must be between 5 and 20 seconds';
-    }
-    if ((form.checkInRequiredPings ?? 0) < (form.minAcceptedSamplesToLock ?? 0)) {
-      errs.checkInRequiredPings = 'Must be >= Min Accepted Samples';
     }
     if (form.useScheduleWindow) {
       if (!form.schedule?.startTime) errs.startTime = 'Start time is required';
@@ -228,11 +223,6 @@ export default function ValidationConfigFormModal({
                 <label className={labelClass}>Min Accepted Samples *</label>
                 <input type="number" min="1" className={`${inputClass} ${errors.minAcceptedSamplesToLock ? 'border-red-400' : ''}`} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
                 {errors.minAcceptedSamplesToLock && <p className="text-red-500 text-xs mt-0.5">{errors.minAcceptedSamplesToLock}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Check-In Required Pings *</label>
-                <input type="number" min="1" className={`${inputClass} ${errors.checkInRequiredPings ? 'border-red-400' : ''}`} value={form.checkInRequiredPings ?? ''} onChange={(e) => setField('checkInRequiredPings', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
-                {errors.checkInRequiredPings && <p className="text-red-500 text-xs mt-0.5">{errors.checkInRequiredPings}</p>}
               </div>
               <div>
                 <label className={labelClass}>Ping Interval (sec) *</label>
