@@ -204,17 +204,17 @@ const categoriesSlice = createSlice({
     // Delete Category
     builder
       .addCase(deleteCategory.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(deleteCategory.fulfilled, (state, action: PayloadAction<string>) => {
         state.loading = false;
-        state.categories = state.categories.filter((category) => category.id !== action.payload);
+        state.categories = state.categories.filter(
+          (category) => category.id !== action.payload && !category.ancestorIds?.includes(action.payload)
+        );
         state.error = null;
       })
       .addCase(deleteCategory.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
+        state.error = null;
       });
   },
 });

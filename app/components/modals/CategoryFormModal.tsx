@@ -139,7 +139,7 @@ export default function CategoryFormModal({
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-2xl">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {initialCategory ? 'Edit Category' : 'Create New Category'}
+              {initialCategory ? 'Edit Category' : parentCategory ? 'Create New Sub Category' : 'Create New Category'}
             </h2>
             {formData.parentId && (
               <p className="text-sm text-gray-500 mt-1">

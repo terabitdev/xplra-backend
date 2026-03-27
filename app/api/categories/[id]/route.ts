@@ -159,17 +159,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   try {
     const categoryId = params.id;
 
-    // Check for children
-    const childrenSnapshot = await adminDb.collection('adminCategories')
-      .where('parentId', '==', categoryId).limit(1).get();
-
-    if (!childrenSnapshot.empty) {
-      return NextResponse.json(
-        { error: 'Cannot delete category with children. Delete or move children first.' },
-        { status: 400 }
-      );
-    }
-
     const docRef = adminDb.collection('adminCategories').doc(categoryId);
     const doc = await docRef.get();
 
@@ -180,11 +169,24 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       );
     }
 
-    await docRef.delete();
+    // Find all descendants (children, grandchildren, etc.)
+    const descendantsSnapshot = await adminDb.collection('adminCategories')
+      .where('ancestorIds', 'array-contains', categoryId).get();
+
+    const batchSize = 500;
+    const allDocs = [doc, ...descendantsSnapshot.docs];
+    const totalDeleted = allDocs.length;
+
+    for (let i = 0; i < allDocs.length; i += batchSize) {
+      const batch = adminDb.batch();
+      allDocs.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+
     invalidateCategoriesCache();
 
     return NextResponse.json({
-      message: 'Category deleted successfully',
+      message: `Deleted category and ${totalDeleted - 1} children`,
     });
   } catch (error: any) {
     console.error('Delete category error:', error);

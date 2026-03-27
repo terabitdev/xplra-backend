@@ -19,7 +19,7 @@ export default function DashboardLayout({ children, hideSearch = false }: Dashbo
             <Sidebar />
             <div
                 className={`flex-1 sm:mt-8 transition-all duration-300 ease-in-out ${
-                    isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
+                    isSidebarOpen ? 'md:ml-64' : 'md:ml-16'
                 }`}
             >
                 <TopBar hideSearch={hideSearch} />

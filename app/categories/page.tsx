@@ -18,6 +18,7 @@ export default function CategoriesPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [validIcons, setValidIcons] = useState<Set<string>>(new Set());
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
     const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
     const dispatch = useAppDispatch();
@@ -49,6 +50,38 @@ export default function CategoriesPage() {
             dispatch(fetchCategories());
         }
     }, [dispatch, categories.length]);
+
+    // Pre-validate icon URLs — only show icons that actually load with visible content
+    useEffect(() => {
+        categories.forEach(cat => {
+            if (cat.icon) {
+                const img = new window.Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const size = 16;
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(img, 0, 0, size, size);
+                            const { data } = ctx.getImageData(0, 0, size, size);
+                            for (let i = 0; i < data.length; i += 4) {
+                                if (data[i + 3] > 20 && (data[i] < 230 || data[i + 1] < 230 || data[i + 2] < 230)) {
+                                    setValidIcons(prev => new Set(prev).add(cat.id));
+                                    return;
+                                }
+                            }
+                        }
+                    } catch {
+                        // CORS or canvas error — don't show icon
+                    }
+                };
+                img.src = cat.icon;
+            }
+        });
+    }, [categories]);
 
     const toggleExpand = useCallback((id: string) => {
         setExpandedNodes(prev => {
@@ -91,6 +124,8 @@ export default function CategoriesPage() {
             setCategoryToDelete(null);
             setToast({ message: 'Category deleted successfully', type: 'success', isVisible: true });
         } catch (error: any) {
+            setIsDeleteDialogOpen(false);
+            setCategoryToDelete(null);
             const msg = error?.toString() || 'Failed to delete category';
             setToast({ message: msg, type: 'error', isVisible: true });
         } finally {
@@ -156,14 +191,12 @@ export default function CategoriesPage() {
                             ) : (
                                 <span className="w-5 flex-shrink-0" />
                             )}
-                            {node.icon ? (
-                                <Image
+                            {node.icon && validIcons.has(node.id) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
                                     src={node.icon}
                                     alt={node.name}
-                                    width={32}
-                                    height={32}
                                     className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-gray-50 flex-shrink-0"
-                                    unoptimized
                                 />
                             ) : (
                                 <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -257,14 +290,12 @@ export default function CategoriesPage() {
             <div key={node.id} style={{ marginLeft: `${depth * 16}px` }}>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start gap-3 mb-3">
-                        {node.icon ? (
-                            <Image
+                        {node.icon && validIcons.has(node.id) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
                                 src={node.icon}
                                 alt={node.name}
-                                width={48}
-                                height={48}
                                 className="w-12 h-12 rounded-lg object-contain border border-gray-200 bg-gray-50"
-                                unoptimized
                             />
                         ) : (
                             <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -487,7 +518,11 @@ export default function CategoriesPage() {
                 onClose={handleCancelDelete}
                 onConfirm={handleConfirmDelete}
                 title="Delete Category"
-                message="Are you sure you want to delete this category? This action cannot be undone. Categories with children cannot be deleted."
+                message={
+                    categoryToDelete && categories.some(c => c.parentId === categoryToDelete.id)
+                        ? `Are you sure? This will delete "${categoryToDelete.name}" and all its children. This action cannot be undone.`
+                        : 'Are you sure you want to delete this category? This action cannot be undone.'
+                }
                 itemName={categoryToDelete?.name}
                 isDeleting={isDeleting}
             />

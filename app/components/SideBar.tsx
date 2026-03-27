@@ -54,8 +54,8 @@ export default function Sidebar() {
   ];
 
   const closeMobileMenu = () => {
-    // Only close sidebar on mobile (screen width < 1024px)
-    if (window.innerWidth < 1024) {
+    // Only close sidebar on mobile (screen width < 768px)
+    if (window.innerWidth < 768) {
       dispatch(closeSidebar());
     }
   };
@@ -65,7 +65,7 @@ export default function Sidebar() {
       {/* Overlay - shows on mobile when sidebar is open */}
       {isSidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[999]"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-[999]"
           onClick={closeMobileMenu}
         />
       )}
@@ -74,7 +74,7 @@ export default function Sidebar() {
       <div
         className={`flex flex-col h-screen bg-white border-r border-gray-200 shadow-lg fixed top-0 bottom-0 z-[1000] transition-all duration-300 ease-in-out
           ${isSidebarOpen ? "w-64" : "w-16"}
-          lg:left-0
+          md:left-0
           ${isSidebarOpen ? "left-0" : "-left-64"}
         `}
       >

@@ -119,20 +119,20 @@ function TopBar({ hideSearch = false }: TopBarProps) {
   };
 
   return (
-    <div className={`h-14 bg-white border-b border-gray-200 fixed top-0 right-0 z-[999] flex items-center justify-between px-3 lg:px-4 transition-all duration-300 ease-in-out
-      left-0 ${isSidebarOpen ? 'lg:left-64' : 'lg:left-16'}
+    <div className={`h-14 bg-white border-b border-gray-200 fixed top-0 right-0 z-[999] flex items-center justify-between px-3 md:px-4 transition-all duration-300 ease-in-out
+      left-0 ${isSidebarOpen ? 'md:left-64' : 'md:left-16'}
     `}>
       {/* Hamburger Menu - Only visible on mobile */}
       <button
         onClick={() => dispatch(toggleSidebar())}
-        className="lg:hidden p-2 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="md:hidden p-2 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
       >
         <Menu size={22} />
       </button>
 
       {/* Search Bar - Hidden on small mobile, visible on tablet and up */}
       {!hideSearch && (
-        <div className="flex-1 ml-2 sm:ml-3 lg:ml-2 max-w-[14rem] sm:max-w-xs">
+        <div className="flex-1 ml-2 sm:ml-3 md:ml-2 max-w-[14rem] sm:max-w-xs">
           <SearchBar
             placeholder="Search categories..."
             onSearch={handleSearch}
@@ -148,7 +148,7 @@ function TopBar({ hideSearch = false }: TopBarProps) {
       {/* User Profile Section */}
       <div className="relative" ref={dropdownRef}>
         {loading ? (
-          <div className="flex items-center gap-2 px-2 lg:px-3 py-1.5">
+          <div className="flex items-center gap-2 px-2 md:px-3 py-1.5">
             <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
             <div className="hidden md:block">
               <div className="h-3 w-16 bg-gray-200 rounded animate-pulse mb-1"></div>
@@ -158,7 +158,7 @@ function TopBar({ hideSearch = false }: TopBarProps) {
         ) : (
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 px-2 lg:px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {photoURL ? (
               <img
