@@ -8,7 +8,6 @@ import { fetchCategories, deleteCategory } from '../store/slices/categoriesSlice
 import CategoryFormModal from '../components/modals/CategoryFormModal';
 import DeleteDialog from '../components/ui/DeleteDialog';
 import Toaster from '../components/ui/Toaster';
-import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 
 export default function CategoriesPage() {
@@ -51,32 +50,13 @@ export default function CategoriesPage() {
         }
     }, [dispatch, categories.length]);
 
-    // Pre-validate icon URLs — only show icons that actually load with visible content
+    // Pre-validate icon URLs — mark as valid if image loads successfully
     useEffect(() => {
         categories.forEach(cat => {
             if (cat.icon) {
                 const img = new window.Image();
-                img.crossOrigin = 'anonymous';
                 img.onload = () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        const size = 16;
-                        canvas.width = size;
-                        canvas.height = size;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                            ctx.drawImage(img, 0, 0, size, size);
-                            const { data } = ctx.getImageData(0, 0, size, size);
-                            for (let i = 0; i < data.length; i += 4) {
-                                if (data[i + 3] > 20 && (data[i] < 230 || data[i + 1] < 230 || data[i + 2] < 230)) {
-                                    setValidIcons(prev => new Set(prev).add(cat.id));
-                                    return;
-                                }
-                            }
-                        }
-                    } catch {
-                        // CORS or canvas error — don't show icon
-                    }
+                    setValidIcons(prev => new Set(prev).add(cat.id));
                 };
                 img.src = cat.icon;
             }
@@ -192,15 +172,17 @@ export default function CategoriesPage() {
                                 <span className="w-5 flex-shrink-0" />
                             )}
                             {node.icon && validIcons.has(node.id) ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={node.icon}
-                                    alt={node.name}
-                                    className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-gray-50 flex-shrink-0"
-                                />
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm p-1.5">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={node.icon}
+                                        alt={node.name}
+                                        className="w-full h-full object-contain"
+                                    />
+                                </div>
                             ) : (
-                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center flex-shrink-0 border border-slate-200">
+                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                     </svg>
                                 </div>
@@ -291,15 +273,17 @@ export default function CategoriesPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start gap-3 mb-3">
                         {node.icon && validIcons.has(node.id) ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={node.icon}
-                                alt={node.name}
-                                className="w-12 h-12 rounded-lg object-contain border border-gray-200 bg-gray-50"
-                            />
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm p-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={node.icon}
+                                    alt={node.name}
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
                         ) : (
-                            <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center flex-shrink-0 border border-slate-200">
+                                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                 </svg>
                             </div>
