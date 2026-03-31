@@ -38,7 +38,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       requirements: data?.requirements || {},
       xp: data?.xp || 0,
       validationConfigId: data?.validationConfigId || undefined,
-      validationConfig: data?.validationConfig || null,
+      validationConfig: data?.validationConfig || undefined,
       imageUrls: data?.imageUrls || [],
       createdAt: data?.createdAt?.toDate?.()?.toISOString() || data?.createdAt,
       updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || data?.updatedAt,
