@@ -1,3 +1,5 @@
+import { ValidationConfig } from './validationConfig';
+
 export interface CategorySelection {
     selectedId: string;
     path: string[];
@@ -26,7 +28,7 @@ export interface Place {
         qrData?: string;
     };
     validationConfigId?: string;
-    validationConfig?: Record<string, unknown> | null;
+    validationConfig?: Partial<ValidationConfig> | null;
     createdAt?: string;
     updatedAt?: string;
 }
