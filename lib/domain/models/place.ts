@@ -26,6 +26,7 @@ export interface Place {
         qrData?: string;
     };
     validationConfigId?: string;
+    validationConfig?: Record<string, unknown> | null;
     createdAt?: string;
     updatedAt?: string;
 }
