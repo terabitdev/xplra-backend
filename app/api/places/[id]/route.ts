@@ -138,6 +138,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
       validationConfigId: placeData.validationConfigId || null,
+      validationConfig: placeData.validationConfig || null,
       imageUrls: combinedImageUrls.length > 0 ? combinedImageUrls : [],
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
