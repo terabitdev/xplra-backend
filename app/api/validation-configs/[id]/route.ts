@@ -57,14 +57,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    // Validate checkInRequiredPings >= minAcceptedSamplesToLock
-    const checkPings = body.checkInRequiredPings ?? doc.data()?.checkInRequiredPings;
-    const minSamples = body.minAcceptedSamplesToLock ?? doc.data()?.minAcceptedSamplesToLock;
-    if (checkPings < minSamples) {
-      return NextResponse.json(
-        { error: 'checkInRequiredPings must be >= minAcceptedSamplesToLock' },
-        { status: 400 }
-      );
+    // Only validate checkInRequiredPings constraint when it is explicitly provided in the request
+    if (body.checkInRequiredPings !== undefined) {
+      const minSamples = body.minAcceptedSamplesToLock ?? doc.data()?.minAcceptedSamplesToLock;
+      if (body.checkInRequiredPings < minSamples) {
+        return NextResponse.json(
+          { error: 'checkInRequiredPings must be >= minAcceptedSamplesToLock' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check how many places use this config
