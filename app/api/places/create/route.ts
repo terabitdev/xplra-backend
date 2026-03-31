@@ -101,6 +101,7 @@ export async function POST(req: Request) {
       type: placeData.type || 'checkin_time',
       requirements: placeData.requirements || {},
       validationConfigId: placeData.validationConfigId || undefined,
+      validationConfig: placeData.validationConfig || undefined,
       imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

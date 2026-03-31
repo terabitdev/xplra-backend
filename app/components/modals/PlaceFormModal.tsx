@@ -116,6 +116,12 @@ export default function PlaceFormModal({
   // Category picker state
   const [catPickerOpen, setCatPickerOpen] = useState(false);
 
+  // Validation config field helpers (stable across renders)
+  const setVcField = useCallback((field: string, value: unknown) => {
+    setVcForm(prev => ({ ...prev, [field]: value }));
+    setFormErrorMsg(null);
+  }, []);
+
   const categoryMap = new Map(availableCategories.map(c => [c.id, c]));
   const selectedIds = new Set((place.categorySelections || []).map(cs => cs.selectedId));
 
@@ -269,8 +275,19 @@ export default function PlaceFormModal({
   };
 
   const handleRemoveImage = (index: number) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    const preview = imagePreviews[index];
+    if (preview?.startsWith('data:')) {
+      // New file — find its index among only data: previews
+      const newFileIndex = imagePreviews.slice(0, index).filter(p => p.startsWith('data:')).length;
+      setImageFiles(prev => prev.filter((_, i) => i !== newFileIndex));
+    } else {
+      // Existing URL — remove it from place.imageUrls too
+      setPlace(prev => ({
+        ...prev,
+        imageUrls: (prev.imageUrls || []).filter(url => url !== preview),
+      }));
+    }
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
     setUploadError(null);
   };
 
@@ -638,190 +655,176 @@ export default function PlaceFormModal({
           </div>
 
           {/* Validation Config Fields */}
-          {(() => {
-            const vcInputOk = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500";
-            const vcLabel = "block text-xs font-medium text-gray-600 mb-1";
-            const vcSection = "space-y-3 border-t border-gray-200 pt-3";
-            const vcTitle = "text-sm font-semibold text-gray-800 mb-2";
-            const setVcField = (field: string, value: unknown) => {
-              setVcForm(prev => ({ ...prev, [field]: value }));
-              if (formErrorMsg) setFormErrorMsg(null);
-            };
-            const cbClass = "rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5";
-
-            return (
-              <div className="space-y-4">
-                {/* Geofence */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Geofence</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className={vcLabel}>Radius (m) *</label>
-                      <input type="number" min="0" className={vcInputOk} value={vcForm.radiusM ?? ''} onChange={(e) => setVcField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 150" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Min Accuracy (m) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.minAccuracyM ?? ''} onChange={(e) => setVcField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 40" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Max Speed (m/s) *</label>
-                      <input type="number" min="0" step="any" className={vcInputOk} value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 5" />
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.requireLocationServices ?? false} onChange={(e) => setVcField('requireLocationServices', e.target.checked)} className={cbClass} disabled={loading} />
-                    Require Location Services
-                  </label>
+          <div className="space-y-4">
+            {/* Geofence */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Geofence</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Radius (m) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.radiusM ?? ''} onChange={(e) => setVcField('radiusM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 150" />
                 </div>
-
-                {/* Sampling & Timing */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Sampling & Timing</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className={vcLabel}>Min Accepted Samples *</label>
-                      <input type="number" min="1" className={vcInputOk}  value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Ping Interval (sec) *</label>
-                      <input type="number" min="1" className={vcInputOk}  value={vcForm.pingRecommendedIntervalSec ?? ''} onChange={(e) => setVcField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 20" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Max Stale Ping (sec) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.maxStalePingSec ?? ''} onChange={(e) => setVcField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 90" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Session TTL (sec) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.sessionTtlSec ?? ''} onChange={(e) => setVcField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 1800" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Time to Validate (sec) *</label>
-                      <input type="number" min="5" max="20" className={vcInputOk}  value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
-                    </div>
-                  </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Min Accuracy (m) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.minAccuracyM ?? ''} onChange={(e) => setVcField('minAccuracyM', parseFloat(e.target.value) || 0)} disabled={loading} placeholder="e.g. 40" />
                 </div>
-
-                {/* Dwell */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Dwell</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className={vcLabel}>Dwell Required (sec) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.dwellRequiredSec ?? ''} onChange={(e) => setVcField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 300" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Grace Consecutive Outside (sec) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setVcField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 60" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Grace Total Outside (sec) *</label>
-                      <input type="number" min="0" className={vcInputOk}  value={vcForm.graceTotalOutsideSec ?? ''} onChange={(e) => setVcField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 120" />
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? false} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className={cbClass} disabled={loading} />
-                    Require Inside On Complete
-                  </label>
-                </div>
-
-                {/* Availability Window */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Availability Window</h3>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.useScheduleWindow ?? false} onChange={(e) => setVcField('useScheduleWindow', e.target.checked)} className={cbClass} disabled={loading} />
-                    Use Schedule Window
-                  </label>
-                  {vcForm.useScheduleWindow && (
-                    <div className="ml-6 space-y-2">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={vcLabel}>Start Time *</label>
-                          <input type="time" className={vcInputOk} value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
-                        </div>
-                        <div>
-                          <label className={vcLabel}>End Time *</label>
-                          <input type="time" className={vcInputOk} value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className={vcLabel}>Days of Week *</label>
-                        <div className="flex gap-1.5">
-                          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name, i) => (
-                            <button key={i} type="button" onClick={() => {
-                              const current = vcForm.schedule?.daysOfWeek || [];
-                              const updated = current.includes(i) ? current.filter((d: number) => d !== i) : [...current, i].sort();
-                              setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, daysOfWeek: updated } }));
-                            }} className={`px-2 py-1 text-xs rounded-lg border transition-colors ${(vcForm.schedule?.daysOfWeek || []).includes(i) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`} disabled={loading}>{name}</button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Completion */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Completion</h3>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.oneTimeOnly ?? false} onChange={(e) => setVcField('oneTimeOnly', e.target.checked)} className={cbClass} disabled={loading} />
-                    One-Time Only
-                  </label>
-                  <div className="w-48">
-                    <label className={vcLabel}>Cooldown (sec) *</label>
-                    <input type="number" min="0" className={vcInputOk} value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 300" />
-                  </div>
-                </div>
-
-                {/* QR / Code Gating */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>QR / Code Gating</h3>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => setVcField('requireQrOrCode', e.target.checked)} className={cbClass} disabled={loading} />
-                    Require QR or Code
-                  </label>
-                  {vcForm.requireQrOrCode && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={vcLabel}>QR Token TTL (sec) *</label>
-                        <input type="number" min="0" className={vcInputOk} value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
-                      </div>
-                      <div>
-                        <label className={vcLabel}>Max Code Attempts *</label>
-                        <input type="number" min="0" className={vcInputOk} value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
-                      </div>
-                      <div>
-                        <label className={vcLabel}>Code Attempt Window (sec) *</label>
-                        <input type="number" min="0" className={vcInputOk} value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Fraud & Limits */}
-                <div className={vcSection}>
-                  <h3 className={vcTitle}>Fraud & Limits</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={vcLabel}>Max Active Sessions/User *</label>
-                      <input type="number" min="1" className={vcInputOk}  value={vcForm.maxActiveSessionsPerUser ?? ''} onChange={(e) => setVcField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} placeholder="e.g. 1" />
-                    </div>
-                    <div>
-                      <label className={vcLabel}>Audit Log Level *</label>
-                      <select className={vcInputOk} value={vcForm.auditLogLevel || 'basic'} onChange={(e) => setVcField('auditLogLevel', e.target.value)} disabled={loading}>
-                        <option value="off">Off</option>
-                        <option value="basic">Basic</option>
-                        <option value="verbose">Verbose</option>
-                      </select>
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? true} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className={cbClass} disabled={loading} />
-                    Deny If Mock Location Suspected
-                  </label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Max Speed (m/s) *</label>
+                  <input type="number" min="0" step="any" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxSpeedMps ?? ''} onChange={(e) => setVcField('maxSpeedMps', e.target.value ? parseFloat(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 5" />
                 </div>
               </div>
-            );
-          })()}
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.requireLocationServices ?? false} onChange={(e) => setVcField('requireLocationServices', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Require Location Services
+              </label>
+            </div>
+
+            {/* Sampling & Timing */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Sampling & Timing</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Min Accepted Samples *</label>
+                  <input type="number" min="1" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.minAcceptedSamplesToLock ?? ''} onChange={(e) => setVcField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Ping Interval (sec) *</label>
+                  <input type="number" min="1" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.pingRecommendedIntervalSec ?? ''} onChange={(e) => setVcField('pingRecommendedIntervalSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Max Stale Ping (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxStalePingSec ?? ''} onChange={(e) => setVcField('maxStalePingSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 90" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Session TTL (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.sessionTtlSec ?? ''} onChange={(e) => setVcField('sessionTtlSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 1800" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Time to Validate (sec) *</label>
+                  <input type="number" min="5" max="20" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
+                </div>
+              </div>
+            </div>
+
+            {/* Dwell */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Dwell</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Dwell Required (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.dwellRequiredSec ?? ''} onChange={(e) => setVcField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Grace Consecutive Outside (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setVcField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 60" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Grace Total Outside (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.graceTotalOutsideSec ?? ''} onChange={(e) => setVcField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 120" />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? false} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Require Inside On Complete
+              </label>
+            </div>
+
+            {/* Availability Window */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Availability Window</h3>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.useScheduleWindow ?? false} onChange={(e) => setVcField('useScheduleWindow', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Use Schedule Window
+              </label>
+              {vcForm.useScheduleWindow && (
+                <div className="ml-6 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Start Time *</label>
+                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">End Time *</label>
+                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Days of Week *</label>
+                    <div className="flex gap-1.5">
+                      {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name, i) => (
+                        <button key={i} type="button" onClick={() => {
+                          const current = vcForm.schedule?.daysOfWeek || [];
+                          const updated = current.includes(i) ? current.filter((d: number) => d !== i) : [...current, i].sort();
+                          setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, daysOfWeek: updated } }));
+                        }} className={`px-2 py-1 text-xs rounded-lg border transition-colors ${(vcForm.schedule?.daysOfWeek || []).includes(i) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`} disabled={loading}>{name}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Completion */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Completion</h3>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.oneTimeOnly ?? false} onChange={(e) => setVcField('oneTimeOnly', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                One-Time Only
+              </label>
+              <div className="w-48">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Cooldown (sec) *</label>
+                <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.cooldownSec ?? ''} onChange={(e) => setVcField('cooldownSec', e.target.value ? parseInt(e.target.value) : undefined)} disabled={loading} placeholder="e.g. 300" />
+              </div>
+            </div>
+
+            {/* QR / Code Gating */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">QR / Code Gating</h3>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => setVcField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Require QR or Code
+              </label>
+              {vcForm.requireQrOrCode && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">QR Token TTL (sec) *</label>
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Max Code Attempts *</label>
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Code Attempt Window (sec) *</label>
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fraud & Limits */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Fraud & Limits</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Max Active Sessions/User *</label>
+                  <input type="number" min="1" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxActiveSessionsPerUser ?? ''} onChange={(e) => setVcField('maxActiveSessionsPerUser', parseInt(e.target.value) || 1)} disabled={loading} placeholder="e.g. 1" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Audit Log Level *</label>
+                  <select className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.auditLogLevel || 'basic'} onChange={(e) => setVcField('auditLogLevel', e.target.value)} disabled={loading}>
+                    <option value="off">Off</option>
+                    <option value="basic">Basic</option>
+                    <option value="verbose">Verbose</option>
+                  </select>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? true} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Deny If Mock Location Suspected
+              </label>
+            </div>
+          </div>
 
           {/* Image Upload */}
           <div>
