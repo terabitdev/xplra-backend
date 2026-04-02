@@ -157,8 +157,8 @@ export default function CategoriesPage() {
         return (
             <tbody key={node.id}>
                 <tr className="hover:bg-blue-50 transition-colors duration-150">
-                    <td className="px-3 py-3">
-                        <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 24}px` }}>
+                    <td className="px-3 py-3 overflow-hidden">
+                        <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: `${depth * 24}px` }}>
                             {hasChildren ? (
                                 <button
                                     onClick={() => toggleExpand(node.id)}
@@ -442,15 +442,15 @@ export default function CategoriesPage() {
                         {/* Desktop Table View */}
                         <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
+                                <table className="w-full min-w-[860px] table-fixed divide-y divide-gray-200">
                                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                         <tr>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Level</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Children</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Interests</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[35%]">Category</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[9%]">Level</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[12%]">Children</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[10%]">Status</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[10%]">Interests</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-[10%]">Order</th>
                                             <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-[140px]">Actions</th>
                                         </tr>
                                     </thead>

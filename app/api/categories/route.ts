@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       icon: iconUrl,
       interestName: categoryData.interestName || categoryData.name,
       isActive: categoryData.isActive ?? true,
-      isVisibleInInterests: categoryData.isVisibleInInterests ?? true,
+      isVisibleInInterests: categoryData.isVisibleInInterests ?? false,
       interestsOrder: categoryData.interestsOrder ?? 0,
       placeOrder: categoryData.placeOrder ?? 0,
       level,
