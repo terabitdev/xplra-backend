@@ -147,6 +147,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     await placeDocRef.update(firestoreUpdate);
 
+    // Cascade resolvedGeo to all events linked to this place (fire-and-forget)
+    const newGeopoint = new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng);
+    adminDb.collection('events')
+      .where('placeId', '==', placeId)
+      .get()
+      .then((eventsSnap) => {
+        if (eventsSnap.empty) return;
+        const batch = adminDb.batch();
+        eventsSnap.forEach((eventDoc) => {
+          const eventData = eventDoc.data();
+          // Only update resolvedGeo if the event has no geoOverride
+          if (!eventData.geoOverride) {
+            batch.update(eventDoc.ref, {
+              resolvedGeo: { geopoint: newGeopoint, geohash },
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+        });
+        return batch.commit();
+      })
+      .catch((err) => console.error('Failed to cascade resolvedGeo to events:', err));
+
     // Return admin-friendly format
     const updatedPlace: Partial<Place> = {
       name: placeData.name,

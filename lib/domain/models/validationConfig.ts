@@ -4,9 +4,12 @@ export interface ValidationConfigSchedule {
     daysOfWeek?: number[];
 }
 
+export type ValidationMode = 'CHECKIN' | 'DWELL' | 'QR_CODE' | 'CODE_PHRASE' | 'ACCRUAL' | 'HYBRID';
+
 export interface ValidationConfig {
     id: string;
     name: string;
+    mode: ValidationMode;
 
     // Geofence
     radiusM: number;

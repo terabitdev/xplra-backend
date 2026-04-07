@@ -820,7 +820,7 @@ export default function PlaceFormModal({
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? true} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? false} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
                 Deny If Mock Location Suspected
               </label>
             </div>

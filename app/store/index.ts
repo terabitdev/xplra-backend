@@ -12,6 +12,7 @@ import filterReducer from './slices/filterSlice';
 import uiReducer from './slices/uiSlice';
 import xpLedgerReducer from './slices/xpLedgerSlice';
 import validationConfigsReducer from './slices/validationConfigsSlice';
+import eventsReducer from './slices/eventsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -28,6 +29,7 @@ export const store = configureStore({
     ui: uiReducer,
     xpLedger: xpLedgerReducer,
     validationConfigs: validationConfigsReducer,
+    events: eventsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

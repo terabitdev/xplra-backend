@@ -15,6 +15,7 @@ import {
   Checkmark,
   User,
   Settings,
+  Calendar,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -47,6 +48,7 @@ export default function Sidebar() {
     { href: "/", icon: Dashboard, label: "Dashboard" },
     { href: "/quests_", icon: Task, label: "Quests" },
     { href: "/places_", icon: Location, label: "Places" },
+    { href: "/events_", icon: Calendar, label: "Events" },
     { href: "/contributions", icon: Checkmark, label: "Contributions" },
     { href: "/users", icon: User, label: "Users" },
     { href: "/categories", icon: Tag, label: "Categories" },
