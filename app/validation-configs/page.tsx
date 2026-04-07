@@ -26,7 +26,6 @@ export default function ValidationConfigsPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<ValidationConfig | null>(null);
-  const [usageCount, setUsageCount] = useState(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [configToDelete, setConfigToDelete] = useState<ValidationConfig | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -47,22 +46,12 @@ export default function ValidationConfigsPage() {
 
   const handleCreate = useCallback(() => {
     setSelectedConfig(null);
-    setUsageCount(0);
     setIsModalOpen(true);
   }, []);
 
   const handleEdit = useCallback((config: ValidationConfig) => {
     setSelectedConfig(config);
-    setUsageCount(0);
     setIsModalOpen(true);
-
-    // Fetch usage count for this config
-    fetch(`/api/validation-configs/${config.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      .then(res => res.json())
-      .then(data => {
-        if (data.usageCount !== undefined) setUsageCount(data.usageCount);
-      })
-      .catch(() => {});
   }, []);
 
   const handleSubmit = useCallback(async (configData: Partial<ValidationConfig>) => {
@@ -293,7 +282,6 @@ export default function ValidationConfigsPage() {
         onClose={() => { setIsModalOpen(false); setSelectedConfig(null); }}
         onSubmit={handleSubmit}
         config={selectedConfig}
-        usageCount={usageCount}
       />
 
       <DeleteDialog

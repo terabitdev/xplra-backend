@@ -9,7 +9,6 @@ interface ValidationConfigFormModalProps {
   onClose: () => void;
   onSubmit: (config: Partial<ValidationConfig>) => void;
   config?: ValidationConfig | null;
-  usageCount?: number;
 }
 
 export default function ValidationConfigFormModal({
@@ -17,7 +16,6 @@ export default function ValidationConfigFormModal({
   onClose,
   onSubmit,
   config: initialConfig,
-  usageCount = 0,
 }: ValidationConfigFormModalProps) {
   const [form, setForm] = useState<Partial<ValidationConfig>>({});
   const [loading, setLoading] = useState(false);
