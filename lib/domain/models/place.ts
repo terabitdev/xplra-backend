@@ -16,7 +16,7 @@ export interface Place {
     categorySelections: CategorySelection[];
     categoryIds?: string[];
     imageUrls?: string[];
-    location?: string;
+    location: string;
     description?: string;
     xp?: number;
     source: "seed" | "user_contribution";

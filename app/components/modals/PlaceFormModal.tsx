@@ -21,7 +21,7 @@ export interface Place_ {
   };
   geohash: string;
   categorySelections: CategorySelection_[];
-  location?: string;
+  location: string;
   description?: string;
   source: "seed" | "user_contribution";
   status: "active" | "hidden" | "pending";
@@ -73,6 +73,7 @@ export default function PlaceFormModal({
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [geocodeFailed, setGeocodeFailed] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formErrorMsg, setFormErrorMsg] = useState<string | null>(null);
   const [minTimeSeconds, setMinTimeSeconds] = useState<number>(0);
@@ -81,32 +82,30 @@ export default function PlaceFormModal({
   const qrRef = useRef<HTMLDivElement>(null);
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reverse geocode lat/lng to location name via Nominatim
+  // Reverse geocode lat/lng to location name via Google Geocoding API (server-side)
   const reverseGeocode = useCallback((lat: number, lng: number) => {
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
-    // Skip only when both are exactly 0 (no coordinates entered)
-    if (lat === 0 && lng === 0) return;
+    // Reset when either coord is missing — need both to geocode
+    if (lat === 0 || lng === 0) {
+      setPlace(prev => ({ ...prev, location: '' }));
+      setGeocodeFailed(false);
+      return;
+    }
     geocodeTimerRef.current = setTimeout(async () => {
       setLocationLoading(true);
+      setGeocodeFailed(false);
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-          { headers: { 'Accept-Language': 'en' } }
-        );
+        const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
         const data = await res.json();
-        if (data.address) {
-          const a = data.address;
-          const locality = a.city || a.town || a.village || a.hamlet || a.county || a.suburb || '';
-          const code = a.country_code ? a.country_code.toUpperCase() : '';
-          const short = [locality, code].filter(Boolean).join(', ');
-          setPlace(prev => ({ ...prev, location: short || data.display_name || '' }));
-        } else if (data.display_name) {
-          setPlace(prev => ({ ...prev, location: data.display_name }));
+        if (data.location) {
+          setPlace(prev => ({ ...prev, location: data.location }));
         } else {
           setPlace(prev => ({ ...prev, location: '' }));
+          setGeocodeFailed(true);
         }
       } catch {
         setPlace(prev => ({ ...prev, location: '' }));
+        setGeocodeFailed(true);
       } finally {
         setLocationLoading(false);
       }
@@ -181,6 +180,7 @@ export default function PlaceFormModal({
       setVcForm({});
     }
     setFormErrorMsg(null);
+    setGeocodeFailed(false);
     setImageFiles([]);
     setUploadError(null);
     setCatPickerOpen(false);
@@ -337,6 +337,14 @@ export default function PlaceFormModal({
       setFormErrorMsg(`Please fill: ${missing.join(', ')}`);
       return false;
     }
+
+    // Location check runs last — only when all other fields are present
+    // At this point lat/lng are confirmed filled, so empty location = geocoding failed
+    if (!place.location?.trim()) {
+      setFormErrorMsg('Location could not be determined, adjust coordinates');
+      return false;
+    }
+
     setFormErrorMsg(null);
     return true;
   };
@@ -451,7 +459,7 @@ export default function PlaceFormModal({
           {/* Location (auto-generated from lat/lng) */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
-            <div className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 min-h-[34px] flex items-center">
+            <div className={`w-full px-3 py-1.5 text-sm border rounded-lg bg-gray-50 min-h-[34px] flex items-center ${geocodeFailed ? 'border-red-300' : 'border-gray-200'}`}>
               {locationLoading ? (
                 <span className="text-gray-400 flex items-center gap-1.5">
                   <svg className="animate-spin h-3.5 w-3.5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -462,6 +470,8 @@ export default function PlaceFormModal({
                 </span>
               ) : place.location ? (
                 <span className="text-gray-700">{place.location}</span>
+              ) : geocodeFailed ? (
+                <span className="text-red-500">Location could not be determined, adjust coordinates</span>
               ) : (
                 <span className="text-gray-400">Enter coordinates to auto-detect location</span>
               )}
