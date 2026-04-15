@@ -1,0 +1,378 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import DashboardLayout from "../components/DashboardLayout";
+import QuestCategoryFormModal from "../components/modals/QuestCategoryFormModal";
+import DeleteDialog from "../components/ui/DeleteDialog";
+import Toaster from "../components/ui/Toaster";
+import CardSkeleton from "../components/ui/CardSkeleton";
+import TableSkeleton from "../components/ui/TableSkeleton";
+import { AppDispatch, RootState } from "../store";
+import {
+  fetchQuestCategories,
+  createQuestCategory,
+  updateQuestCategory,
+  deleteQuestCategory,
+  clearError,
+} from "../store/slices/questCategoriesSlice";
+import { QuestCategory } from "@/lib/domain/models/questCategory";
+
+export default function QuestCategoriesPage() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { categories, loading, error } = useSelector(
+    (state: RootState) => state.questCategories
+  );
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<QuestCategory | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<QuestCategory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState({
+    message: "",
+    type: "success" as "success" | "error",
+    isVisible: false,
+  });
+
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchQuestCategories());
+    }
+  }, [dispatch, categories.length]);
+
+  useEffect(() => {
+    if (error) {
+      setToast({ message: error, type: "error", isVisible: true });
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+  const handleCreate = useCallback(() => {
+    setSelectedCategory(null);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((category: QuestCategory) => {
+    setSelectedCategory(category);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (categoryData: Partial<QuestCategory>) => {
+      try {
+        if (selectedCategory) {
+          await dispatch(
+            updateQuestCategory({ id: selectedCategory.id, categoryData })
+          ).unwrap();
+          setToast({
+            message: "Category updated successfully",
+            type: "success",
+            isVisible: true,
+          });
+        } else {
+          await dispatch(createQuestCategory(categoryData)).unwrap();
+          setToast({
+            message: "Category created successfully",
+            type: "success",
+            isVisible: true,
+          });
+        }
+        await dispatch(fetchQuestCategories({ fresh: true }));
+      } catch (err) {
+        const errorMessage = typeof err === "string" ? err : "An error occurred";
+        setToast({ message: errorMessage, type: "error", isVisible: true });
+      }
+      setIsModalOpen(false);
+      setSelectedCategory(null);
+    },
+    [selectedCategory, dispatch]
+  );
+
+  const handleDeleteClick = useCallback((category: QuestCategory) => {
+    setCategoryToDelete(category);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!categoryToDelete) return;
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteQuestCategory(categoryToDelete.id)).unwrap();
+      setToast({
+        message: "Category deleted successfully",
+        type: "success",
+        isVisible: true,
+      });
+    } catch (err) {
+      const errorMessage = typeof err === "string" ? err : "Failed to delete category";
+      setToast({ message: errorMessage, type: "error", isVisible: true });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setCategoryToDelete(null);
+    }
+  }, [categoryToDelete, dispatch]);
+
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+    setCategoryToDelete(null);
+  }, []);
+
+  const showInitialLoading = loading && categories.length === 0;
+
+  return (
+    <DashboardLayout>
+      <div className="w-full p-4 sm:p-5 lg:p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+              Quest Categories
+            </h1>
+            <p className="text-gray-500 text-sm">
+              Manage quest categories shown in the app
+              {categories.length > 0 && (
+                <span className="ml-2 text-gray-400">({categories.length} total)</span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={handleCreate}
+            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span className="hidden sm:inline">New Category</span>
+          </button>
+        </div>
+
+        {showInitialLoading ? (
+          <>
+            <div className="lg:hidden">
+              <CardSkeleton count={6} showImage={false} />
+            </div>
+            <div className="hidden lg:block">
+              <TableSkeleton rows={6} columns={4} showImage={false} />
+            </div>
+          </>
+        ) : categories.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
+            <svg
+              className="w-10 h-10 text-gray-300 mx-auto mb-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+            <p className="text-gray-500 font-medium">No quest categories yet</p>
+            <p className="text-gray-400 text-sm">Create your first category</p>
+          </div>
+        ) : (
+          <>
+            {loading && categories.length > 0 && (
+              <div className="fixed inset-0 bg-white/50 z-10 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+              </div>
+            )}
+
+            {/* Mobile View */}
+            <div className="lg:hidden space-y-2">
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="bg-white rounded-lg border border-gray-200 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">
+                      {category.name}
+                    </h3>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                        category.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {category.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+                      <span className="text-gray-400 block text-[10px] mb-0.5">
+                        Priority
+                      </span>
+                      <span className="text-gray-700 font-medium text-[11px]">
+                        {category.priority}
+                      </span>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+                      <span className="text-gray-400 block text-[10px] mb-0.5">ID</span>
+                      <span className="text-gray-700 font-medium text-[11px] truncate block">
+                        {category.id}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => handleEdit(category)}
+                      className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(category)}
+                      className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden lg:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5 w-24">
+                      Priority
+                    </th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Name</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">ID</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5 w-28">
+                      Status
+                    </th>
+                    <th className="text-center font-medium text-gray-600 px-3 py-2.5 w-20">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {categories.map((category) => (
+                    <tr
+                      key={category.id}
+                      className="hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-3 py-2.5">
+                        <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-indigo-50 text-indigo-700 text-xs font-semibold">
+                          {category.priority}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium text-gray-900">{category.name}</p>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="text-gray-500 text-xs font-mono">{category.id}</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                            category.isActive
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {category.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleEdit(category)}
+                            className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(category)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      <QuestCategoryFormModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedCategory(null);
+        }}
+        onSubmit={handleSubmit}
+        category={selectedCategory}
+      />
+
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Quest Category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        itemName={categoryToDelete?.name}
+        isDeleting={isDeleting}
+      />
+
+      <Toaster
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={() => setToast({ ...toast, isVisible: false })}
+      />
+    </DashboardLayout>
+  );
+}

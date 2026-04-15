@@ -35,8 +35,8 @@ export default function EventFormModal({
     geoOverride: undefined,
     startTime: '',
     endTime: '',
-    eventPreGraceMin: 0,
-    eventPostGraceMin: 0,
+    eventPreGraceMin: undefined,
+    eventPostGraceMin: undefined,
     validationConfigId: null,
     isActive: true,
   });
@@ -83,8 +83,8 @@ export default function EventFormModal({
         geoOverride: undefined,
         startTime: '',
         endTime: '',
-        eventPreGraceMin: 0,
-        eventPostGraceMin: 0,
+        eventPreGraceMin: undefined,
+        eventPostGraceMin: undefined,
         validationConfigId: null,
         isActive: true,
       });
@@ -123,6 +123,20 @@ export default function EventFormModal({
     }
     if (hasGeoOverride && (!geoLat || !geoLng)) {
       missing.push('Geo Override Lat/Lng');
+    }
+    if (geoLat) {
+      const lat = parseFloat(geoLat);
+      if (lat < -90 || lat > 90) {
+        setFormErrorMsg('Latitude must be between -90 and 90');
+        return false;
+      }
+    }
+    if (geoLng) {
+      const lng = parseFloat(geoLng);
+      if (lng < -180 || lng > 180) {
+        setFormErrorMsg('Longitude must be between -180 and 180');
+        return false;
+      }
     }
 
     // Always required
@@ -255,10 +269,10 @@ export default function EventFormModal({
                 type="number"
                 min="0"
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={form.eventPreGraceMin ?? 0}
-                onChange={(e) => setForm(prev => ({ ...prev, eventPreGraceMin: parseInt(e.target.value) || 0 }))}
+                value={form.eventPreGraceMin !== undefined ? form.eventPreGraceMin : ''}
+                onChange={(e) => setForm(prev => ({ ...prev, eventPreGraceMin: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 }))}
                 disabled={loading}
-                placeholder="15"
+                placeholder="0"
               />
             </div>
             <div>
@@ -267,10 +281,10 @@ export default function EventFormModal({
                 type="number"
                 min="0"
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={form.eventPostGraceMin ?? 0}
-                onChange={(e) => setForm(prev => ({ ...prev, eventPostGraceMin: parseInt(e.target.value) || 0 }))}
+                value={form.eventPostGraceMin !== undefined ? form.eventPostGraceMin : ''}
+                onChange={(e) => setForm(prev => ({ ...prev, eventPostGraceMin: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 }))}
                 disabled={loading}
-                placeholder="15"
+                placeholder="0"
               />
             </div>
           </div>
@@ -278,7 +292,7 @@ export default function EventFormModal({
           {/* Place (dropdown) */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              Place <span className="text-gray-400 font-normal">(optional — leave empty to enter Geo Override)</span>
+              Place <span className="text-gray-400 font-normal">(optional — or set coordinates below)</span>
             </label>
             <select
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -299,8 +313,8 @@ export default function EventFormModal({
               Geo Override
               {!form.placeId && <span className="text-red-500 ml-1">*</span>}
               {form.placeId
-                ? <span className="text-gray-400 font-normal ml-1">(optional — overrides place geo if filled)</span>
-                : <span className="text-gray-400 font-normal ml-1">(required when no place is selected)</span>
+                ? <span className="text-gray-400 font-normal ml-1">(optional — overrides place location)</span>
+                : <span className="text-gray-400 font-normal ml-1">(required if no place selected)</span>
               }
             </span>
             <div className="grid grid-cols-2 gap-3">
@@ -309,11 +323,13 @@ export default function EventFormModal({
                 <input
                   type="number"
                   step="any"
+                  min="-90"
+                  max="90"
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   value={geoLat}
                   onChange={(e) => { setGeoLat(e.target.value); setFormErrorMsg(null); }}
                   disabled={loading}
-                  placeholder="24.8607"
+                  placeholder="e.g. -90 to 90"
                 />
               </div>
               <div>
@@ -321,11 +337,13 @@ export default function EventFormModal({
                 <input
                   type="number"
                   step="any"
+                  min="-180"
+                  max="180"
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   value={geoLng}
                   onChange={(e) => { setGeoLng(e.target.value); setFormErrorMsg(null); }}
                   disabled={loading}
-                  placeholder="67.0011"
+                  placeholder="e.g. -180 to 180"
                 />
               </div>
             </div>
@@ -333,7 +351,7 @@ export default function EventFormModal({
 
           {/* Is Active */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-700">Is Active</span>
+            <span className="text-xs font-medium text-gray-700">Active</span>
             <button
               type="button"
               onClick={() => setForm(prev => ({ ...prev, isActive: !prev.isActive }))}
@@ -348,6 +366,20 @@ export default function EventFormModal({
                 }`}
               />
             </button>
+          </div>
+
+          {/* Mode (read-only dropdown, driven by selected Validation Config) */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Mode</label>
+            <select
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+              value={mode}
+              onChange={() => {}}
+            >
+              {(['CHECKIN', 'DWELL', 'QR_CODE', 'CODE_PHRASE', 'ACCRUAL', 'HYBRID'] as ValidationMode[]).map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
 
           {/* Validation Config Selector */}
@@ -377,20 +409,6 @@ export default function EventFormModal({
 
           {/* Validation Config Fields */}
           <div className="space-y-4">
-            {/* Mode */}
-            <div className="border-t border-gray-200 pt-3">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Mode *</label>
-              <select
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={mode}
-                onChange={(e) => { setVcField('mode', e.target.value as ValidationMode); setFormErrorMsg(null); }}
-                disabled={loading}
-              >
-                {(['CHECKIN', 'DWELL', 'QR_CODE', 'CODE_PHRASE', 'ACCRUAL', 'HYBRID'] as ValidationMode[]).map((m) => (
-                  <option key={m} value={m}>{m.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
 
             {/* Geofence */}
             <div className="space-y-3 border-t border-gray-200 pt-3">

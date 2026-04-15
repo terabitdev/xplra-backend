@@ -50,7 +50,7 @@ export default function ValidationConfigFormModal({
         maxCodeAttempts: undefined,
         codeAttemptWindowSec: undefined,
         maxActiveSessionsPerUser: undefined,
-        denyIfMockLocationSuspected: true,
+        denyIfMockLocationSuspected: false,
         auditLogLevel: 'basic',
       });
     }

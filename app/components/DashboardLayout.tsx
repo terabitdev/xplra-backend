@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
     hideSearch?: boolean;
 }
 
-export default function DashboardLayout({ children, hideSearch = false }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, hideSearch = true }: DashboardLayoutProps) {
     const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
 
     return (

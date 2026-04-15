@@ -298,6 +298,15 @@ export default function PlaceFormModal({
     if (!place.name?.trim()) missing.push('Name');
     if (!place.geo?.lat) missing.push('Latitude');
     if (!place.geo?.lng) missing.push('Longitude');
+    if (place.geo?.lat && (place.geo.lat < -90 || place.geo.lat > 90)) {
+      setFormErrorMsg('Latitude must be between -90 and 90');
+      return false;
+    }
+    if (place.geo?.lng && (place.geo.lng < -180 || place.geo.lng > 180)) {
+      setFormErrorMsg('Longitude must be between -180 and 180');
+      return false;
+    }
+    if (place.xp === undefined || place.xp === null || place.xp === 0) missing.push('XP');
     if (!place.description?.trim()) missing.push('Description');
     if (!place.categorySelections || place.categorySelections.length === 0) missing.push('Categories');
 
@@ -404,6 +413,8 @@ export default function PlaceFormModal({
               <input
                 type="number"
                 step="any"
+                min="-90"
+                max="90"
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={place.geo?.lat || ''}
                 onChange={(e) => {
@@ -413,7 +424,7 @@ export default function PlaceFormModal({
                   if (formErrorMsg) setFormErrorMsg(null);
                 }}
                 disabled={loading}
-                placeholder="24.8607"
+                placeholder="e.g. -90 to 90"
               />
             </div>
             <div>
@@ -421,6 +432,8 @@ export default function PlaceFormModal({
               <input
                 type="number"
                 step="any"
+                min="-180"
+                max="180"
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={place.geo?.lng || ''}
                 onChange={(e) => {
@@ -430,7 +443,7 @@ export default function PlaceFormModal({
                   if (formErrorMsg) setFormErrorMsg(null);
                 }}
                 disabled={loading}
-                placeholder="67.0011"
+                placeholder="e.g. -180 to 180"
               />
             </div>
           </div>
@@ -594,8 +607,8 @@ export default function PlaceFormModal({
                 type="number"
                 min="0"
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={place.xp || ''}
-                onChange={(e) => setPlace(prev => ({ ...prev, xp: parseInt(e.target.value) || 0 }))}
+                value={place.xp !== undefined && place.xp !== null ? place.xp : ''}
+                onChange={(e) => setPlace(prev => ({ ...prev, xp: e.target.value === '' ? undefined : (parseInt(e.target.value) || 0) }))}
                 disabled={loading}
                 placeholder="100"
               />

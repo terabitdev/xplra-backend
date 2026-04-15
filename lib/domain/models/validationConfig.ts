@@ -52,4 +52,7 @@ export interface ValidationConfig {
 
     createdAt: string;
     updatedAt: string;
+
+    // Computed (from list API)
+    placesCount?: number;
 }

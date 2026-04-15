@@ -121,22 +121,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       );
     }
 
-    // Check if any places reference this config
-    const placesSnapshot = await adminDb.collection('places')
-      .where('validationConfigId', '==', configId)
-      .get();
-
-    if (!placesSnapshot.empty) {
-      const placeNames = placesSnapshot.docs.map(d => d.data().name || d.id);
-      return NextResponse.json(
-        {
-          error: `Cannot delete: this config is used by ${placesSnapshot.size} place(s)`,
-          referencedPlaces: placeNames,
-        },
-        { status: 409 }
-      );
-    }
-
     await docRef.delete();
 
     return NextResponse.json({

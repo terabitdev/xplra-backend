@@ -52,6 +52,7 @@ export default function Sidebar() {
     { href: "/contributions", icon: Checkmark, label: "Contributions" },
     { href: "/users", icon: User, label: "Users" },
     { href: "/categories", icon: Tag, label: "Categories" },
+    { href: "/quest-categories", icon: Tag, label: "Quest Categories" },
     { href: "/validation-configs", icon: Settings, label: "Validation Configs" },
   ];
 
