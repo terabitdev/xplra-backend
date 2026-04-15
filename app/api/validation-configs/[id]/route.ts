@@ -57,16 +57,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    // Only validate checkInRequiredPings constraint when it is explicitly provided in the request
-    if (body.checkInRequiredPings !== undefined) {
-      const minSamples = body.minAcceptedSamplesToLock ?? doc.data()?.minAcceptedSamplesToLock;
-      if (body.checkInRequiredPings < minSamples) {
-        return NextResponse.json(
-          { error: 'checkInRequiredPings must be >= minAcceptedSamplesToLock' },
-          { status: 400 }
-        );
-      }
-    }
 
     // Check how many places use this config
     const placesSnapshot = await adminDb.collection('places')

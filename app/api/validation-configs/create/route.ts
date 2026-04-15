@@ -21,13 +21,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate checkInRequiredPings >= minAcceptedSamplesToLock
-    if (body.checkInRequiredPings < body.minAcceptedSamplesToLock) {
-      return NextResponse.json(
-        { error: 'checkInRequiredPings must be >= minAcceptedSamplesToLock' },
-        { status: 400 }
-      );
-    }
 
     const configId = `vc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 

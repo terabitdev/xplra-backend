@@ -206,7 +206,7 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Min Accepted Samples *</label>
-                <input type="number" min="1" className={`${inputClass} ${errors.minAcceptedSamplesToLock ? 'border-red-400' : ''}`} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 2" />
+                <input type="number" min="1" className={`${inputClass} ${errors.minAcceptedSamplesToLock ? 'border-red-400' : ''}`} value={form.minAcceptedSamplesToLock ?? ''} onChange={(e) => setField('minAcceptedSamplesToLock', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="e.g. 2" />
               </div>
               <div>
                 <label className={labelClass}>Ping Interval (sec) *</label>
@@ -233,15 +233,15 @@ export default function ValidationConfigFormModal({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Dwell Required (sec) *</label>
-                <input type="number" min="0" className={`${inputClass} ${errors.dwellRequiredSec ? 'border-red-400' : ''}`} value={form.dwellRequiredSec ?? ''} onChange={(e) => setField('dwellRequiredSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 300" />
+                <input type="number" min="0" className={`${inputClass} ${errors.dwellRequiredSec ? 'border-red-400' : ''}`} value={form.dwellRequiredSec ?? ''} onChange={(e) => setField('dwellRequiredSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="e.g. 300" />
               </div>
               <div>
                 <label className={labelClass}>Grace Consecutive Outside (sec) *</label>
-                <input type="number" min="0" className={`${inputClass} ${errors.graceConsecutiveOutsideSec ? 'border-red-400' : ''}`} value={form.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setField('graceConsecutiveOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 60" />
+                <input type="number" min="0" className={`${inputClass} ${errors.graceConsecutiveOutsideSec ? 'border-red-400' : ''}`} value={form.graceConsecutiveOutsideSec ?? ''} onChange={(e) => setField('graceConsecutiveOutsideSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="e.g. 60" />
               </div>
               <div>
                 <label className={labelClass}>Grace Total Outside (sec) *</label>
-                <input type="number" min="0" className={`${inputClass} ${errors.graceTotalOutsideSec ? 'border-red-400' : ''}`} value={form.graceTotalOutsideSec ?? ''} onChange={(e) => setField('graceTotalOutsideSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 120" />
+                <input type="number" min="0" className={`${inputClass} ${errors.graceTotalOutsideSec ? 'border-red-400' : ''}`} value={form.graceTotalOutsideSec ?? ''} onChange={(e) => setField('graceTotalOutsideSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="e.g. 120" />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
