@@ -227,7 +227,6 @@ export default function ValidationConfigsPage() {
                     <tr key={config.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{config.name}</p>
-                        <p className="text-xs text-gray-500">Used by {config.placesCount || 0} place(s)</p>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-gray-700 text-xs">{config.radiusM}m / {config.minAccuracyM}m acc</span>

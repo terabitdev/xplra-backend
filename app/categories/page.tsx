@@ -378,8 +378,8 @@ export default function CategoriesPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Categories Management</h1>
-                        <p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage your categories</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Place Categories</h1>
+                        <p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage your place categories</p>
                     </div>
                     <button
                         className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
