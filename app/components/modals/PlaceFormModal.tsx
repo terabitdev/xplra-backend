@@ -724,7 +724,7 @@ export default function PlaceFormModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Time to Validate (sec) *</label>
-                  <input type="number" min="5" max="20" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 10" />
                 </div>
               </div>
             </div>

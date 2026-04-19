@@ -285,19 +285,9 @@ export default function EventsPage() {
                   )}
 
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {event.validationConfig?.mode && (
-                      <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[10px] font-medium">
-                        {event.validationConfig.mode.replace('_', ' ')}
-                      </span>
-                    )}
                     {event.geoOverride && (
                       <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">
                         Geo Override
-                      </span>
-                    )}
-                    {event.validationConfigId && (
-                      <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px]">
-                        Validation Config
                       </span>
                     )}
                     <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">
@@ -345,18 +335,6 @@ export default function EventsPage() {
                     >
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{event.title}</p>
-                        <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {event.validationConfig?.mode && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded font-medium">
-                              {event.validationConfig.mode.replace('_', ' ')}
-                            </span>
-                          )}
-                          {event.validationConfigId && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded">
-                              Has Config
-                            </span>
-                          )}
-                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">
                         {formatDateTime(event.startTime)}

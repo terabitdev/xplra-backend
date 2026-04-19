@@ -13,14 +13,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate timeToValidateSec range (5-20)
-    if (body.timeToValidateSec < 5 || body.timeToValidateSec > 20) {
-      return NextResponse.json(
-        { error: 'timeToValidateSec must be between 5 and 20 seconds' },
-        { status: 400 }
-      );
-    }
-
 
     const configId = `vc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 

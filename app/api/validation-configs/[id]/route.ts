@@ -49,15 +49,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    // Validate timeToValidateSec range if provided
-    if (body.timeToValidateSec !== undefined && (body.timeToValidateSec < 5 || body.timeToValidateSec > 20)) {
-      return NextResponse.json(
-        { error: 'timeToValidateSec must be between 5 and 20 seconds' },
-        { status: 400 }
-      );
-    }
-
-
     // Check how many places use this config
     const placesSnapshot = await adminDb.collection('places')
       .where('validationConfigId', '==', configId)

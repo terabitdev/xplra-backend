@@ -29,7 +29,7 @@ export default function QuestCategoryFormModal({
       setForm({
         name: '',
         priority: undefined,
-        isActive: false,
+        isActive: true,
       });
     }
     setErrors({});

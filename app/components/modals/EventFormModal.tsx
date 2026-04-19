@@ -69,7 +69,15 @@ export default function EventFormModal({
         setGeoLng('');
       }
       if (initialEvent.validationConfig) {
-        setVcForm({ ...initialEvent.validationConfig });
+        // Prefer inline snapshot (has the user's saved mode + field values)
+        const inline = initialEvent.validationConfig;
+        if (initialEvent.validationConfigId) {
+          const vc = availableValidationConfigs.find(c => c.id === initialEvent.validationConfigId);
+          // Merge: live VC fields as base, inline overrides (mode + any edited values)
+          setVcForm({ ...(vc || {}), ...inline });
+        } else {
+          setVcForm({ ...inline });
+        }
       } else if (initialEvent.validationConfigId) {
         const vc = availableValidationConfigs.find(c => c.id === initialEvent.validationConfigId);
         setVcForm(vc ? { ...vc } : {});
@@ -94,7 +102,7 @@ export default function EventFormModal({
       setVcForm({ mode: 'CHECKIN' });
     }
     setFormErrorMsg(null);
-  }, [initialEvent, isOpen]);
+  }, [initialEvent, isOpen, availableValidationConfigs]);
 
   const handlePlaceSelect = (placeId: string) => {
     const pid = placeId || null;
@@ -166,6 +174,15 @@ export default function EventFormModal({
     for (const { key, label } of [...alwaysRequired, ...samplingRequired, ...dwellRequired]) {
       const val = vcForm[key];
       if (val === undefined || val === null || val === '') missing.push(label);
+    }
+
+    // Availability Window validation (when schedule window is enabled)
+    if (vcForm.useScheduleWindow) {
+      if (!vcForm.schedule?.startTime) missing.push('Schedule Start Time');
+      if (!vcForm.schedule?.endTime) missing.push('Schedule End Time');
+      if (!vcForm.schedule?.daysOfWeek || vcForm.schedule.daysOfWeek.length === 0) {
+        missing.push('Days of Week');
+      }
     }
 
     if (missing.length > 0) {
@@ -368,13 +385,14 @@ export default function EventFormModal({
             </button>
           </div>
 
-          {/* Mode (read-only dropdown, driven by selected Validation Config) */}
+          {/* Mode */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Mode</label>
             <select
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
               value={mode}
-              onChange={() => {}}
+              onChange={(e) => setVcField('mode', e.target.value as ValidationMode)}
+              disabled={loading}
             >
               {(['CHECKIN', 'DWELL', 'QR_CODE', 'CODE_PHRASE', 'ACCRUAL', 'HYBRID'] as ValidationMode[]).map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -393,9 +411,9 @@ export default function EventFormModal({
                 setForm(prev => ({ ...prev, validationConfigId: selectedId }));
                 if (selectedId) {
                   const vc = availableValidationConfigs.find(c => c.id === selectedId);
-                  if (vc) setVcForm({ ...vc });
+                  if (vc) setVcForm(prev => ({ ...vc, mode: prev.mode }));
                 } else {
-                  setVcForm({});
+                  setVcForm(prev => ({ mode: prev.mode }));
                 }
               }}
               disabled={loading}
@@ -434,7 +452,7 @@ export default function EventFormModal({
             </div>
 
             {/* Sampling & Timing */}
-            {showSampling && <div className="space-y-3 border-t border-gray-200 pt-3">
+            <div className="space-y-3 border-t border-gray-200 pt-3">
               <h3 className="text-sm font-semibold text-gray-800">Sampling & Timing</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
@@ -455,13 +473,13 @@ export default function EventFormModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Time to Validate (sec) *</label>
-                  <input type="number" min="5" max="20" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 10" />
                 </div>
               </div>
-            </div>}
+            </div>
 
             {/* Dwell */}
-            {showDwell && <div className="space-y-3 border-t border-gray-200 pt-3">
+            <div className="space-y-3 border-t border-gray-200 pt-3">
               <h3 className="text-sm font-semibold text-gray-800">Dwell</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
@@ -481,7 +499,7 @@ export default function EventFormModal({
                 <input type="checkbox" checked={vcForm.requireInsideOnComplete ?? false} onChange={(e) => setVcField('requireInsideOnComplete', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
                 Require Inside On Complete
               </label>
-            </div>}
+            </div>
 
             {/* Availability Window */}
             <div className="space-y-3 border-t border-gray-200 pt-3">
@@ -494,16 +512,16 @@ export default function EventFormModal({
                 <div className="ml-6 space-y-2">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Start Time</label>
-                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.startTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } }))} disabled={loading} />
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Start Time *</label>
+                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.startTime || ''} onChange={(e) => { setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, startTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">End Time</label>
-                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.endTime || ''} onChange={(e) => setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } }))} disabled={loading} />
+                      <label className="block text-xs font-medium text-gray-600 mb-1">End Time *</label>
+                      <input type="time" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.schedule?.endTime || ''} onChange={(e) => { setVcForm(prev => ({ ...prev, schedule: { ...prev.schedule, endTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Days of Week</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Days of Week *</label>
                     <div className="flex gap-1.5">
                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((name, i) => (
                         <button key={i} type="button" onClick={() => {
@@ -532,7 +550,7 @@ export default function EventFormModal({
             </div>
 
             {/* QR / Code Gating */}
-            {showQr && <div className="space-y-3 border-t border-gray-200 pt-3">
+            <div className="space-y-3 border-t border-gray-200 pt-3">
               <h3 className="text-sm font-semibold text-gray-800">QR / Code Gating</h3>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => setVcField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
@@ -554,7 +572,7 @@ export default function EventFormModal({
                   </div>
                 </div>
               )}
-            </div>}
+            </div>
 
             {/* Fraud & Limits */}
             <div className="space-y-3 border-t border-gray-200 pt-3">
