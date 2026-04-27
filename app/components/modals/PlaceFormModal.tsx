@@ -333,6 +333,12 @@ export default function PlaceFormModal({
       }
     }
 
+    if (vcForm.requireQrOrCode) {
+      if (vcForm.qrTokenTtlSec === undefined || vcForm.qrTokenTtlSec === null) missing.push('QR Token TTL (sec)');
+      if (vcForm.maxCodeAttempts === undefined || vcForm.maxCodeAttempts === null) missing.push('Max Code Attempts');
+      if (vcForm.codeAttemptWindowSec === undefined || vcForm.codeAttemptWindowSec === null) missing.push('Code Attempt Window (sec)');
+    }
+
     if (missing.length > 0) {
       setFormErrorMsg(`Please fill: ${missing.join(', ')}`);
       return false;
@@ -724,7 +730,7 @@ export default function PlaceFormModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Time to Validate (sec) *</label>
-                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="e.g. 10" />
+                  <input type="number" min="5" max="20" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.timeToValidateSec ?? ''} onChange={(e) => setVcField('timeToValidateSec', parseInt(e.target.value) || 0)} disabled={loading} placeholder="5-20" />
                 </div>
               </div>
             </div>
@@ -804,22 +810,32 @@ export default function PlaceFormModal({
             <div className="space-y-3 border-t border-gray-200 pt-3">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">QR / Code Gating</h3>
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => setVcField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                <input type="checkbox" checked={vcForm.requireQrOrCode ?? false} onChange={(e) => {
+                  const checked = e.target.checked;
+                  setVcForm(prev => ({
+                    ...prev,
+                    requireQrOrCode: checked,
+                    qrTokenTtlSec: checked && !prev.qrTokenTtlSec ? undefined : prev.qrTokenTtlSec,
+                    maxCodeAttempts: checked && !prev.maxCodeAttempts ? undefined : prev.maxCodeAttempts,
+                    codeAttemptWindowSec: checked && !prev.codeAttemptWindowSec ? undefined : prev.codeAttemptWindowSec,
+                  }));
+                  setFormErrorMsg(null);
+                }} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
                 Require QR or Code
               </label>
               {vcForm.requireQrOrCode && (
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">QR Token TTL (sec) *</label>
-                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.qrTokenTtlSec ?? ''} onChange={(e) => setVcField('qrTokenTtlSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Max Code Attempts *</label>
-                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', parseInt(e.target.value) || 0)} disabled={loading} />
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Code Attempt Window (sec) *</label>
-                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', parseInt(e.target.value) || 0)} disabled={loading} />
+                    <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.codeAttemptWindowSec ?? ''} onChange={(e) => setVcField('codeAttemptWindowSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                   </div>
                 </div>
               )}

@@ -13,6 +13,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (body.timeToValidateSec < 5 || body.timeToValidateSec > 20) {
+      return NextResponse.json(
+        { error: 'timeToValidateSec must be between 5 and 20 seconds' },
+        { status: 400 }
+      );
+    }
+
 
     const configId = `vc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -50,9 +57,9 @@ export async function POST(req: Request) {
 
       // QR / Code gating
       requireQrOrCode: body.requireQrOrCode ?? false,
-      qrTokenTtlSec: body.qrTokenTtlSec ?? 0,
-      maxCodeAttempts: body.maxCodeAttempts ?? 0,
-      codeAttemptWindowSec: body.codeAttemptWindowSec ?? 0,
+      qrTokenTtlSec: body.qrTokenTtlSec ?? null,
+      maxCodeAttempts: body.maxCodeAttempts ?? null,
+      codeAttemptWindowSec: body.codeAttemptWindowSec ?? null,
 
       // Fraud & limits
       maxActiveSessionsPerUser: body.maxActiveSessionsPerUser ?? 1,

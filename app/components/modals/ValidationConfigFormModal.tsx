@@ -87,6 +87,10 @@ export default function ValidationConfigFormModal({
       }
     }
 
+    if (form.timeToValidateSec !== undefined && (form.timeToValidateSec < 5 || form.timeToValidateSec > 20)) {
+      errs.timeToValidateSec = 'Must be between 5 and 20 seconds';
+    }
+
     if (form.useScheduleWindow) {
       if (!form.schedule?.startTime) {
         errs.startTime = 'Start time is required';
@@ -99,6 +103,21 @@ export default function ValidationConfigFormModal({
       if (!form.schedule?.daysOfWeek || form.schedule.daysOfWeek.length === 0) {
         errs.daysOfWeek = 'Select at least one day';
         missing.push('Days of Week');
+      }
+    }
+
+    if (form.requireQrOrCode) {
+      if (form.qrTokenTtlSec === undefined || form.qrTokenTtlSec === null) {
+        errs.qrTokenTtlSec = 'Required';
+        missing.push('QR Token TTL (sec)');
+      }
+      if (form.maxCodeAttempts === undefined || form.maxCodeAttempts === null) {
+        errs.maxCodeAttempts = 'Required';
+        missing.push('Max Code Attempts');
+      }
+      if (form.codeAttemptWindowSec === undefined || form.codeAttemptWindowSec === null) {
+        errs.codeAttemptWindowSec = 'Required';
+        missing.push('Code Attempt Window (sec)');
       }
     }
 
@@ -231,7 +250,7 @@ export default function ValidationConfigFormModal({
               </div>
               <div>
                 <label className={labelClass}>Time to Validate (sec) *</label>
-                <input type="number" min="0" className={`${inputClass} ${errors.timeToValidateSec ? 'border-red-400' : ''}`} value={form.timeToValidateSec ?? ''} onChange={(e) => setField('timeToValidateSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="e.g. 10" />
+                <input type="number" min="5" max="20" className={`${inputClass} ${errors.timeToValidateSec ? 'border-red-400' : ''}`} value={form.timeToValidateSec ?? ''} onChange={(e) => setField('timeToValidateSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} placeholder="5-20" />
               </div>
             </div>
           </div>
@@ -320,22 +339,33 @@ export default function ValidationConfigFormModal({
           <div className={sectionClass}>
             <h3 className={sectionTitle}>QR / Code Gating</h3>
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={form.requireQrOrCode ?? false} onChange={(e) => setField('requireQrOrCode', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              <input type="checkbox" checked={form.requireQrOrCode ?? false} onChange={(e) => {
+                const checked = e.target.checked;
+                setForm(prev => ({
+                  ...prev,
+                  requireQrOrCode: checked,
+                  qrTokenTtlSec: checked && !prev.qrTokenTtlSec ? undefined : prev.qrTokenTtlSec,
+                  maxCodeAttempts: checked && !prev.maxCodeAttempts ? undefined : prev.maxCodeAttempts,
+                  codeAttemptWindowSec: checked && !prev.codeAttemptWindowSec ? undefined : prev.codeAttemptWindowSec,
+                }));
+                setErrors(prev => ({ ...prev, qrTokenTtlSec: '', maxCodeAttempts: '', codeAttemptWindowSec: '' }));
+                setFormErrorMsg(null);
+              }} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
               Require QR or Code
             </label>
             {form.requireQrOrCode && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>QR Token TTL (sec) *</label>
-                  <input type="number" min="0" className={inputClass} value={form.qrTokenTtlSec ?? ''} onChange={(e) => setField('qrTokenTtlSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
+                  <input type="number" min="0" className={`${inputClass} ${errors.qrTokenTtlSec ? 'border-red-400' : ''}`} value={form.qrTokenTtlSec ?? ''} onChange={(e) => setField('qrTokenTtlSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                 </div>
                 <div>
                   <label className={labelClass}>Max Code Attempts *</label>
-                  <input type="number" min="0" className={inputClass} value={form.maxCodeAttempts ?? ''} onChange={(e) => setField('maxCodeAttempts', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
+                  <input type="number" min="0" className={`${inputClass} ${errors.maxCodeAttempts ? 'border-red-400' : ''}`} value={form.maxCodeAttempts ?? ''} onChange={(e) => setField('maxCodeAttempts', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                 </div>
                 <div>
                   <label className={labelClass}>Code Attempt Window (sec) *</label>
-                  <input type="number" min="0" className={inputClass} value={form.codeAttemptWindowSec ?? ''} onChange={(e) => setField('codeAttemptWindowSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
+                  <input type="number" min="0" className={`${inputClass} ${errors.codeAttemptWindowSec ? 'border-red-400' : ''}`} value={form.codeAttemptWindowSec ?? ''} onChange={(e) => setField('codeAttemptWindowSec', e.target.value === '' ? undefined : parseInt(e.target.value))} disabled={loading} />
                 </div>
               </div>
             )}
