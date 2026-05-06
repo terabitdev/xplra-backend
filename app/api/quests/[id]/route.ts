@@ -1,125 +1,202 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { Quest } from '@/lib/domain/models/quest';
 import admin from '@/lib/firebase-admin';
+import ngeohash from 'ngeohash';
+import { reverseGeocode } from '@/lib/utils/geocoding';
+import { Quest } from '@/lib/domain/models/quest';
+
+const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
+
+function parseGeoPoint(geoField: Record<string, unknown> | null | undefined): { lat: number; lng: number } {
+  if (!geoField) return { lat: 0, lng: 0 };
+  const gp = geoField.geopoint as { latitude?: number; longitude?: number } | null;
+  if (gp) return { lat: gp.latitude ?? 0, lng: gp.longitude ?? 0 };
+  return { lat: (geoField.lat as number) ?? 0, lng: (geoField.lng as number) ?? 0 };
+}
+
+async function upsertQuestMeta(location: string, lat: number, lng: number): Promise<void> {
+  await adminDb.collection('meta').doc('quest_locations').set(
+    { locations: { [location]: { lat, lng } } },
+    { merge: true }
+  );
+}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const questId = params.id;
-
-    // Get quest document directly by ID
-    const questDoc = await adminDb.collection('adminQuests').doc(questId).get();
-
+    const questDoc = await adminDb.collection('questCatalogue').doc(params.id).get();
     if (!questDoc.exists) {
-      return NextResponse.json(
-        { error: 'Quest not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Quest not found' }, { status: 404 });
     }
-
-    const data = questDoc.data();
+    const d = questDoc.data()!;
     const quest: Quest = {
-      questId: data?.questId || questDoc.id,
-      placeId: data?.placeId || null,
-      title: data?.title || '',
-      description: data?.description || '',
-      type: data?.type || 'checkin_time',
-      requirements: data?.requirements || {},
-      xpReward: data?.xpReward || 0,
-      cooldownSeconds: data?.cooldownSeconds || 3600,
-      active: data?.active ?? true,
-      startAt: data?.startAt,
-      endAt: data?.endAt,
-      createdAt: data?.createdAt?.toDate?.()?.toISOString() || data?.createdAt,
-      updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || data?.updatedAt,
+      id: d.id || questDoc.id,
+      categoryId: d.categoryId || '',
+      title: d.title || '',
+      description: d.description || '',
+      xp: d.xp ?? 0,
+      type: d.type || 'checkin',
+      isActive: d.isActive ?? true,
+      visibility: { hideAfterOneTimeCompletion: d.visibility?.hideAfterOneTimeCompletion ?? false },
+      placeId: d.placeId || null,
+      location: d.location || '',
+      geoOverride: d.geoOverride ? parseGeoPoint(d.geoOverride) : null,
+      resolvedGeo: parseGeoPoint(d.resolvedGeo),
+      validationConfigId: d.validationConfigId || null,
+      validationConfig: d.validationConfig || null,
+      createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
+      updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
     };
-
     return NextResponse.json(quest);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get quest error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch quest' },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : 'Failed to fetch quest';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const questData = await req.json();
+    const body = await req.json();
     const questId = params.id;
 
-    // Get quest document
-    const questDocRef = adminDb.collection('adminQuests').doc(questId);
+    const questDocRef = adminDb.collection('questCatalogue').doc(questId);
     const questDoc = await questDocRef.get();
-
     if (!questDoc.exists) {
+      return NextResponse.json({ error: 'Quest not found' }, { status: 404 });
+    }
+
+    // Validate required fields
+    const missing: string[] = [];
+    if (!body.categoryId?.trim()) missing.push('categoryId');
+    if (!body.title?.trim()) missing.push('title');
+    if (!body.description?.trim()) missing.push('description');
+    if (body.xp === undefined || body.xp === null) missing.push('xp');
+    if (!body.type) missing.push('type');
+    if (body.isActive === undefined || body.isActive === null) missing.push('isActive');
+    if (!body.visibility || body.visibility.hideAfterOneTimeCompletion === undefined) {
+      missing.push('visibility.hideAfterOneTimeCompletion');
+    }
+    if (missing.length > 0) {
       return NextResponse.json(
-        { error: 'Quest not found' },
-        { status: 404 }
+        { error: `Missing required fields: ${missing.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    if (!VALID_TYPES.includes(body.type)) {
+      return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+    }
+
+    // Resolve geo + location
+    let resolvedLat: number;
+    let resolvedLng: number;
+    let location: string;
+
+    if (body.geoOverride?.lat !== undefined && body.geoOverride?.lng !== undefined) {
+      resolvedLat = Number(body.geoOverride.lat);
+      resolvedLng = Number(body.geoOverride.lng);
+      const geocoded = await reverseGeocode(resolvedLat, resolvedLng);
+      if (!geocoded) {
+        return NextResponse.json(
+          { error: 'Location could not be determined, adjust coordinates' },
+          { status: 400 }
+        );
+      }
+      location = geocoded;
+    } else if (body.placeId) {
+      const placeDoc = await adminDb.collection('places').doc(body.placeId).get();
+      if (!placeDoc.exists) {
+        return NextResponse.json({ error: 'Place not found' }, { status: 404 });
+      }
+      const pd = placeDoc.data()!;
+      const geopoint = pd.geo?.geopoint;
+      resolvedLat = geopoint ? geopoint.latitude : (pd.geo?.lat || 0);
+      resolvedLng = geopoint ? geopoint.longitude : (pd.geo?.lng || 0);
+      location = pd.location || '';
+      if (!location) {
+        return NextResponse.json(
+          { error: 'Location could not be determined, adjust coordinates' },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'Either placeId or geoOverride is required to resolve location' },
+        { status: 400 }
       );
     }
 
-    // Update the quest with new data
-    const updatedQuest: Partial<Quest> = {
-      placeId: questData.placeId ?? null,
-      title: questData.title,
-      description: questData.description,
-      type: questData.type,
-      requirements: questData.requirements || {},
-      xpReward: questData.xpReward,
-      cooldownSeconds: questData.cooldownSeconds,
-      active: questData.active,
-      startAt: questData.startAt || undefined,
-      endAt: questData.endAt || undefined,
-      updatedAt: new Date().toISOString(),
+    const geohash = ngeohash.encode(resolvedLat, resolvedLng, 9);
+    const resolvedGeoFirestore = {
+      geopoint: new admin.firestore.GeoPoint(resolvedLat, resolvedLng),
+      geohash,
+    };
+    const geoOverrideFirestore =
+      body.geoOverride?.lat !== undefined
+        ? {
+            geopoint: new admin.firestore.GeoPoint(
+              Number(body.geoOverride.lat),
+              Number(body.geoOverride.lng)
+            ),
+            geohash: ngeohash.encode(
+              Number(body.geoOverride.lat),
+              Number(body.geoOverride.lng),
+              9
+            ),
+          }
+        : null;
+
+    const updateData: Record<string, unknown> = {
+      categoryId: body.categoryId.trim(),
+      title: body.title.trim(),
+      description: body.description.trim(),
+      xp: Number(body.xp),
+      type: body.type,
+      isActive: Boolean(body.isActive),
+      visibility: {
+        hideAfterOneTimeCompletion: Boolean(body.visibility.hideAfterOneTimeCompletion),
+      },
+      placeId: body.placeId || null,
+      location,
+      geoOverride: geoOverrideFirestore,
+      resolvedGeo: resolvedGeoFirestore,
+      validationConfigId: body.validationConfigId || null,
+      validationConfig: body.validationConfig || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // Update the document
-    await questDocRef.update({
-      ...updatedQuest,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await questDocRef.update(updateData);
+    await upsertQuestMeta(location, resolvedLat, resolvedLng);
 
     return NextResponse.json({
       message: 'Quest updated successfully',
-      quest: { questId, ...updatedQuest },
+      quest: {
+        id: questId,
+        ...updateData,
+        geoOverride: geoOverrideFirestore
+          ? { lat: Number(body.geoOverride.lat), lng: Number(body.geoOverride.lng) }
+          : null,
+        resolvedGeo: { lat: resolvedLat, lng: resolvedLng },
+      },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update quest error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update quest' },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : 'Failed to update quest';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const questId = params.id;
-
-    // Get quest document
-    const questDocRef = adminDb.collection('adminQuests').doc(questId);
+    const questDocRef = adminDb.collection('questCatalogue').doc(params.id);
     const questDoc = await questDocRef.get();
-
     if (!questDoc.exists) {
-      return NextResponse.json(
-        { error: 'Quest not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Quest not found' }, { status: 404 });
     }
-
-    // Delete the quest document
     await questDocRef.delete();
-
-    return NextResponse.json({
-      message: 'Quest deleted successfully',
-    });
-  } catch (error: any) {
+    return NextResponse.json({ message: 'Quest deleted successfully' });
+  } catch (error: unknown) {
     console.error('Delete quest error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete quest' },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : 'Failed to delete quest';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

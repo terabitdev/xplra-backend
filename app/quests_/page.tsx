@@ -18,11 +18,14 @@ import {
   clearError,
 } from "../store/slices/questsSlice";
 import { fetchPlaces } from "../store/slices/placesSlice";
+import { fetchQuestCategories } from "../store/slices/questCategoriesSlice";
+import { Quest } from "@/lib/domain/models/quest";
 
 export default function Quests_Page() {
   const dispatch = useDispatch<AppDispatch>();
   const { quests, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.quests);
   const { places } = useSelector((state: RootState) => state.places);
+  const { categories: questCategories } = useSelector((state: RootState) => state.questCategories);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest_ | null>(null);
@@ -32,18 +35,15 @@ export default function Quests_Page() {
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Check if data is stale (older than 5 minutes)
   const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
 
-  // Fetch quests on mount or when page changes
   useEffect(() => {
     if (quests.length === 0 || isDataStale || pagination.page !== currentPage) {
       dispatch(fetchQuests({ page: currentPage, limit: 20 }));
     }
-    if (places.length === 0) {
-      dispatch(fetchPlaces({}));
-    }
-  }, [dispatch, currentPage]);
+    if (places.length === 0) dispatch(fetchPlaces({}));
+    if (questCategories.length === 0) dispatch(fetchQuestCategories());
+  }, [dispatch, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -57,26 +57,36 @@ export default function Quests_Page() {
     }
   }, [error, dispatch]);
 
-  // Helper function to get place name from placeId
-  const getPlaceName = (placeId: string | null) => {
-    if (!placeId) return null;
-    const place = places.find(p => p.placeId === placeId);
-    return place?.name || placeId;
+  const getCategoryName = (categoryId: string) => {
+    if (!categoryId) return null;
+    return questCategories.find(c => c.id === categoryId)?.name || categoryId;
   };
 
-  const formatCooldown = (seconds: number) => {
-    if (seconds >= 86400) return `${Math.floor(seconds / 86400)}d`;
-    if (seconds >= 3600) return `${Math.floor(seconds / 3600)}h`;
-    if (seconds >= 60) return `${Math.floor(seconds / 60)}m`;
-    return `${seconds}s`;
+  const getPlaceName = (placeId: string | null | undefined) => {
+    if (!placeId) return null;
+    return places.find(p => p.placeId === placeId)?.name || placeId;
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      checkin: 'Check-In',
+      dwell: 'Dwell',
+      accrual: 'Accrual',
+      qrCode: 'QR Code',
+      codePhrase: 'Code Phrase',
+    };
+    return labels[type] || type;
   };
 
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      checkin_time: "bg-blue-100 text-blue-700",
-      qr_scan: "bg-emerald-100 text-emerald-700",
+      checkin: 'bg-blue-100 text-blue-700',
+      dwell: 'bg-violet-100 text-violet-700',
+      accrual: 'bg-cyan-100 text-cyan-700',
+      qrCode: 'bg-emerald-100 text-emerald-700',
+      codePhrase: 'bg-orange-100 text-orange-700',
     };
-    return colors[type] || "bg-gray-100 text-gray-700";
+    return colors[type] || 'bg-gray-100 text-gray-700';
   };
 
   const handleCreateQuest = useCallback(() => {
@@ -92,10 +102,10 @@ export default function Quests_Page() {
   const handleSubmitQuest = useCallback(async (quest: Quest_) => {
     try {
       if (selectedQuest) {
-        await dispatch(updateQuest(quest)).unwrap();
+        await dispatch(updateQuest(quest as unknown as Quest)).unwrap();
         setToast({ message: 'Quest updated successfully', type: 'success', isVisible: true });
       } else {
-        await dispatch(createQuest(quest)).unwrap();
+        await dispatch(createQuest(quest as unknown as Partial<Quest>)).unwrap();
         setToast({ message: 'Quest created successfully', type: 'success', isVisible: true });
       }
     } catch (err) {
@@ -115,7 +125,7 @@ export default function Quests_Page() {
     if (!questToDelete) return;
     setIsDeleting(true);
     try {
-      await dispatch(deleteQuest(questToDelete.questId)).unwrap();
+      await dispatch(deleteQuest(questToDelete.id)).unwrap();
       setToast({ message: 'Quest deleted successfully', type: 'success', isVisible: true });
     } catch (err) {
       const errorMessage = typeof err === 'string' ? err : 'Failed to delete quest';
@@ -154,11 +164,9 @@ export default function Quests_Page() {
 
         {loading && quests.length === 0 ? (
           <>
-            {/* Desktop Skeleton */}
             <div className="hidden lg:block">
-              <TableSkeleton rows={8} columns={8} />
+              <TableSkeleton rows={8} columns={7} />
             </div>
-            {/* Mobile Skeleton */}
             <div className="lg:hidden">
               <CardSkeleton count={6} />
             </div>
@@ -176,64 +184,49 @@ export default function Quests_Page() {
             {/* Mobile View */}
             <div className="lg:hidden space-y-2">
               {quests.map((quest) => (
-                <div key={quest.questId} className="bg-white rounded-lg border border-gray-200 p-3">
-                  {/* Header */}
+                <div key={quest.id} className="bg-white rounded-lg border border-gray-200 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">{quest.title}</h3>
-                    <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${quest.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                      {quest.active ? "Active" : "Inactive"}
+                    <span className={`shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${quest.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {quest.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-
-                  {/* Description */}
                   <p className="text-xs text-gray-500 line-clamp-2 mb-3">{quest.description}</p>
-
-                  {/* Info Grid */}
                   <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
                       <span className="text-gray-400 block text-[10px] mb-0.5">Type</span>
                       <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${getTypeColor(quest.type)}`}>
-                        {quest.type.replace("_", " ")}
+                        {getTypeLabel(quest.type)}
                       </span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">
-                        {quest.type === 'checkin_time' ? 'Min Time' : 'XP Reward'}
-                      </span>
-                      <span className={quest.type === 'checkin_time' ? 'text-blue-600 font-semibold' : 'text-amber-600 font-semibold'}>
-                        {quest.type === 'checkin_time'
-                          ? `${quest.requirements?.minTimeSeconds || 0}s`
-                          : `${quest.xpReward} XP`}
+                      <span className="text-gray-400 block text-[10px] mb-0.5">XP</span>
+                      <span className="text-amber-600 font-semibold">{quest.xp}</span>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+                      <span className="text-gray-400 block text-[10px] mb-0.5">Category</span>
+                      <span className="text-gray-700 font-medium truncate block">
+                        {getCategoryName(quest.categoryId) || <span className="text-gray-400">—</span>}
                       </span>
                     </div>
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">Cooldown</span>
-                      <span className="text-gray-700 font-medium">{formatCooldown(quest.cooldownSeconds)}</span>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">Place</span>
-                      <span className="text-gray-700 font-medium truncate block">{getPlaceName(quest.placeId) || <span className="text-gray-400">None</span>}</span>
+                      <span className="text-gray-400 block text-[10px] mb-0.5">Location</span>
+                      <span className="text-gray-700 font-medium truncate block">
+                        {quest.location || <span className="text-gray-400">—</span>}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Duration */}
-                  {(quest.startAt || quest.endAt) && (
+                  {quest.placeId && (
                     <div className="bg-gray-50 rounded-lg px-2.5 py-1.5 mb-2 text-xs">
-                      <span className="text-gray-400 block text-[10px] mb-0.5">Duration</span>
-                      <div className="text-gray-700 font-medium">
-                        {quest.startAt && <span>Start: {new Date(quest.startAt).toLocaleDateString()}</span>}
-                        {quest.startAt && quest.endAt && <span className="mx-1">—</span>}
-                        {quest.endAt && <span>End: {new Date(quest.endAt).toLocaleDateString()}</span>}
-                      </div>
+                      <span className="text-gray-400 block text-[10px] mb-0.5">Place</span>
+                      <span className="text-gray-700 font-medium">{getPlaceName(quest.placeId)}</span>
                     </div>
                   )}
-
-                  {/* Actions */}
                   <div className="flex gap-2 pt-2 border-t border-gray-100">
-                    <button onClick={() => handleEditQuest(quest as Quest_)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                    <button onClick={() => handleEditQuest(quest as unknown as Quest_)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
                       Edit
                     </button>
-                    <button onClick={() => handleDeleteClick(quest as Quest_)} className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                    <button onClick={() => handleDeleteClick(quest as unknown as Quest_)} className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
                       Delete
                     </button>
                   </div>
@@ -247,63 +240,65 @@ export default function Quests_Page() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Quest</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Category</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Type</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Place</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Min Time</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Cooldown</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Location</th>
+                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">XP</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Status</th>
-                    <th className="text-left font-medium text-gray-600 px-3 py-2.5">Duration</th>
                     <th className="text-center font-medium text-gray-600 px-3 py-2.5 w-20">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {quests.map((quest) => (
-                    <tr key={quest.questId} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={quest.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-gray-900">{quest.title}</p>
                         <p className="text-xs text-gray-500 truncate max-w-[180px]">{quest.description}</p>
                       </td>
                       <td className="px-3 py-2.5">
+                        <span className="text-xs text-gray-700">
+                          {getCategoryName(quest.categoryId) || <span className="text-gray-400">—</span>}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(quest.type)}`}>
-                          {quest.type.replace("_", " ")}
+                          {getTypeLabel(quest.type)}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="text-gray-700 text-xs">
-                          {getPlaceName(quest.placeId) || <span className="text-gray-400">None</span>}
+                        <span className="text-xs text-gray-600 truncate max-w-[140px] block">
+                          {quest.location || <span className="text-gray-400">—</span>}
                         </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        {quest.type === 'checkin_time' ? (
-                          <span className="font-medium text-blue-600">{quest.requirements?.minTimeSeconds || 0}s</span>
-                        ) : (
-                          <span className="font-medium text-gray-900">{quest.xpReward}</span>
+                        {quest.placeId && (
+                          <span className="text-[10px] text-gray-400 truncate max-w-[140px] block">
+                            {getPlaceName(quest.placeId)}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="text-gray-700">{formatCooldown(quest.cooldownSeconds)}</span>
-                        <span className="text-gray-400 text-xs ml-1">({quest.cooldownSeconds}s)</span>
+                        <span className="font-semibold text-amber-600">{quest.xp}</span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${quest.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                          {quest.active ? "Active" : "Inactive"}
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${quest.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {quest.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="text-xs text-gray-600">
-                          {quest.startAt && <div>Start: {new Date(quest.startAt).toLocaleDateString()}</div>}
-                          {quest.endAt && <div>End: {new Date(quest.endAt).toLocaleDateString()}</div>}
-                          {!quest.startAt && !quest.endAt && <span className="text-gray-400">—</span>}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => handleEditQuest(quest as Quest_)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Edit">
+                          <button
+                            onClick={() => handleEditQuest(quest as unknown as Quest_)}
+                            className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDeleteClick(quest as Quest_)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
+                          <button
+                            onClick={() => handleDeleteClick(quest as unknown as Quest_)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>

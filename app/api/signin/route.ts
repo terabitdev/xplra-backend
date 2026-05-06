@@ -32,8 +32,20 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Sign in error:', error);
+
+    const errorMessages: Record<string, string> = {
+      'auth/invalid-credential': 'Invalid email or password. Please try again.',
+      'auth/user-not-found': 'No account found with this email address.',
+      'auth/wrong-password': 'Invalid email or password. Please try again.',
+      'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+      'auth/user-disabled': 'This account has been disabled. Please contact support.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+    };
+
+    const friendlyMessage = errorMessages[error.code] ?? 'Something went wrong. Please try again.';
+
     return NextResponse.json(
-      { error: error.message || 'Invalid credentials' },
+      { error: friendlyMessage },
       { status: 401 }
     );
   }

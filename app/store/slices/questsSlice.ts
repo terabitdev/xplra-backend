@@ -57,7 +57,6 @@ export const fetchQuests = createAsyncThunk(
         page: page.toString(),
         limit: limit.toString(),
       });
-
       if (fresh) queryParams.append('fresh', 'true');
 
       const response = await fetch(`/api/quests/list?${queryParams}`);
@@ -68,8 +67,9 @@ export const fetchQuests = createAsyncThunk(
       }
 
       return data as FetchQuestsResponse;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(msg);
     }
   }
 );
@@ -85,9 +85,10 @@ export const fetchQuestById = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to fetch quest');
       }
 
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
+      return data as Quest;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(msg);
     }
   }
 );
@@ -108,9 +109,10 @@ export const createQuest = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to create quest');
       }
 
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
+      return data as Quest;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(msg);
     }
   }
 );
@@ -119,7 +121,7 @@ export const updateQuest = createAsyncThunk(
   'quests/update',
   async (questData: Quest, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/quests/${questData.questId}`, {
+      const response = await fetch(`/api/quests/${questData.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(questData),
@@ -132,17 +134,18 @@ export const updateQuest = createAsyncThunk(
       }
 
       return questData;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(msg);
     }
   }
 );
 
 export const deleteQuest = createAsyncThunk(
   'quests/delete',
-  async (questId: string, { rejectWithValue }) => {
+  async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/quests/${questId}`, {
+      const response = await fetch(`/api/quests/${id}`, {
         method: 'DELETE',
       });
 
@@ -152,9 +155,10 @@ export const deleteQuest = createAsyncThunk(
         return rejectWithValue(data.error || 'Failed to delete quest');
       }
 
-      return questId;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
+      return id;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(msg);
     }
   }
 );
@@ -236,7 +240,7 @@ const questsSlice = createSlice({
       })
       .addCase(updateQuest.fulfilled, (state, action: PayloadAction<Quest>) => {
         state.loading = false;
-        const index = state.quests.findIndex((quest) => quest.questId === action.payload.questId);
+        const index = state.quests.findIndex((q) => q.id === action.payload.id);
         if (index !== -1) {
           state.quests[index] = action.payload;
         }
@@ -255,7 +259,7 @@ const questsSlice = createSlice({
       })
       .addCase(deleteQuest.fulfilled, (state, action: PayloadAction<string>) => {
         state.loading = false;
-        state.quests = state.quests.filter((quest) => quest.questId !== action.payload);
+        state.quests = state.quests.filter((q) => q.id !== action.payload);
         state.error = null;
       })
       .addCase(deleteQuest.rejected, (state, action) => {

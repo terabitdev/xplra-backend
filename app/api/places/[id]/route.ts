@@ -145,27 +145,57 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await placeDocRef.update(firestoreUpdate);
+    const newGeopoint = new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng);
+    const updatedLocation = placeData.location || '';
+
+    // Query quests linked to this place with no geoOverride for cascade
+    const questsSnap = await adminDb.collection('questCatalogue')
+      .where('placeId', '==', placeId)
+      .where('geoOverride', '==', null)
+      .get();
+
+    // Use a batch so place update + quest cascade are all-or-nothing
+    const batch = adminDb.batch();
+    batch.update(placeDocRef, firestoreUpdate);
+
+    if (!questsSnap.empty && updatedLocation) {
+      questsSnap.forEach((questDoc) => {
+        batch.update(questDoc.ref, {
+          resolvedGeo: { geopoint: newGeopoint, geohash },
+          location: updatedLocation,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+    }
+
+    await batch.commit();
+
+    // Upsert meta/quest_locations if there were cascaded quests
+    if (!questsSnap.empty && updatedLocation) {
+      await adminDb.collection('meta').doc('quest_locations').set(
+        { locations: { [updatedLocation]: { lat: geoInput.lat, lng: geoInput.lng } } },
+        { merge: true }
+      );
+    }
 
     // Cascade resolvedGeo to all events linked to this place (fire-and-forget)
-    const newGeopoint = new admin.firestore.GeoPoint(geoInput.lat, geoInput.lng);
     adminDb.collection('events')
       .where('placeId', '==', placeId)
       .get()
       .then((eventsSnap) => {
         if (eventsSnap.empty) return;
-        const batch = adminDb.batch();
+        const eventBatch = adminDb.batch();
         eventsSnap.forEach((eventDoc) => {
           const eventData = eventDoc.data();
           // Only update resolvedGeo if the event has no geoOverride
           if (!eventData.geoOverride) {
-            batch.update(eventDoc.ref, {
+            eventBatch.update(eventDoc.ref, {
               resolvedGeo: { geopoint: newGeopoint, geohash },
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           }
         });
-        return batch.commit();
+        return eventBatch.commit();
       })
       .catch((err) => console.error('Failed to cascade resolvedGeo to events:', err));
 
