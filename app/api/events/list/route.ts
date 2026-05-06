@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const snapshot = await adminDb.collection('events').orderBy('createdAt', 'desc').get();
+    const snapshot = await adminDb.collection('events').get();
     const allEvents: Event[] = snapshot.docs.map(normalizeEventDoc);
 
     eventsCache = { data: allEvents, timestamp: now };
