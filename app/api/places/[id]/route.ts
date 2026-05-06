@@ -170,8 +170,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     await batch.commit();
 
-    // Upsert meta/quest_locations if there were cascaded quests
-    if (!questsSnap.empty && updatedLocation) {
+    // Always upsert meta when place location/coords change (idempotent recovery per spec)
+    if (updatedLocation) {
       await adminDb.collection('meta').doc('quest_locations').set(
         { locations: { [updatedLocation]: { lat: geoInput.lat, lng: geoInput.lng } } },
         { merge: true }
