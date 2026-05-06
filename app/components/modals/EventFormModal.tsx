@@ -393,8 +393,15 @@ export default function EventFormModal({
               onChange={(e) => setVcField('mode', e.target.value as ValidationMode)}
               disabled={loading}
             >
-              {(['CHECKIN', 'DWELL', 'QR_CODE', 'CODE_PHRASE', 'ACCRUAL', 'HYBRID'] as ValidationMode[]).map((m) => (
-                <option key={m} value={m}>{m}</option>
+              {([
+                { value: 'CHECKIN',     label: 'Check-In'    },
+                { value: 'DWELL',       label: 'Dwell'       },
+                { value: 'QR_CODE',     label: 'QR Code'     },
+                { value: 'CODE_PHRASE', label: 'Code Phrase' },
+                { value: 'ACCRUAL',     label: 'Accrual'     },
+                { value: 'HYBRID',      label: 'Hybrid'      },
+              ] as { value: ValidationMode; label: string }[]).map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </select>
           </div>
