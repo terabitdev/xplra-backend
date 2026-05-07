@@ -16,6 +16,7 @@ import {
   User,
   Settings,
   Calendar,
+  Flag,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -54,6 +55,7 @@ export default function Sidebar() {
     { href: "/categories", icon: Tag, label: "Place Categories" },
     { href: "/quest-categories", icon: Tag, label: "Quest Categories" },
     { href: "/validation-configs", icon: Settings, label: "Validation Configs" },
+    { href: "/quest-reports", icon: Flag, label: "Quest Reports" },
   ];
 
   const closeMobileMenu = () => {

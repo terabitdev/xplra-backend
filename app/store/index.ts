@@ -14,6 +14,7 @@ import xpLedgerReducer from './slices/xpLedgerSlice';
 import validationConfigsReducer from './slices/validationConfigsSlice';
 import eventsReducer from './slices/eventsSlice';
 import questCategoriesReducer from './slices/questCategoriesSlice';
+import questReportsReducer from './slices/questReportsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     validationConfigs: validationConfigsReducer,
     events: eventsReducer,
     questCategories: questCategoriesReducer,
+    questReports: questReportsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
