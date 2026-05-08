@@ -66,20 +66,18 @@ export default function EventFormModal({
         setGeoLng('');
       }
       if (initialEvent.validationConfig) {
-        // Prefer inline snapshot (has the user's saved mode + field values)
         const inline = initialEvent.validationConfig;
         if (initialEvent.validationConfigId) {
           const vc = availableValidationConfigs.find(c => c.id === initialEvent.validationConfigId);
-          // Merge: live VC fields as base, inline overrides (mode + any edited values)
-          setVcForm({ ...(vc || {}), ...inline });
+          setVcForm({ ...(vc || {}), ...inline, mode: initialEvent.mode ?? vc?.mode ?? 'CHECKIN' });
         } else {
-          setVcForm({ ...inline });
+          setVcForm({ ...inline, mode: initialEvent.mode ?? 'CHECKIN' });
         }
       } else if (initialEvent.validationConfigId) {
         const vc = availableValidationConfigs.find(c => c.id === initialEvent.validationConfigId);
-        setVcForm(vc ? { ...vc } : {});
+        setVcForm(vc ? { ...vc, mode: initialEvent.mode ?? vc.mode } : { mode: initialEvent.mode ?? 'CHECKIN' });
       } else {
-        setVcForm({});
+        setVcForm({ mode: initialEvent.mode ?? 'CHECKIN' });
       }
     } else {
       setForm({
@@ -201,12 +199,14 @@ export default function EventFormModal({
         ? { lat: parseFloat(geoLat), lng: parseFloat(geoLng), geohash: '' }
         : undefined;
 
+      const { mode: vcMode, ...vcWithoutMode } = vcForm;
       const payload: Partial<Event> = {
         ...form,
         startTime: new Date(form.startTime!).toISOString(),
         endTime: new Date(form.endTime!).toISOString(),
         geoOverride,
-        validationConfig: vcForm,
+        mode: vcMode,
+        validationConfig: vcWithoutMode,
       };
       await onSubmit(payload);
       onClose();

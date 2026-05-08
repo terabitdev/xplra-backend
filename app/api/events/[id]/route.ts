@@ -50,6 +50,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       eventPostGraceMin: data.eventPostGraceMin ?? 15,
       windowStart: toIso(data.windowStart),
       windowEnd: toIso(data.windowEnd),
+      mode: data.mode ?? undefined,
       validationConfigId: data.validationConfigId ?? null,
       validationConfig: data.validationConfig ?? undefined,
       isActive: data.isActive ?? true,
@@ -126,6 +127,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       };
     }
 
+    const { mode: vcMode, ...vcWithoutMode } = body.validationConfig ?? {};
+
     const firestoreUpdate = {
       title: body.title,
       placeId: body.placeId ?? null,
@@ -137,8 +140,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       eventPostGraceMin: postGrace,
       windowStart,
       windowEnd,
+      mode: body.mode ?? vcMode ?? null,
       validationConfigId: body.validationConfigId ?? null,
-      validationConfig: body.validationConfig ?? null,
+      validationConfig: body.validationConfig ? vcWithoutMode : null,
       isActive: body.isActive ?? true,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -161,8 +165,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       eventPostGraceMin: postGrace,
       windowStart: windowStart.toDate().toISOString(),
       windowEnd: windowEnd.toDate().toISOString(),
+      mode: body.mode ?? vcMode ?? undefined,
       validationConfigId: body.validationConfigId ?? null,
-      validationConfig: body.validationConfig ?? undefined,
+      validationConfig: body.validationConfig ? vcWithoutMode : undefined,
       isActive: body.isActive ?? true,
       updatedAt: new Date().toISOString(),
     };

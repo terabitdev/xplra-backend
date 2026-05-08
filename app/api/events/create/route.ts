@@ -65,6 +65,8 @@ export async function POST(req: Request) {
       };
     }
 
+    const { mode: vcMode, ...vcWithoutMode } = body.validationConfig ?? {};
+
     const firestoreDoc = {
       eventId,
       title: body.title,
@@ -77,8 +79,9 @@ export async function POST(req: Request) {
       eventPostGraceMin: postGrace,
       windowStart,
       windowEnd,
+      mode: body.mode ?? vcMode ?? null,
       validationConfigId: body.validationConfigId ?? null,
-      validationConfig: body.validationConfig ?? null,
+      validationConfig: body.validationConfig ? vcWithoutMode : null,
       isActive: body.isActive ?? true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -102,8 +105,9 @@ export async function POST(req: Request) {
       eventPostGraceMin: postGrace,
       windowStart: windowStart.toDate().toISOString(),
       windowEnd: windowEnd.toDate().toISOString(),
+      mode: body.mode ?? vcMode ?? undefined,
       validationConfigId: body.validationConfigId ?? null,
-      validationConfig: body.validationConfig ?? undefined,
+      validationConfig: body.validationConfig ? vcWithoutMode : undefined,
       isActive: body.isActive ?? true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

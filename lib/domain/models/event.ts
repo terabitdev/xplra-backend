@@ -1,4 +1,4 @@
-import { ValidationConfig } from './validationConfig';
+import { ValidationConfig, ValidationMode } from './validationConfig';
 
 export interface EventGeo {
   lat: number;
@@ -18,8 +18,9 @@ export interface Event {
   eventPostGraceMin: number; // default 15
   windowStart?: string; // computed: startTime - eventPreGraceMin
   windowEnd?: string; // computed: endTime + eventPostGraceMin
+  mode?: ValidationMode;
   validationConfigId?: string | null;
-  validationConfig?: Partial<ValidationConfig>;
+  validationConfig?: Partial<Omit<ValidationConfig, 'mode'>>;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;

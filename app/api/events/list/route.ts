@@ -39,6 +39,7 @@ function normalizeEventDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): Event 
     eventPostGraceMin: data.eventPostGraceMin ?? 15,
     windowStart: toIso(data.windowStart),
     windowEnd: toIso(data.windowEnd),
+    mode: data.mode ?? undefined,
     validationConfigId: data.validationConfigId ?? null,
     validationConfig: data.validationConfig ?? undefined,
     isActive: data.isActive ?? true,
