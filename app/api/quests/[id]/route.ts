@@ -31,26 +31,30 @@ function buildContextPillSettings(raw: Record<string, unknown> | null | undefine
 
 function parseContextPillSettings(raw: Record<string, unknown> | null | undefined) {
   if (!raw) return null;
-  const fromTs = (v: unknown) => {
-    if (!v) return null;
+  const fromTs = (v: unknown): string => {
+    if (!v) return '';
     const ts = v as { toDate?: () => Date };
     return ts.toDate ? ts.toDate().toISOString() : String(v);
   };
+  const ts = raw.todaySettings as Record<string, unknown> | null | undefined;
+  const ls = raw.limitedSettings as Record<string, unknown> | null | undefined;
+  const fs = raw.featuredSettings as Record<string, unknown> | null | undefined;
+  const es = raw.eventSettings as Record<string, unknown> | null | undefined;
   return {
     nearbyEligible: Boolean(raw.nearbyEligible),
     todayEligible: Boolean(raw.todayEligible),
-    todaySettings: raw.todaySettings
-      ? { ...(raw.todaySettings as object), startDateTime: fromTs((raw.todaySettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.todaySettings as Record<string,unknown>).endDateTime) }
+    todaySettings: ts
+      ? { startDateTime: fromTs(ts.startDateTime), endDateTime: fromTs(ts.endDateTime), outsideWindowBehavior: (ts.outsideWindowBehavior as 'hidePill' | 'hideQuest') || 'hidePill' }
       : null,
     limitedEligible: Boolean(raw.limitedEligible),
-    limitedSettings: raw.limitedSettings
-      ? { ...(raw.limitedSettings as object), startDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).endDateTime) }
+    limitedSettings: ls
+      ? { label: String(ls.label || ''), startDateTime: fromTs(ls.startDateTime), endDateTime: fromTs(ls.endDateTime), outsideWindowBehavior: (ls.outsideWindowBehavior as 'hidePill' | 'hideQuest') || 'hidePill' }
       : null,
     eventEligible: Boolean(raw.eventEligible),
-    eventSettings: raw.eventSettings || null,
+    eventSettings: es ? { eventId: String(es.eventId || '') } : null,
     featuredEligible: Boolean(raw.featuredEligible),
-    featuredSettings: raw.featuredSettings
-      ? { startDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).endDateTime) }
+    featuredSettings: fs
+      ? { startDateTime: fromTs(fs.startDateTime), endDateTime: fromTs(fs.endDateTime) }
       : null,
   };
 }
