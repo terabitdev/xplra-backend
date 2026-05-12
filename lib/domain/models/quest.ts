@@ -1,5 +1,29 @@
 import { ValidationConfig } from './validationConfig';
 
+export interface ContextPillSettings {
+  nearbyEligible: boolean;
+  todayEligible: boolean;
+  todaySettings: {
+    startDateTime: string;
+    endDateTime: string;
+    outsideWindowBehavior: 'hidePill' | 'hideQuest';
+  } | null;
+  limitedEligible: boolean;
+  limitedSettings: {
+    label: string;
+    startDateTime: string;
+    endDateTime: string;
+    outsideWindowBehavior: 'hidePill' | 'hideQuest';
+  } | null;
+  eventEligible: boolean;
+  eventSettings: { eventId: string } | null;
+  featuredEligible: boolean;
+  featuredSettings: {
+    startDateTime: string;
+    endDateTime: string;
+  } | null;
+}
+
 export interface Quest {
   id: string;
   categoryId: string;
@@ -17,6 +41,7 @@ export interface Quest {
   resolvedGeo: { lat: number; lng: number };
   validationConfigId?: string | null;
   validationConfig?: Partial<ValidationConfig> | null;
+  contextPillSettings?: ContextPillSettings | null;
   createdAt?: string;
   updatedAt?: string;
 }

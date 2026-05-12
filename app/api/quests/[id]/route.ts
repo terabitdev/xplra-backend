@@ -7,6 +7,54 @@ import { Quest } from '@/lib/domain/models/quest';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
 
+function buildContextPillSettings(raw: Record<string, unknown> | null | undefined) {
+  if (!raw) return null;
+  const toTs = (v: unknown) => v ? admin.firestore.Timestamp.fromDate(new Date(v as string)) : null;
+  return {
+    nearbyEligible: Boolean(raw.nearbyEligible),
+    todayEligible: Boolean(raw.todayEligible),
+    todaySettings: raw.todayEligible && raw.todaySettings
+      ? { ...(raw.todaySettings as object), startDateTime: toTs((raw.todaySettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.todaySettings as Record<string,unknown>).endDateTime) }
+      : null,
+    limitedEligible: Boolean(raw.limitedEligible),
+    limitedSettings: raw.limitedEligible && raw.limitedSettings
+      ? { ...(raw.limitedSettings as object), startDateTime: toTs((raw.limitedSettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.limitedSettings as Record<string,unknown>).endDateTime) }
+      : null,
+    eventEligible: Boolean(raw.eventEligible),
+    eventSettings: raw.eventEligible && raw.eventSettings ? raw.eventSettings : null,
+    featuredEligible: Boolean(raw.featuredEligible),
+    featuredSettings: raw.featuredEligible && raw.featuredSettings
+      ? { startDateTime: toTs((raw.featuredSettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.featuredSettings as Record<string,unknown>).endDateTime) }
+      : null,
+  };
+}
+
+function parseContextPillSettings(raw: Record<string, unknown> | null | undefined) {
+  if (!raw) return null;
+  const fromTs = (v: unknown) => {
+    if (!v) return null;
+    const ts = v as { toDate?: () => Date };
+    return ts.toDate ? ts.toDate().toISOString() : String(v);
+  };
+  return {
+    nearbyEligible: Boolean(raw.nearbyEligible),
+    todayEligible: Boolean(raw.todayEligible),
+    todaySettings: raw.todaySettings
+      ? { ...(raw.todaySettings as object), startDateTime: fromTs((raw.todaySettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.todaySettings as Record<string,unknown>).endDateTime) }
+      : null,
+    limitedEligible: Boolean(raw.limitedEligible),
+    limitedSettings: raw.limitedSettings
+      ? { ...(raw.limitedSettings as object), startDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).endDateTime) }
+      : null,
+    eventEligible: Boolean(raw.eventEligible),
+    eventSettings: raw.eventSettings || null,
+    featuredEligible: Boolean(raw.featuredEligible),
+    featuredSettings: raw.featuredSettings
+      ? { startDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).endDateTime) }
+      : null,
+  };
+}
+
 function parseGeoPoint(geoField: Record<string, unknown> | null | undefined): { lat: number; lng: number } {
   if (!geoField) return { lat: 0, lng: 0 };
   const gp = geoField.geopoint as { latitude?: number; longitude?: number } | null;
@@ -43,6 +91,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       resolvedGeo: parseGeoPoint(d.resolvedGeo),
       validationConfigId: d.validationConfigId || null,
       validationConfig: d.validationConfig || null,
+      contextPillSettings: parseContextPillSettings(d.contextPillSettings),
       createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
       updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
     };
@@ -161,6 +210,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       resolvedGeo: resolvedGeoFirestore,
       validationConfigId: body.validationConfigId || null,
       validationConfig: body.validationConfig || null,
+      contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 

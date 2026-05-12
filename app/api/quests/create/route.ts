@@ -6,6 +6,28 @@ import { reverseGeocode } from '@/lib/utils/geocoding';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
 
+function buildContextPillSettings(raw: Record<string, unknown> | null | undefined) {
+  if (!raw) return null;
+  const toTs = (v: unknown) => v ? admin.firestore.Timestamp.fromDate(new Date(v as string)) : null;
+  return {
+    nearbyEligible: Boolean(raw.nearbyEligible),
+    todayEligible: Boolean(raw.todayEligible),
+    todaySettings: raw.todayEligible && raw.todaySettings
+      ? { ...(raw.todaySettings as object), startDateTime: toTs((raw.todaySettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.todaySettings as Record<string,unknown>).endDateTime) }
+      : null,
+    limitedEligible: Boolean(raw.limitedEligible),
+    limitedSettings: raw.limitedEligible && raw.limitedSettings
+      ? { ...(raw.limitedSettings as object), startDateTime: toTs((raw.limitedSettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.limitedSettings as Record<string,unknown>).endDateTime) }
+      : null,
+    eventEligible: Boolean(raw.eventEligible),
+    eventSettings: raw.eventEligible && raw.eventSettings ? raw.eventSettings : null,
+    featuredEligible: Boolean(raw.featuredEligible),
+    featuredSettings: raw.featuredEligible && raw.featuredSettings
+      ? { startDateTime: toTs((raw.featuredSettings as Record<string,unknown>).startDateTime), endDateTime: toTs((raw.featuredSettings as Record<string,unknown>).endDateTime) }
+      : null,
+  };
+}
+
 async function upsertQuestMeta(location: string, lat: number, lng: number): Promise<void> {
   await adminDb.collection('meta').doc('quest_locations').set(
     { locations: { [location]: { lat, lng } } },
@@ -119,6 +141,7 @@ export async function POST(req: Request) {
       resolvedGeo: resolvedGeoFirestore,
       validationConfigId: body.validationConfigId || null,
       validationConfig: body.validationConfig || null,
+      contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -143,6 +166,7 @@ export async function POST(req: Request) {
       resolvedGeo: { lat: resolvedLat, lng: resolvedLng },
       validationConfigId: questDoc.validationConfigId,
       validationConfig: questDoc.validationConfig,
+      contextPillSettings: body.contextPillSettings || null,
     });
   } catch (error: unknown) {
     console.error('Create quest error:', error);

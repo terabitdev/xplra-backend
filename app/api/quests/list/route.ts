@@ -12,6 +12,32 @@ function parseGeoPoint(geoField: Record<string, unknown> | null | undefined): { 
   return { lat: (geoField.lat as number) ?? 0, lng: (geoField.lng as number) ?? 0 };
 }
 
+function parseContextPillSettings(raw: Record<string, unknown> | null | undefined) {
+  if (!raw) return null;
+  const fromTs = (v: unknown) => {
+    if (!v) return null;
+    const ts = v as { toDate?: () => Date };
+    return ts.toDate ? ts.toDate().toISOString() : String(v);
+  };
+  return {
+    nearbyEligible: Boolean(raw.nearbyEligible),
+    todayEligible: Boolean(raw.todayEligible),
+    todaySettings: raw.todaySettings
+      ? { ...(raw.todaySettings as object), startDateTime: fromTs((raw.todaySettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.todaySettings as Record<string,unknown>).endDateTime) }
+      : null,
+    limitedEligible: Boolean(raw.limitedEligible),
+    limitedSettings: raw.limitedSettings
+      ? { ...(raw.limitedSettings as object), startDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.limitedSettings as Record<string,unknown>).endDateTime) }
+      : null,
+    eventEligible: Boolean(raw.eventEligible),
+    eventSettings: raw.eventSettings || null,
+    featuredEligible: Boolean(raw.featuredEligible),
+    featuredSettings: raw.featuredSettings
+      ? { startDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).startDateTime), endDateTime: fromTs((raw.featuredSettings as Record<string,unknown>).endDateTime) }
+      : null,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -51,6 +77,7 @@ export async function GET(req: NextRequest) {
         resolvedGeo: parseGeoPoint(d.resolvedGeo),
         validationConfigId: d.validationConfigId || null,
         validationConfig: d.validationConfig || null,
+        contextPillSettings: parseContextPillSettings(d.contextPillSettings),
         createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
         updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
       });

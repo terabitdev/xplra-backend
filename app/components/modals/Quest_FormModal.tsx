@@ -8,7 +8,9 @@ import { ValidationConfig } from '@/lib/domain/models/validationConfig';
 import { fetchPlaces } from '../../store/slices/placesSlice';
 import { fetchQuestCategories } from '../../store/slices/questCategoriesSlice';
 import { fetchValidationConfigs } from '../../store/slices/validationConfigsSlice';
+import { fetchEvents } from '../../store/slices/eventsSlice';
 import { AppDispatch, RootState } from '../../store';
+import { ContextPillSettings } from '@/lib/domain/models/quest';
 
 export interface Quest_ {
   id: string;
@@ -25,9 +27,42 @@ export interface Quest_ {
   resolvedGeo?: { lat: number; lng: number };
   validationConfigId?: string | null;
   validationConfig?: Partial<ValidationConfig> | null;
+  contextPillSettings?: ContextPillSettings | null;
   createdAt?: string;
   updatedAt?: string;
 }
+
+interface PillsState {
+  nearby: { enabled: boolean };
+  today: {
+    enabled: boolean;
+    startDateTime: string;
+    endDateTime: string;
+    outsideWindowBehavior: 'hidePill' | 'hideQuest' | '';
+  };
+  limited: {
+    enabled: boolean;
+    label: string;
+    startDateTime: string;
+    endDateTime: string;
+    outsideWindowBehavior: 'hidePill' | 'hideQuest' | '';
+  };
+  event: { enabled: boolean; eventId: string };
+  featured: {
+    enabled: boolean;
+    restrictToWindow: boolean;
+    startDateTime: string;
+    endDateTime: string;
+  };
+}
+
+const DEFAULT_PILLS: PillsState = {
+  nearby: { enabled: false },
+  today: { enabled: false, startDateTime: '', endDateTime: '', outsideWindowBehavior: '' },
+  limited: { enabled: false, label: '', startDateTime: '', endDateTime: '', outsideWindowBehavior: '' },
+  event: { enabled: false, eventId: '' },
+  featured: { enabled: false, restrictToWindow: false, startDateTime: '', endDateTime: '' },
+};
 
 const QUEST_TYPES: { value: Quest_['type']; label: string }[] = [
   { value: 'checkin', label: 'Check-In' },
@@ -54,6 +89,8 @@ export default function Quest_FormModal({
   const { places } = useSelector((state: RootState) => state.places);
   const { categories: questCategories } = useSelector((state: RootState) => state.questCategories);
   const { configs: validationConfigs } = useSelector((state: RootState) => state.validationConfigs);
+  const { events } = useSelector((state: RootState) => state.events);
+  const activeEvents = events.filter(e => e.isActive);
 
   const [quest, setQuest] = useState<Partial<Quest_>>({
     id: '',
@@ -71,6 +108,7 @@ export default function Quest_FormModal({
     validationConfig: null,
   });
   const [vcForm, setVcForm] = useState<Partial<ValidationConfig>>({});
+  const [pills, setPills] = useState<PillsState>(DEFAULT_PILLS);
   const [geoOverrideEnabled, setGeoOverrideEnabled] = useState(false);
   const [geoOverrideLat, setGeoOverrideLat] = useState<number>(0);
   const [geoOverrideLng, setGeoOverrideLng] = useState<number>(0);
@@ -88,8 +126,9 @@ export default function Quest_FormModal({
       if (places.length === 0) dispatch(fetchPlaces({}));
       if (questCategories.length === 0) dispatch(fetchQuestCategories());
       if (validationConfigs.length === 0) dispatch(fetchValidationConfigs());
+      if (events.length === 0) dispatch(fetchEvents({}));
     }
-  }, [isOpen, dispatch, places.length, questCategories.length, validationConfigs.length]);
+  }, [isOpen, dispatch, places.length, questCategories.length, validationConfigs.length, events.length]);
 
   // Close place dropdown on outside click
   useEffect(() => {
@@ -157,6 +196,39 @@ export default function Quest_FormModal({
         validationConfigId: initialQuest.validationConfigId || null,
         validationConfig: initialQuest.validationConfig || null,
       });
+      // Load context pills
+      const cps = initialQuest.contextPillSettings;
+      const toLocal = (iso: string | null | undefined) => iso ? iso.slice(0, 16) : '';
+      if (cps) {
+        setPills({
+          nearby: { enabled: cps.nearbyEligible ?? false },
+          today: {
+            enabled: cps.todayEligible ?? false,
+            startDateTime: toLocal(cps.todaySettings?.startDateTime),
+            endDateTime: toLocal(cps.todaySettings?.endDateTime),
+            outsideWindowBehavior: cps.todaySettings?.outsideWindowBehavior ?? '',
+          },
+          limited: {
+            enabled: cps.limitedEligible ?? false,
+            label: cps.limitedSettings?.label ?? '',
+            startDateTime: toLocal(cps.limitedSettings?.startDateTime),
+            endDateTime: toLocal(cps.limitedSettings?.endDateTime),
+            outsideWindowBehavior: cps.limitedSettings?.outsideWindowBehavior ?? '',
+          },
+          event: {
+            enabled: cps.eventEligible ?? false,
+            eventId: cps.eventSettings?.eventId ?? '',
+          },
+          featured: {
+            enabled: cps.featuredEligible ?? false,
+            restrictToWindow: !!cps.featuredSettings,
+            startDateTime: toLocal(cps.featuredSettings?.startDateTime),
+            endDateTime: toLocal(cps.featuredSettings?.endDateTime),
+          },
+        });
+      } else {
+        setPills(DEFAULT_PILLS);
+      }
       // Load validation config
       if (initialQuest.validationConfig) {
         setVcForm({ ...initialQuest.validationConfig });
@@ -184,6 +256,7 @@ export default function Quest_FormModal({
         validationConfig: null,
       });
       setVcForm({});
+      setPills(DEFAULT_PILLS);
       setGeoOverrideEnabled(false);
       setGeoOverrideLat(0);
       setGeoOverrideLng(0);
@@ -274,6 +347,35 @@ export default function Quest_FormModal({
       if (!vcForm.schedule?.daysOfWeek?.length) missing.push('Schedule Days of Week');
     }
 
+    // Context pills validation
+    if (pills.today.enabled) {
+      if (!pills.today.startDateTime) missing.push('Today Pill: Start Date & Time');
+      if (!pills.today.endDateTime) missing.push('Today Pill: End Date & Time');
+      if (!pills.today.outsideWindowBehavior) missing.push('Today Pill: Outside Window Behavior');
+      if (pills.today.startDateTime && pills.today.endDateTime && pills.today.startDateTime >= pills.today.endDateTime) {
+        missing.push('Today Pill: Start must be before End');
+      }
+    }
+    if (pills.limited.enabled) {
+      if (!pills.limited.label.trim()) missing.push('Limited Pill: Label');
+      if (!pills.limited.startDateTime) missing.push('Limited Pill: Start Date & Time');
+      if (!pills.limited.endDateTime) missing.push('Limited Pill: End Date & Time');
+      if (!pills.limited.outsideWindowBehavior) missing.push('Limited Pill: Outside Window Behavior');
+      if (pills.limited.startDateTime && pills.limited.endDateTime && pills.limited.startDateTime >= pills.limited.endDateTime) {
+        missing.push('Limited Pill: Start must be before End');
+      }
+    }
+    if (pills.event.enabled) {
+      if (!pills.event.eventId) missing.push('Event Pill: Event');
+    }
+    if (pills.featured.enabled && pills.featured.restrictToWindow) {
+      if (!pills.featured.startDateTime) missing.push('Featured Pill: Start Date & Time');
+      if (!pills.featured.endDateTime) missing.push('Featured Pill: End Date & Time');
+      if (pills.featured.startDateTime && pills.featured.endDateTime && pills.featured.startDateTime >= pills.featured.endDateTime) {
+        missing.push('Featured Pill: Start must be before End');
+      }
+    }
+
     if (missing.length > 0) {
       setFormErrorMsg(`Please fill: ${missing.join(', ')}`);
       return false;
@@ -294,6 +396,34 @@ export default function Quest_FormModal({
     if (!validateForm()) return;
     setLoading(true);
     try {
+      const nearbyAllowed = !!(vcForm.requireLocationServices && vcForm.radiusM && vcForm.radiusM > 0);
+      const contextPillSettings: ContextPillSettings = {
+        nearbyEligible: pills.nearby.enabled && nearbyAllowed,
+        todayEligible: pills.today.enabled,
+        todaySettings: pills.today.enabled
+          ? {
+              startDateTime: pills.today.startDateTime,
+              endDateTime: pills.today.endDateTime,
+              outsideWindowBehavior: pills.today.outsideWindowBehavior as 'hidePill' | 'hideQuest',
+            }
+          : null,
+        limitedEligible: pills.limited.enabled,
+        limitedSettings: pills.limited.enabled
+          ? {
+              label: pills.limited.label,
+              startDateTime: pills.limited.startDateTime,
+              endDateTime: pills.limited.endDateTime,
+              outsideWindowBehavior: pills.limited.outsideWindowBehavior as 'hidePill' | 'hideQuest',
+            }
+          : null,
+        eventEligible: pills.event.enabled,
+        eventSettings: pills.event.enabled ? { eventId: pills.event.eventId } : null,
+        featuredEligible: pills.featured.enabled,
+        featuredSettings: pills.featured.enabled && pills.featured.restrictToWindow
+          ? { startDateTime: pills.featured.startDateTime, endDateTime: pills.featured.endDateTime }
+          : null,
+      };
+
       const questToSubmit: Quest_ = {
         id: quest.id!,
         categoryId: quest.categoryId!,
@@ -308,6 +438,7 @@ export default function Quest_FormModal({
         geoOverride: geoOverrideEnabled ? { lat: geoOverrideLat, lng: geoOverrideLng } : null,
         validationConfigId: quest.validationConfigId || null,
         validationConfig: { ...vcForm },
+        contextPillSettings,
       };
       onSubmit(questToSubmit);
       onClose();
@@ -829,6 +960,210 @@ export default function Quest_FormModal({
                 <input type="checkbox" checked={vcForm.denyIfMockLocationSuspected ?? false} onChange={(e) => setVcField('denyIfMockLocationSuspected', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
                 Deny If Mock Location Suspected
               </label>
+            </div>
+          </div>
+
+          {/* ── Context Pills ── */}
+          <div className="border-t border-gray-200 pt-4 space-y-1">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Context Pills</h3>
+
+            {/* Nearby */}
+            {(() => {
+              const nearbyAllowed = !!(vcForm.requireLocationServices && vcForm.radiusM && vcForm.radiusM > 0);
+              return (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Nearby</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Shows when user is within the quest's validation radius</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={loading || !nearbyAllowed}
+                      onClick={() => setPills(p => ({ ...p, nearby: { enabled: !p.nearby.enabled } }))}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                        !nearbyAllowed ? 'opacity-40 cursor-not-allowed' : ''
+                      } ${pills.nearby.enabled && nearbyAllowed ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pills.nearby.enabled && nearbyAllowed ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                  {!nearbyAllowed && (
+                    <div className="px-3 py-2 bg-amber-50 border-t border-amber-100">
+                      <p className="text-xs text-amber-700">⚠ Requires Location Services and Radius to be configured in Validation Config</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Today */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">Today</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Shows when current time is within the configured window</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setPills(p => ({ ...p, today: { ...p.today, enabled: !p.today.enabled } }))}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${pills.today.enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pills.today.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {pills.today.enabled && (
+                <div className="px-3 py-3 space-y-3 border-t border-gray-100">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Start Date & Time *</label>
+                      <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.today.startDateTime} onChange={(e) => { setPills(p => ({ ...p, today: { ...p.today, startDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">End Date & Time *</label>
+                      <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.today.endDateTime} onChange={(e) => { setPills(p => ({ ...p, today: { ...p.today, endDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Outside Window *</label>
+                    <div className="flex gap-4">
+                      {(['hidePill', 'hideQuest'] as const).map(opt => (
+                        <label key={opt} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                          <input type="radio" name="today-outside" value={opt} checked={pills.today.outsideWindowBehavior === opt} onChange={() => { setPills(p => ({ ...p, today: { ...p.today, outsideWindowBehavior: opt } })); setFormErrorMsg(null); }} disabled={loading} className="text-indigo-600 focus:ring-indigo-500" />
+                          {opt === 'hidePill' ? 'Hide Pill' : 'Hide Quest'}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Limited */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">Limited</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Shows during the configured period</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setPills(p => ({ ...p, limited: { ...p.limited, enabled: !p.limited.enabled } }))}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${pills.limited.enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pills.limited.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {pills.limited.enabled && (
+                <div className="px-3 py-3 space-y-3 border-t border-gray-100">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Pill Label *</label>
+                    <input type="text" placeholder="e.g. This Weekend" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.limited.label} onChange={(e) => { setPills(p => ({ ...p, limited: { ...p.limited, label: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Start Date & Time *</label>
+                      <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.limited.startDateTime} onChange={(e) => { setPills(p => ({ ...p, limited: { ...p.limited, startDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">End Date & Time *</label>
+                      <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.limited.endDateTime} onChange={(e) => { setPills(p => ({ ...p, limited: { ...p.limited, endDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Outside Window *</label>
+                    <div className="flex gap-4">
+                      {(['hidePill', 'hideQuest'] as const).map(opt => (
+                        <label key={opt} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                          <input type="radio" name="limited-outside" value={opt} checked={pills.limited.outsideWindowBehavior === opt} onChange={() => { setPills(p => ({ ...p, limited: { ...p.limited, outsideWindowBehavior: opt } })); setFormErrorMsg(null); }} disabled={loading} className="text-indigo-600 focus:ring-indigo-500" />
+                          {opt === 'hidePill' ? 'Hide Pill' : 'Hide Quest'}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Event */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">Event</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Shows when the linked event is active and within its time window</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setPills(p => ({ ...p, event: { ...p.event, enabled: !p.event.enabled } }))}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${pills.event.enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pills.event.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {pills.event.enabled && (
+                <div className="px-3 py-3 border-t border-gray-100">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Event *</label>
+                  <select
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    value={pills.event.eventId}
+                    onChange={(e) => { setPills(p => ({ ...p, event: { ...p.event, eventId: e.target.value } })); setFormErrorMsg(null); }}
+                    disabled={loading}
+                  >
+                    <option value="">Select an event...</option>
+                    {activeEvents.map(ev => (
+                      <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Featured */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">Featured</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Shows while featured is enabled. Optionally restrict to a time window.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setPills(p => ({ ...p, featured: { ...p.featured, enabled: !p.featured.enabled } }))}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${pills.featured.enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pills.featured.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {pills.featured.enabled && (
+                <div className="px-3 py-3 space-y-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-700">Restrict to time window</span>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => setPills(p => ({ ...p, featured: { ...p.featured, restrictToWindow: !p.featured.restrictToWindow } }))}
+                      className={`relative inline-flex h-4 w-8 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${pills.featured.restrictToWindow ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform ${pills.featured.restrictToWindow ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                  {pills.featured.restrictToWindow && (
+                    <div className="grid grid-cols-2 gap-3 pl-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Start Date & Time *</label>
+                        <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.featured.startDateTime} onChange={(e) => { setPills(p => ({ ...p, featured: { ...p.featured, startDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End Date & Time *</label>
+                        <input type="datetime-local" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={pills.featured.endDateTime} onChange={(e) => { setPills(p => ({ ...p, featured: { ...p.featured, endDateTime: e.target.value } })); setFormErrorMsg(null); }} disabled={loading} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </form>
