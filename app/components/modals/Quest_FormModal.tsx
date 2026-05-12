@@ -28,6 +28,7 @@ export interface Quest_ {
   validationConfigId?: string | null;
   validationConfig?: Partial<ValidationConfig> | null;
   contextPillSettings?: ContextPillSettings | null;
+  hint?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -195,6 +196,7 @@ export default function Quest_FormModal({
         geoOverride: initialQuest.geoOverride || null,
         validationConfigId: initialQuest.validationConfigId || null,
         validationConfig: initialQuest.validationConfig || null,
+        hint: initialQuest.hint || '',
       });
       // Load context pills
       const cps = initialQuest.contextPillSettings;
@@ -254,6 +256,7 @@ export default function Quest_FormModal({
         geoOverride: null,
         validationConfigId: null,
         validationConfig: null,
+        hint: '',
       });
       setVcForm({});
       setPills(DEFAULT_PILLS);
@@ -439,6 +442,7 @@ export default function Quest_FormModal({
         validationConfigId: quest.validationConfigId || null,
         validationConfig: { ...vcForm },
         contextPillSettings,
+        hint: quest.hint?.trim() || null,
       };
       onSubmit(questToSubmit);
       onClose();
@@ -515,6 +519,19 @@ export default function Quest_FormModal({
               onChange={(e) => { setQuest(prev => ({ ...prev, description: e.target.value })); setFormErrorMsg(null); }}
               disabled={loading}
               placeholder="Quest description"
+            />
+          </div>
+
+          {/* Hint */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Hint</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={quest.hint || ''}
+              onChange={(e) => setQuest(prev => ({ ...prev, hint: e.target.value }))}
+              disabled={loading}
+              placeholder="Optional hint for this quest"
             />
           </div>
 

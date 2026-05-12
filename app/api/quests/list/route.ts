@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
         validationConfigId: d.validationConfigId || null,
         validationConfig: d.validationConfig || null,
         contextPillSettings: parseContextPillSettings(d.contextPillSettings),
+        hint: d.hint ?? null,
         createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
         updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
       });

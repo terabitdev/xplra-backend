@@ -96,6 +96,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       validationConfigId: d.validationConfigId || null,
       validationConfig: d.validationConfig || null,
       contextPillSettings: parseContextPillSettings(d.contextPillSettings),
+      hint: d.hint ?? null,
       createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
       updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
     };
@@ -215,6 +216,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       validationConfigId: body.validationConfigId || null,
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
+      hint: body.hint?.trim() || null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 

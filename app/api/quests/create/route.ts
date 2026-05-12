@@ -142,6 +142,7 @@ export async function POST(req: Request) {
       validationConfigId: body.validationConfigId || null,
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
+      hint: body.hint?.trim() || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -167,6 +168,7 @@ export async function POST(req: Request) {
       validationConfigId: questDoc.validationConfigId,
       validationConfig: questDoc.validationConfig,
       contextPillSettings: body.contextPillSettings || null,
+      hint: questDoc.hint ?? null,
     });
   } catch (error: unknown) {
     console.error('Create quest error:', error);

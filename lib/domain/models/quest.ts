@@ -42,6 +42,7 @@ export interface Quest {
   validationConfigId?: string | null;
   validationConfig?: Partial<ValidationConfig> | null;
   contextPillSettings?: ContextPillSettings | null;
+  hint?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
