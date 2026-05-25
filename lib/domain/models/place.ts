@@ -5,6 +5,10 @@ export interface CategorySelection {
     path: string[];
 }
 
+export type PlaceSource = "seed" | "user_contribution";
+
+export type PlaceStatus = "pending" | "approved" | "active" | "hidden" | "rejected";
+
 export interface Place {
     placeId: string;
     name: string;
@@ -19,8 +23,8 @@ export interface Place {
     location: string;
     description?: string;
     xp?: number;
-    source: "seed" | "user_contribution";
-    status: "active" | "hidden" | "pending";
+    source: PlaceSource;
+    status: PlaceStatus;
     type?: "checkin_time" | "qr_scan";
     requirements?: {
         minTimeSeconds?: number;
@@ -29,6 +33,10 @@ export interface Place {
     };
     validationConfigId?: string;
     validationConfig?: Partial<ValidationConfig>;
+    userId?: string;
+    contributionXp?: number;
+    rejectionReason?: string;
+    originalContributionId?: string;
     createdAt?: string;
     updatedAt?: string;
 }

@@ -39,6 +39,7 @@ interface FetchPlacesParams {
   page?: number;
   limit?: number;
   status?: string;
+  statuses?: string[];
   fresh?: boolean;
 }
 
@@ -53,13 +54,14 @@ export const fetchPlaces = createAsyncThunk(
   'places/fetchAll',
   async (params: FetchPlacesParams = {}, { rejectWithValue }) => {
     try {
-      const { page = 1, limit = 20, status, fresh = false } = params;
+      const { page = 1, limit = 20, status, statuses, fresh = false } = params;
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
 
       if (status) queryParams.append('status', status);
+      if (statuses && statuses.length > 0) queryParams.append('statuses', statuses.join(','));
       if (fresh) queryParams.append('fresh', 'true');
 
       const response = await fetch(`/api/places/list?${queryParams}`);

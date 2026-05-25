@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Close, ChevronDown, ChevronRight } from '@carbon/icons-react';
+import { Close, ChevronDown, ChevronRight, Paste } from '@carbon/icons-react';
 import Image from 'next/image';
+import ngeohash from 'ngeohash';
 import { QRCodeSVG } from 'qrcode.react';
 import { Category } from '@/lib/domain/models/category';
 import { ValidationConfig } from '@/lib/domain/models/validationConfig';
@@ -24,7 +25,7 @@ export interface Place_ {
   location: string;
   description?: string;
   source: "seed" | "user_contribution";
-  status: "active" | "hidden" | "pending";
+  status: "pending" | "approved" | "active" | "hidden" | "rejected";
   type?: "checkin_time" | "qr_scan";
   requirements?: {
     minTimeSeconds?: number;
@@ -35,6 +36,10 @@ export interface Place_ {
   imageUrls?: string[];
   validationConfigId?: string;
   validationConfig?: Partial<ValidationConfig>;
+  userId?: string;
+  contributionXp?: number;
+  rejectionReason?: string;
+  originalContributionId?: string;
 }
 
 interface PlaceFormModalProps {
@@ -79,8 +84,68 @@ export default function PlaceFormModal({
   const [minTimeSeconds, setMinTimeSeconds] = useState<number>(0);
   const [radiusMeters, setRadiusMeters] = useState<number>(0);
   const [qrData, setQrData] = useState<string>('');
+  const [pasteInfo, setPasteInfo] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePasteContribution = useCallback(async () => {
+    setPasteInfo(null);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setPasteInfo({ kind: 'error', message: 'No valid contribution data found in clipboard. Copy it from the Review dialog first.' });
+        return;
+      }
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        setPasteInfo({ kind: 'error', message: 'No valid contribution data found in clipboard. Copy it from the Review dialog first.' });
+        return;
+      }
+
+      const name = typeof parsed.name === 'string' ? parsed.name : '';
+      const description = typeof parsed.description === 'string' ? parsed.description : '';
+      const location = typeof parsed.location === 'string' ? parsed.location : '';
+      const lat = typeof parsed.latitude === 'number' ? parsed.latitude : NaN;
+      const lng = typeof parsed.longitude === 'number' ? parsed.longitude : NaN;
+      const imageUrls = Array.isArray(parsed.imageUrls)
+        ? (parsed.imageUrls as unknown[]).filter((u): u is string => typeof u === 'string')
+        : [];
+      const categorySelections = Array.isArray(parsed.categorySelections)
+        ? (parsed.categorySelections as Array<{ selectedId?: unknown; path?: unknown }>)
+            .filter((c): c is { selectedId: string; path: string[] } =>
+              typeof c?.selectedId === 'string' && Array.isArray(c?.path),
+            )
+            .map((c) => ({ selectedId: c.selectedId, path: c.path.filter((p): p is string => typeof p === 'string') }))
+        : [];
+
+      if (!name && Number.isNaN(lat) && Number.isNaN(lng)) {
+        setPasteInfo({ kind: 'error', message: 'No valid contribution data found in clipboard. Copy it from the Review dialog first.' });
+        return;
+      }
+
+      const safeLat = Number.isFinite(lat) ? lat : 0;
+      const safeLng = Number.isFinite(lng) ? lng : 0;
+      const newGeohash = safeLat && safeLng ? ngeohash.encode(safeLat, safeLng, 9) : '';
+
+      setPlace((prev) => ({
+        ...prev,
+        name,
+        description,
+        location,
+        geo: { lat: safeLat, lng: safeLng },
+        geohash: newGeohash,
+        categorySelections,
+        imageUrls,
+      }));
+      setImagePreviews(imageUrls);
+      setImageFiles([]);
+      setPasteInfo({ kind: 'success', message: 'Data pasted from contribution. Review and complete the remaining fields.' });
+    } catch {
+      setPasteInfo({ kind: 'error', message: 'Clipboard read failed. Allow clipboard permission and try again.' });
+    }
+  }, []);
 
   // Reverse geocode lat/lng to location name via Google Geocoding API (server-side)
   const reverseGeocode = useCallback((lat: number, lng: number) => {
@@ -184,6 +249,7 @@ export default function PlaceFormModal({
     setImageFiles([]);
     setUploadError(null);
     setCatPickerOpen(false);
+    setPasteInfo(null);
   }, [initialPlace, isOpen]);
 
   const handleToggleCategory = useCallback((cat: Category) => {
@@ -364,7 +430,8 @@ export default function PlaceFormModal({
     }
     setLoading(true);
     try {
-      const placeWithVc = { ...place, validationConfig: vcForm } as Place_;
+      const effectiveStatus: Place_['status'] = place.status === 'approved' ? 'active' : (place.status || 'active');
+      const placeWithVc = { ...place, status: effectiveStatus, validationConfig: vcForm } as Place_;
       await onSubmit(placeWithVc, imageFiles);
       onClose();
     } catch (error) {
@@ -379,9 +446,13 @@ export default function PlaceFormModal({
       case 'active': return 'bg-green-50 border-green-300 text-green-700';
       case 'hidden': return 'bg-gray-50 border-gray-300 text-gray-600';
       case 'pending': return 'bg-amber-50 border-amber-300 text-amber-700';
+      case 'approved': return 'bg-emerald-100 border-emerald-200 text-emerald-700';
+      case 'rejected': return 'bg-red-50 border-red-300 text-red-700';
       default: return 'bg-gray-50 border-gray-300 text-gray-600';
     }
   };
+
+  const sourceLabel = place.source === 'user_contribution' ? 'User Contribution' : 'Seed';
 
   const resolveCategoryName = (catId: string) => categoryMap.get(catId)?.name || catId;
 
@@ -407,6 +478,36 @@ export default function PlaceFormModal({
               <p className="text-xs text-red-600 font-medium">{formErrorMsg}</p>
             </div>
           )}
+
+          {!initialPlace && (
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={handlePasteContribution}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Paste size={14} />
+                Paste contribution data
+              </button>
+              {pasteInfo?.kind === 'success' && (
+                <div className="flex items-start justify-between gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <p className="text-xs text-indigo-800">{pasteInfo.message}</p>
+                  <button
+                    type="button"
+                    onClick={() => setPasteInfo(null)}
+                    className="text-indigo-700 hover:text-indigo-900 text-xs font-medium"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              {pasteInfo?.kind === 'error' && (
+                <p className="text-xs text-red-600 px-1">{pasteInfo.message}</p>
+              )}
+            </div>
+          )}
+
           {/* Name */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
@@ -615,10 +716,10 @@ export default function PlaceFormModal({
             )}
           </div>
 
-          {/* XP, Source & Status */}
+          {/* Check-in XP, Source & Status */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">XP *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Check-in XP *</label>
               <input
                 type="number"
                 min="0"
@@ -630,29 +731,28 @@ export default function PlaceFormModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Source *</label>
-              <select
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                value={place.source}
-                onChange={(e) => setPlace(prev => ({ ...prev, source: e.target.value as Place_['source'] }))}
-                disabled={loading}
-              >
-                <option value="seed">Seed (Admin)</option>
-                <option value="user_contribution">User Contribution</option>
-              </select>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Source</label>
+              <div className="w-full px-3 py-1.5 text-sm border border-gray-200 bg-gray-50 text-gray-700 rounded-lg">
+                {sourceLabel}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-              <select
-                className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${getStatusColor(place.status || 'active')}`}
-                value={place.status}
-                onChange={(e) => setPlace(prev => ({ ...prev, status: e.target.value as Place_['status'] }))}
-                disabled={loading}
-              >
-                <option value="active">Active</option>
-                <option value="hidden">Hidden</option>
-                <option value="pending">Pending</option>
-              </select>
+              {place.status === 'approved' ? (
+                <div className={`w-full px-3 py-1.5 text-sm border rounded-lg ${getStatusColor('approved')}`}>
+                  Approved
+                </div>
+              ) : (
+                <select
+                  className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${getStatusColor(place.status || 'active')}`}
+                  value={place.status === 'pending' || place.status === 'rejected' ? 'active' : (place.status || 'active')}
+                  onChange={(e) => setPlace(prev => ({ ...prev, status: e.target.value as Place_['status'] }))}
+                  disabled={loading}
+                >
+                  <option value="active">Active</option>
+                  <option value="hidden">Hidden</option>
+                </select>
+              )}
             </div>
           </div>
 

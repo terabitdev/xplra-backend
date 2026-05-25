@@ -1,113 +1,203 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import DashboardLayout from "../components/DashboardLayout";
-import DeleteDialog from "../components/ui/DeleteDialog";
-import Toaster from "../components/ui/Toaster";
-import Pagination from "../components/ui/Pagination";
-import CardSkeleton from "../components/ui/CardSkeleton";
-import { AppDispatch, RootState } from "../store";
+import { useCallback, useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import DashboardLayout from '../components/DashboardLayout';
+import Toaster from '../components/ui/Toaster';
+import Pagination from '../components/ui/Pagination';
+import CardSkeleton from '../components/ui/CardSkeleton';
+import PlaceFormModal, { Place_ } from '../components/modals/PlaceFormModal';
+import ContributionCard from '../components/contributions/ContributionCard';
+import ContributionDetailsDialog from '../components/contributions/ContributionDetailsDialog';
+import RejectConfirmDialog from '../components/contributions/RejectConfirmDialog';
+import ApproveXpDialog from '../components/contributions/ApproveXpDialog';
+import { AppDispatch, RootState } from '../store';
 import {
   fetchContributions,
-  reviewContribution,
-  deleteContribution,
+  fetchContributionCounts,
+  rejectContribution,
+  approveContribution,
+  setTab,
+  setPage,
   clearError,
-} from "../store/slices/contributionsSlice";
-import { fetchCategories } from "../store/slices/categoriesSlice";
-import { PlaceContribution } from "@/lib/domain/models/placeContribution";
+  ContributionTab,
+} from '../store/slices/contributionsSlice';
+import { fetchCategories } from '../store/slices/categoriesSlice';
+import { fetchValidationConfigs } from '../store/slices/validationConfigsSlice';
+import { updatePlace } from '../store/slices/placesSlice';
+import { Place } from '@/lib/domain/models/place';
+
+const ITEMS_PER_PAGE = 12;
+const BANNER_DISMISSED_KEY = 'contributions.banner.dismissed';
+
+const TAB_CONFIG: Array<{ key: ContributionTab; label: string; emptyTitle: string; emptySubtitle: string }> = [
+  { key: 'all', label: 'All', emptyTitle: 'No contributions yet', emptySubtitle: 'User submissions will appear here.' },
+  { key: 'pending', label: 'Pending', emptyTitle: 'No pending contributions', emptySubtitle: 'You are all caught up.' },
+  { key: 'approved', label: 'Approved', emptyTitle: 'No approved contributions', emptySubtitle: 'Approved places will appear here.' },
+  { key: 'rejected', label: 'Rejected', emptyTitle: 'No rejected contributions', emptySubtitle: 'Rejected submissions will appear here.' },
+];
 
 export default function ContributionsPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const { contributions, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.contributions);
+  const { contributions, submitters, loading, error, pagination, counts, currentTab } = useSelector(
+    (state: RootState) => state.contributions,
+  );
   const { categories } = useSelector((state: RootState) => state.categories);
+  const { configs: validationConfigs } = useSelector((state: RootState) => state.validationConfigs);
 
-  const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
-  const resolveCatName = useCallback((id: string) => categoryMap.get(id) || id, [categoryMap]);
-
-  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
-  const [selectedContribution, setSelectedContribution] = useState<PlaceContribution | null>(null);
-  const [reviewNote, setReviewNote] = useState("");
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
-  const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
-  const [currentPage, setCurrentPage] = useState(1);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsMode, setDetailsMode] = useState<'review' | 'view'>('review');
+  const [selected, setSelected] = useState<Place | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [editPlaceOpen, setEditPlaceOpen] = useState(false);
+  const [editPlace, setEditPlace] = useState<Place_ | null>(null);
+  const [needsCompletionCount, setNeedsCompletionCount] = useState(0);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Check if data is stale (older than 5 minutes)
-  const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type, isVisible: true });
+  }, []);
 
-  // Fetch contributions on mount or when page/filter changes
+  const refreshCounts = useCallback(() => {
+    dispatch(fetchContributionCounts());
+    fetch('/api/places/count?source=user_contribution&status=approved')
+      .then((r) => (r.ok ? r.json() : { count: 0 }))
+      .then((d) => setNeedsCompletionCount(d.count || 0))
+      .catch(() => setNeedsCompletionCount(0));
+  }, [dispatch]);
+
+  const refreshList = useCallback(() => {
+    dispatch(fetchContributions({ tab: currentTab, page: pagination.page, limit: ITEMS_PER_PAGE }));
+  }, [dispatch, currentTab, pagination.page]);
+
   useEffect(() => {
-    if (contributions.length === 0 || isDataStale || pagination.page !== currentPage) {
-      dispatch(fetchContributions({ page: currentPage, limit: 20 }));
-    }
-    if (categories.length === 0) {
-      dispatch(fetchCategories());
-    }
-  }, [dispatch, currentPage]);
+    dispatch(fetchContributions({ tab: currentTab, page: pagination.page, limit: ITEMS_PER_PAGE }));
+  }, [dispatch, currentTab, pagination.page]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    dispatch(fetchContributions({ page, limit: 20 }));
-  };
+  useEffect(() => {
+    refreshCounts();
+    if (categories.length === 0) dispatch(fetchCategories());
+    if (validationConfigs.length === 0) dispatch(fetchValidationConfigs({ fresh: true }));
+    if (typeof window !== 'undefined') {
+      setBannerDismissed(window.localStorage.getItem(BANNER_DISMISSED_KEY) === '1');
+    }
+  }, [dispatch, refreshCounts, categories.length, validationConfigs.length]);
 
   useEffect(() => {
     if (error) {
-      setToast({ message: error, type: 'error', isVisible: true });
+      showToast(error, 'error');
       dispatch(clearError());
     }
-  }, [error, dispatch]);
+  }, [error, dispatch, showToast]);
 
-  const filteredContributions = contributions.filter((c) => {
-    if (filter === "all") return true;
-    return c.status === filter;
-  });
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: "bg-amber-100 text-amber-700",
-      approved: "bg-green-100 text-green-700",
-      rejected: "bg-red-100 text-red-600",
-    };
-    return colors[status] || "bg-gray-100 text-gray-700";
+  const handleTabChange = (tab: ContributionTab) => {
+    dispatch(setTab(tab));
   };
 
-  const handleReviewClick = useCallback((contribution: PlaceContribution, action: "approve" | "reject") => {
-    setSelectedContribution(contribution);
-    setReviewAction(action);
-    setReviewNote("");
-    setIsReviewDialogOpen(true);
-  }, []);
+  const handlePageChange = (page: number) => {
+    dispatch(setPage(page));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  const handleConfirmReview = useCallback(async () => {
-    if (!selectedContribution) return;
-    setIsDeleting(true);
+  const handleCardAction = (contribution: Place) => {
+    setSelected(contribution);
+    setDetailsMode(contribution.status === 'pending' ? 'review' : 'view');
+    setDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setSelected(null);
+  };
+
+  const handleStartReject = (contribution: Place) => {
+    setSelected(contribution);
+    setRejectOpen(true);
+  };
+
+  const handleConfirmReject = async (rejectionReason: string) => {
+    if (!selected) return;
+    setActionLoading(true);
     try {
-      await dispatch(reviewContribution({
-        contributionId: selectedContribution.contributionId,
-        action: reviewAction,
-        reviewNote,
-        adminUid: "admin_uid_placeholder", // Should be from auth context
-      })).unwrap();
-      setToast({ message: `Contribution ${reviewAction}d successfully`, type: 'success', isVisible: true });
-      dispatch(fetchContributions({ page: currentPage, limit: 20, fresh: true }));
+      await dispatch(rejectContribution({ placeId: selected.placeId, rejectionReason })).unwrap();
+      setRejectOpen(false);
+      setDetailsOpen(false);
+      setSelected(null);
+      showToast('Contribution rejected', 'success');
+      refreshCounts();
+      refreshList();
     } catch (err) {
-      const errorMessage = typeof err === 'string' ? err : 'Failed to review contribution';
-      setToast({ message: errorMessage, type: 'error', isVisible: true });
+      const msg = typeof err === 'string' ? err : 'Failed to reject';
+      showToast(msg, 'error');
     } finally {
-      setIsDeleting(false);
-      setIsReviewDialogOpen(false);
-      setSelectedContribution(null);
-      setReviewNote("");
+      setActionLoading(false);
     }
-  }, [selectedContribution, reviewAction, reviewNote, dispatch]);
+  };
 
-  const handleCancelReview = useCallback(() => {
-    setIsReviewDialogOpen(false);
-    setSelectedContribution(null);
-    setReviewNote("");
-  }, []);
+  const handleStartApprove = (contribution: Place) => {
+    setSelected(contribution);
+    setApproveOpen(true);
+  };
+
+  const handleConfirmApprove = async (contributionXp: number) => {
+    if (!selected) return;
+    setActionLoading(true);
+    try {
+      await dispatch(approveContribution({ placeId: selected.placeId, contributionXp })).unwrap();
+      setApproveOpen(false);
+      setDetailsOpen(false);
+
+      const approvedPlace: Place_ = {
+        ...(selected as unknown as Place_),
+        status: 'approved',
+        contributionXp,
+      };
+      setEditPlace(approvedPlace);
+      setEditPlaceOpen(true);
+      refreshCounts();
+    } catch (err) {
+      const msg = typeof err === 'string' ? err : 'Failed to approve';
+      showToast(msg, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditPlaceSubmit = async (place: Place_, imageFiles: File[]) => {
+    try {
+      await dispatch(updatePlace({ placeData: place as unknown as Place, imageFiles })).unwrap();
+      setEditPlaceOpen(false);
+      setEditPlace(null);
+      setSelected(null);
+      showToast('Place is now live!', 'success');
+      refreshCounts();
+      refreshList();
+    } catch (err) {
+      const msg = typeof err === 'string' ? err : 'Failed to save place';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleEditPlaceClose = () => {
+    setEditPlaceOpen(false);
+    setEditPlace(null);
+    setSelected(null);
+    refreshCounts();
+    refreshList();
+  };
+
+  const handleDismissBanner = () => {
+    setBannerDismissed(true);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(BANNER_DISMISSED_KEY, '1');
+    }
+  };
+
+  const activeTabConfig = TAB_CONFIG.find((t) => t.key === currentTab) || TAB_CONFIG[1];
+  const showBanner = needsCompletionCount > 0 && !bannerDismissed;
 
   return (
     <DashboardLayout>
@@ -119,134 +209,74 @@ export default function ContributionsPage() {
             <p className="text-gray-500 text-sm">Review user-submitted places</p>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg text-sm">
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${filter === "all" ? "bg-white shadow-sm font-medium" : "text-gray-600"}`}
-            >
-              All ({contributions.length})
-            </button>
-            <button
-              onClick={() => setFilter("pending")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${filter === "pending" ? "bg-white shadow-sm font-medium" : "text-gray-600"}`}
-            >
-              Pending ({contributions.filter(c => c.status === "pending").length})
-            </button>
-            <button
-              onClick={() => setFilter("approved")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${filter === "approved" ? "bg-white shadow-sm font-medium" : "text-gray-600"}`}
-            >
-              Approved ({contributions.filter(c => c.status === "approved").length})
-            </button>
-            <button
-              onClick={() => setFilter("rejected")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${filter === "rejected" ? "bg-white shadow-sm font-medium" : "text-gray-600"}`}
-            >
-              Rejected ({contributions.filter(c => c.status === "rejected").length})
-            </button>
+          <div className="flex flex-wrap gap-1.5 bg-gray-100 p-1 rounded-lg text-sm">
+            {TAB_CONFIG.map((t) => {
+              const count = counts[t.key];
+              const isActive = currentTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => handleTabChange(t.key)}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${
+                    isActive ? 'bg-white shadow-sm font-medium text-gray-900' : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  {t.label} <span className={isActive ? 'text-gray-500' : 'text-gray-400'}>({count})</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {showBanner && (
+          <div className="flex items-start gap-3 px-4 py-2.5 mb-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <svg className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+            </svg>
+            <div className="flex-1 text-sm text-amber-800">
+              {needsCompletionCount} approved contribution{needsCompletionCount === 1 ? '' : 's'} need{needsCompletionCount === 1 ? 's' : ''} completion.
+              {' '}
+              Find {needsCompletionCount === 1 ? 'it' : 'them'} in the Approved tab or{' '}
+              <a href="/places_" className="font-semibold underline">manage from Places →</a>
+            </div>
+            <button
+              type="button"
+              onClick={handleDismissBanner}
+              className="text-amber-700 hover:text-amber-900 text-xs font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Card grid */}
         {loading && contributions.length === 0 ? (
           <CardSkeleton count={6} />
-        ) : filteredContributions.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 py-12 text-center">
-            <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        ) : contributions.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
+            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-gray-500 font-medium">No contributions yet</p>
-            <p className="text-gray-400 text-sm">User submissions will appear here</p>
+            <p className="text-gray-600 font-medium">{activeTabConfig.emptyTitle}</p>
+            <p className="text-gray-400 text-sm">{activeTabConfig.emptySubtitle}</p>
           </div>
         ) : (
           <>
-            <div className="space-y-3">
-              {filteredContributions.map((contribution) => (
-                <div key={contribution.contributionId} className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                    {/* Place Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{contribution.placeDraft.name}</h3>
-                          <p className="text-xs text-gray-400 font-mono mt-1">{contribution.contributionId}</p>
-                        </div>
-                        <span className={`shrink-0 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(contribution.status)}`}>
-                          {contribution.status}
-                        </span>
-                      </div>
-
-                      {contribution.placeDraft.description && (
-                        <p className="text-sm text-gray-600 mb-2">{contribution.placeDraft.description}</p>
-                      )}
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                        <div>
-                          <span className="text-gray-400 text-xs">Location</span>
-                          <p className="text-gray-700 font-mono text-xs">
-                            {contribution.placeDraft.geo?.lat.toFixed(4)}, {contribution.placeDraft.geo?.lng.toFixed(4)}
-                          </p>
-                        </div>
-                        {contribution.placeDraft.location && (
-                          <div>
-                            <span className="text-gray-400 text-xs">Location</span>
-                            <p className="text-gray-700 text-xs">{contribution.placeDraft.location}</p>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-gray-400 text-xs">Submitted By</span>
-                          <p className="text-gray-700 font-mono text-xs">{contribution.uid}</p>
-                        </div>
-                        {contribution.createdAt && (
-                          <div>
-                            <span className="text-gray-400 text-xs">Submitted</span>
-                            <p className="text-gray-700 text-xs">{new Date(contribution.createdAt).toLocaleDateString()}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {contribution.placeDraft.categorySelections && contribution.placeDraft.categorySelections.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {contribution.placeDraft.categorySelections.map((cs) => (
-                            <span key={cs.selectedId} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{resolveCatName(cs.selectedId)}</span>
-                          ))}
-                        </div>
-                      )}
-
-                      {contribution.reviewNote && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-300">
-                          <span className="text-xs text-gray-500 font-medium">Review Note:</span>
-                          <p className="text-sm text-gray-700 mt-0.5">{contribution.reviewNote}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    {contribution.status === "pending" && (
-                      <div className="flex lg:flex-col gap-2 lg:w-32">
-                        <button
-                          onClick={() => handleReviewClick(contribution, "approve")}
-                          className="flex-1 lg:w-full py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReviewClick(contribution, "reject")}
-                          className="flex-1 lg:w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {contributions.map((c) => (
+                <ContributionCard
+                  key={c.placeId}
+                  contribution={c}
+                  submitterName={c.userId ? submitters[c.userId]?.displayName || undefined : undefined}
+                  onAction={handleCardAction}
+                />
               ))}
             </div>
 
-            {/* Pagination */}
             {pagination.totalPages > 1 && (
               <Pagination
-                currentPage={currentPage}
+                currentPage={pagination.page}
                 totalPages={pagination.totalPages}
                 onPageChange={handlePageChange}
                 totalItems={pagination.total}
@@ -257,56 +287,39 @@ export default function ContributionsPage() {
         )}
       </div>
 
-      {/* Review Dialog */}
-      {isReviewDialogOpen && (
-        <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-3">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {reviewAction === "approve" ? "Approve" : "Reject"} Contribution
-              </h2>
-            </div>
+      <ContributionDetailsDialog
+        isOpen={detailsOpen}
+        mode={detailsMode}
+        contribution={selected}
+        categories={categories}
+        onClose={handleCloseDetails}
+        onReject={handleStartReject}
+        onApprove={handleStartApprove}
+        onToast={showToast}
+      />
 
-            <div className="p-4">
-              <p className="text-sm text-gray-600 mb-3">
-                {reviewAction === "approve"
-                  ? "This will create a new place in the main places collection."
-                  : "This will mark the contribution as rejected."}
-              </p>
+      <RejectConfirmDialog
+        isOpen={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={handleConfirmReject}
+        loading={actionLoading}
+      />
 
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Review Note {reviewAction === "reject" && <span className="text-red-500">*</span>}
-              </label>
-              <textarea
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                rows={3}
-                value={reviewNote}
-                onChange={(e) => setReviewNote(e.target.value)}
-                placeholder={reviewAction === "approve" ? "Optional note" : "Reason for rejection"}
-              />
-            </div>
+      <ApproveXpDialog
+        isOpen={approveOpen}
+        onClose={() => setApproveOpen(false)}
+        onConfirm={handleConfirmApprove}
+        loading={actionLoading}
+      />
 
-            <div className="flex gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-              <button
-                onClick={handleCancelReview}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmReview}
-                className={`flex-1 px-3 py-2 text-sm text-white rounded-lg transition-colors font-medium disabled:opacity-50 ${
-                  reviewAction === "approve" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
-                }`}
-                disabled={isDeleting || (reviewAction === "reject" && !reviewNote.trim())}
-              >
-                {isDeleting ? "Processing..." : (reviewAction === "approve" ? "Approve" : "Reject")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlaceFormModal
+        isOpen={editPlaceOpen}
+        onClose={handleEditPlaceClose}
+        onSubmit={handleEditPlaceSubmit}
+        place={editPlace}
+        availableCategories={categories}
+        availableValidationConfigs={validationConfigs}
+      />
 
       <Toaster
         message={toast.message}

@@ -11,8 +11,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const status = searchParams.get('status'); // Optional status filter
+    const status = searchParams.get('status'); // Single status filter (legacy)
+    const statusesCsv = searchParams.get('statuses'); // Multi-status CSV filter
     const skipCache = searchParams.get('fresh') === 'true';
+
+    const statusSet = statusesCsv
+      ? new Set(statusesCsv.split(',').map(s => s.trim()).filter(Boolean))
+      : null;
 
     // Check cache first
     const now = Date.now();
@@ -20,7 +25,9 @@ export async function GET(req: NextRequest) {
       let filteredData = placesCache.data;
 
       // Apply status filter if provided
-      if (status) {
+      if (statusSet) {
+        filteredData = filteredData.filter(p => statusSet.has(p.status));
+      } else if (status) {
         filteredData = filteredData.filter(p => p.status === status);
       }
 
@@ -65,6 +72,7 @@ export async function GET(req: NextRequest) {
         geo,
         geohash: data.geo?.geohash || data.geohash || '',
         categorySelections: data.categorySelections || (data.categoryIds ? data.categoryIds.map((id: string) => ({ selectedId: id, path: [id] })) : []),
+        categoryIds: data.categoryIds || undefined,
         location: data.location,
         description: data.description,
         source: data.source || 'seed',
@@ -75,6 +83,10 @@ export async function GET(req: NextRequest) {
         validationConfigId: data.validationConfigId || undefined,
         validationConfig: data.validationConfig || undefined,
         imageUrls: data.imageUrls || [],
+        userId: data.userId || undefined,
+        contributionXp: typeof data.contributionXp === 'number' ? data.contributionXp : undefined,
+        rejectionReason: data.rejectionReason || undefined,
+        originalContributionId: data.originalContributionId || undefined,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
       } as Place);
@@ -85,7 +97,9 @@ export async function GET(req: NextRequest) {
 
     // Apply status filter if provided
     let filteredData = allPlaces;
-    if (status) {
+    if (statusSet) {
+      filteredData = filteredData.filter(p => statusSet.has(p.status));
+    } else if (status) {
       filteredData = filteredData.filter(p => p.status === status);
     }
 

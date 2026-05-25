@@ -1,12 +1,10 @@
 'use client';
 
-import { Info, Map, Compass, FolderTree } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { Info, Map, MapPin, CalendarDays } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/store/hooks';
 import { fetchQuests } from '@/app/store/slices/questsSlice';
-import { fetchAdventures } from '@/app/store/slices/adventuresSlice';
-import { fetchCategories } from '@/app/store/slices/categoriesSlice';
 
 interface MetricCardProps {
   title: string;
@@ -49,63 +47,54 @@ const MetricCard = ({ title, value, icon: Icon, loading }: MetricCardProps) => {
 export default function MetricsCards() {
   const dispatch = useAppDispatch();
 
-  // Get current user
-  const currentUser = useAppSelector((state) => state.auth.user);
-
-  // Get data from slices
   const { quests, loading: questsLoading } = useAppSelector((state) => state.quests);
-  const { adventures, loading: adventuresLoading } = useAppSelector((state) => state.adventures);
-  const { categories, loading: categoriesLoading } = useAppSelector((state) => state.categories);
+  const [placesCount, setPlacesCount] = useState<number>(0);
+  const [eventsCount, setEventsCount] = useState<number>(0);
+  const [countsLoading, setCountsLoading] = useState(true);
 
-  // Fetch all data on mount
   useEffect(() => {
     dispatch(fetchQuests({}));
-    dispatch(fetchAdventures());
-    dispatch(fetchCategories());
+
+    let cancelled = false;
+    setCountsLoading(true);
+    Promise.all([
+      fetch('/api/places/count').then(r => r.ok ? r.json() : { count: 0 }),
+      fetch('/api/events/count').then(r => r.ok ? r.json() : { count: 0 }),
+    ])
+      .then(([placesRes, eventsRes]) => {
+        if (cancelled) return;
+        setPlacesCount(placesRes.count || 0);
+        setEventsCount(eventsRes.count || 0);
+      })
+      .catch((err) => {
+        console.error('Failed to load dashboard counts:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setCountsLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [dispatch]);
-
-  // Filter data by current admin's userId and calculate stats
-  const stats = useMemo(() => {
-    const userId = currentUser?.uid;
-
-    if (!userId) {
-      return {
-        totalQuests: 0,
-        totalAdventures: 0,
-        totalCategories: 0,
-      };
-    }
-
-    return {
-      // Note: Quests are global entities, so we count all of them
-      totalQuests: quests.length,
-      totalAdventures: adventures.filter(adventure => adventure.userId === userId).length,
-      totalCategories: categories.filter(category => category.isActive).length,
-    };
-  }, [quests, adventures, categories, currentUser]);
-
-  // Combined loading state
-  const loading = questsLoading || adventuresLoading || categoriesLoading;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
       <MetricCard
         title="Total Quests"
-        value={stats.totalQuests}
+        value={quests.length}
         icon={Map}
-        loading={loading}
+        loading={questsLoading}
       />
       <MetricCard
-        title="Total Adventures"
-        value={stats.totalAdventures}
-        icon={Compass}
-        loading={loading}
+        title="Total Places"
+        value={placesCount}
+        icon={MapPin}
+        loading={countsLoading}
       />
       <MetricCard
-        title="Total Categories"
-        value={stats.totalCategories}
-        icon={FolderTree}
-        loading={loading}
+        title="Total Events"
+        value={eventsCount}
+        icon={CalendarDays}
+        loading={countsLoading}
       />
     </div>
   );

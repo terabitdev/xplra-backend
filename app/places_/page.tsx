@@ -21,6 +21,7 @@ import {
 import { fetchCategories } from "../store/slices/categoriesSlice";
 import { fetchValidationConfigs } from "../store/slices/validationConfigsSlice";
 const ITEMS_PER_PAGE = 20;
+const PLACES_VISIBLE_STATUSES = ['active', 'hidden', 'approved'];
 
 export default function Places_Page() {
   const dispatch = useDispatch<AppDispatch>();
@@ -48,7 +49,7 @@ export default function Places_Page() {
   // Fetch data on mount or page change
   useEffect(() => {
     if (places.length === 0 || isDataStale || pagination.page !== currentPage) {
-      dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE }));
+      dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE, statuses: PLACES_VISIBLE_STATUSES }));
     }
     if (categories.length === 0) {
       dispatch(fetchCategories());
@@ -75,6 +76,8 @@ export default function Places_Page() {
       active: "bg-green-100 text-green-700",
       hidden: "bg-gray-100 text-gray-600",
       pending: "bg-amber-100 text-amber-700",
+      approved: "bg-emerald-100 text-emerald-700",
+      rejected: "bg-red-100 text-red-700",
     };
     return colors[status] || "bg-gray-100 text-gray-700";
   };
@@ -107,7 +110,7 @@ export default function Places_Page() {
         setToast({ message: 'Place created successfully', type: 'success', isVisible: true });
       }
       // Refresh places list with fresh data
-      await dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE, fresh: true }));
+      await dispatch(fetchPlaces({ page: currentPage, limit: ITEMS_PER_PAGE, statuses: PLACES_VISIBLE_STATUSES, fresh: true }));
     } catch (err) {
       const errorMessage = typeof err === 'string' ? err : 'An error occurred';
       setToast({ message: errorMessage, type: 'error', isVisible: true });

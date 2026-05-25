@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const placeId = placeData.placeId || `place_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     // Handle image uploads
+    const existingImageUrls: string[] = Array.isArray(placeData.imageUrls) ? placeData.imageUrls : [];
     const imageUrls: string[] = [];
     const imageFiles: File[] = [];
 
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
       requirements: placeData.requirements || {},
       validationConfigId: placeData.validationConfigId || null,
       validationConfig: placeData.validationConfig || null,
-      imageUrls: imageUrls.length > 0 ? imageUrls : [],
+      imageUrls: [...existingImageUrls, ...imageUrls],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
       requirements: placeData.requirements || {},
       validationConfigId: placeData.validationConfigId || undefined,
       validationConfig: placeData.validationConfig || undefined,
-      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+      imageUrls: [...existingImageUrls, ...imageUrls],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
