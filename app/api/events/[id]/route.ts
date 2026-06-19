@@ -41,6 +41,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const event: Event = {
       eventId: data.eventId || eventDoc.id,
       title: data.title || '',
+      xp: data.xp ?? 0,
       placeId: data.placeId ?? null,
       geoOverride: geopointToGeo(data.geoOverride),
       resolvedGeo: geopointToGeo(data.resolvedGeo),
@@ -131,6 +132,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const firestoreUpdate = {
       title: body.title,
+      xp: Number(body.xp) || 0,
       placeId: body.placeId ?? null,
       geoOverride: geoOverrideFirestore,
       resolvedGeo: resolvedGeoFirestore,
@@ -152,6 +154,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const updatedEvent: Event = {
       eventId,
       title: body.title,
+      xp: Number(body.xp) || 0,
       placeId: body.placeId ?? null,
       geoOverride: body.geoOverride
         ? { lat: body.geoOverride.lat, lng: body.geoOverride.lng, geohash: geoOverrideFirestore!.geohash }

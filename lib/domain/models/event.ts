@@ -9,6 +9,7 @@ export interface EventGeo {
 export interface Event {
   eventId: string;
   title: string;
+  xp: number; // XP awarded on event check-in completion (default 0)
   placeId: string | null;
   geoOverride?: EventGeo;
   resolvedGeo?: EventGeo;

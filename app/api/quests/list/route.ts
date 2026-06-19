@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { Quest } from '@/lib/domain/models/quest';
+import { Quest, AutoStartTrigger } from '@/lib/domain/models/quest';
 
 let questsCache: { data: Quest[]; timestamp: number } | null = null;
 const CACHE_DURATION = 60 * 1000;
+
+const VALID_AUTO_START_TRIGGERS: AutoStartTrigger[] = ['location_enter', 'dwell_time', 'qr_scan', 'code_input', 'event_window'];
+
+function sanitizeAutoStartTriggers(raw: unknown): AutoStartTrigger[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is AutoStartTrigger => typeof t === 'string' && VALID_AUTO_START_TRIGGERS.includes(t as AutoStartTrigger));
+}
 
 function parseGeoPoint(geoField: Record<string, unknown> | null | undefined): { lat: number; lng: number } {
   if (!geoField) return { lat: 0, lng: 0 };
@@ -83,6 +90,10 @@ export async function GET(req: NextRequest) {
         validationConfig: d.validationConfig || null,
         contextPillSettings: parseContextPillSettings(d.contextPillSettings),
         hint: d.hint ?? null,
+        manualStartEnabled: d.manualStartEnabled ?? true,
+        autoStartEnabled: d.autoStartEnabled ?? true,
+        autoStartTriggers: sanitizeAutoStartTriggers(d.autoStartTriggers),
+        requiresExplicitStartBeforeValidation: d.requiresExplicitStartBeforeValidation ?? false,
         createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
         updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
       });

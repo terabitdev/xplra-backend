@@ -31,6 +31,13 @@ export interface ValidationConfig {
     graceTotalOutsideSec: number;
     requireInsideOnComplete: boolean;
 
+    // Accrual
+    earnRateXpPerMinute: number;
+    earnIntervalSec: number;
+    earnCapXp: number | null;
+    stopOnExitAfterSec: number;
+    allowReentryWithinExitGrace: boolean;
+
     // Availability window
     useScheduleWindow: boolean;
     schedule?: ValidationConfigSchedule;

@@ -70,6 +70,7 @@ export async function POST(req: Request) {
     const firestoreDoc = {
       eventId,
       title: body.title,
+      xp: Number(body.xp) || 0,
       placeId: body.placeId ?? null,
       geoOverride: geoOverrideFirestore,
       resolvedGeo: resolvedGeoFirestore,
@@ -92,6 +93,7 @@ export async function POST(req: Request) {
     const responseEvent: Event = {
       eventId,
       title: body.title,
+      xp: Number(body.xp) || 0,
       placeId: body.placeId ?? null,
       geoOverride: body.geoOverride
         ? { lat: body.geoOverride.lat, lng: body.geoOverride.lng, geohash: geoOverrideFirestore!.geohash }

@@ -6,6 +6,13 @@ import { reverseGeocode } from '@/lib/utils/geocoding';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
 
+const VALID_AUTO_START_TRIGGERS = ['location_enter', 'dwell_time', 'qr_scan', 'code_input', 'event_window'];
+
+function sanitizeAutoStartTriggers(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is string => typeof t === 'string' && VALID_AUTO_START_TRIGGERS.includes(t));
+}
+
 function buildContextPillSettings(raw: Record<string, unknown> | null | undefined) {
   if (!raw) return null;
   const toTs = (v: unknown) => v ? admin.firestore.Timestamp.fromDate(new Date(v as string)) : null;
@@ -143,6 +150,10 @@ export async function POST(req: Request) {
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       hint: body.hint?.trim() || null,
+      manualStartEnabled: body.manualStartEnabled ?? true,
+      autoStartEnabled: body.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -169,6 +180,10 @@ export async function POST(req: Request) {
       validationConfig: questDoc.validationConfig,
       contextPillSettings: body.contextPillSettings || null,
       hint: questDoc.hint ?? null,
+      manualStartEnabled: questDoc.manualStartEnabled,
+      autoStartEnabled: questDoc.autoStartEnabled,
+      autoStartTriggers: questDoc.autoStartTriggers,
+      requiresExplicitStartBeforeValidation: questDoc.requiresExplicitStartBeforeValidation,
     });
   } catch (error: unknown) {
     console.error('Create quest error:', error);

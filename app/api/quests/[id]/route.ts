@@ -3,9 +3,16 @@ import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
 import { reverseGeocode } from '@/lib/utils/geocoding';
-import { Quest } from '@/lib/domain/models/quest';
+import { Quest, AutoStartTrigger } from '@/lib/domain/models/quest';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
+
+const VALID_AUTO_START_TRIGGERS: AutoStartTrigger[] = ['location_enter', 'dwell_time', 'qr_scan', 'code_input', 'event_window'];
+
+function sanitizeAutoStartTriggers(raw: unknown): AutoStartTrigger[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is AutoStartTrigger => typeof t === 'string' && VALID_AUTO_START_TRIGGERS.includes(t as AutoStartTrigger));
+}
 
 function buildContextPillSettings(raw: Record<string, unknown> | null | undefined) {
   if (!raw) return null;
@@ -97,6 +104,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       validationConfig: d.validationConfig || null,
       contextPillSettings: parseContextPillSettings(d.contextPillSettings),
       hint: d.hint ?? null,
+      manualStartEnabled: d.manualStartEnabled ?? true,
+      autoStartEnabled: d.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(d.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: d.requiresExplicitStartBeforeValidation ?? false,
       createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
       updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
     };
@@ -217,6 +228,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       hint: body.hint?.trim() || null,
+      manualStartEnabled: body.manualStartEnabled ?? true,
+      autoStartEnabled: body.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 

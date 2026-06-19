@@ -31,6 +31,7 @@ export default function EventFormModal({
 }: EventFormModalProps) {
   const [form, setForm] = useState<Partial<Event>>({
     title: '',
+    xp: 0,
     placeId: null,
     geoOverride: undefined,
     startTime: '',
@@ -82,6 +83,7 @@ export default function EventFormModal({
     } else {
       setForm({
         title: '',
+        xp: 0,
         placeId: null,
         geoOverride: undefined,
         startTime: '',
@@ -250,6 +252,21 @@ export default function EventFormModal({
               onChange={(e) => { setForm(prev => ({ ...prev, title: e.target.value })); setFormErrorMsg(null); }}
               disabled={loading}
               placeholder="Event title"
+            />
+          </div>
+
+          {/* XP Reward */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">XP Reward</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              value={form.xp !== undefined ? form.xp : ''}
+              onChange={(e) => { setForm(prev => ({ ...prev, xp: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })); setFormErrorMsg(null); }}
+              disabled={loading}
+              placeholder="0"
             />
           </div>
 

@@ -30,6 +30,7 @@ function normalizeEventDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): Event 
   return {
     eventId: data.eventId || doc.id,
     title: data.title || '',
+    xp: data.xp ?? 0,
     placeId: data.placeId ?? null,
     geoOverride: geopointToGeo(data.geoOverride),
     resolvedGeo: geopointToGeo(data.resolvedGeo),

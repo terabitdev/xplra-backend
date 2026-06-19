@@ -10,7 +10,7 @@ import { fetchQuestCategories } from '../../store/slices/questCategoriesSlice';
 import { fetchValidationConfigs } from '../../store/slices/validationConfigsSlice';
 import { fetchEvents } from '../../store/slices/eventsSlice';
 import { AppDispatch, RootState } from '../../store';
-import { ContextPillSettings } from '@/lib/domain/models/quest';
+import { ContextPillSettings, AutoStartTrigger } from '@/lib/domain/models/quest';
 
 export interface Quest_ {
   id: string;
@@ -29,9 +29,21 @@ export interface Quest_ {
   validationConfig?: Partial<ValidationConfig> | null;
   contextPillSettings?: ContextPillSettings | null;
   hint?: string | null;
+  manualStartEnabled: boolean;
+  autoStartEnabled: boolean;
+  autoStartTriggers: AutoStartTrigger[];
+  requiresExplicitStartBeforeValidation: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
+
+const AUTO_START_TRIGGERS: { value: AutoStartTrigger; label: string }[] = [
+  { value: 'location_enter', label: 'Location Enter' },
+  { value: 'dwell_time', label: 'Dwell Time' },
+  { value: 'qr_scan', label: 'QR Scan' },
+  { value: 'code_input', label: 'Code Input' },
+  { value: 'event_window', label: 'Event Window' },
+];
 
 interface PillsState {
   nearby: { enabled: boolean };
@@ -107,6 +119,10 @@ export default function Quest_FormModal({
     geoOverride: null,
     validationConfigId: null,
     validationConfig: null,
+    manualStartEnabled: true,
+    autoStartEnabled: true,
+    autoStartTriggers: [],
+    requiresExplicitStartBeforeValidation: false,
   });
   const [vcForm, setVcForm] = useState<Partial<ValidationConfig>>({});
   const [pills, setPills] = useState<PillsState>(DEFAULT_PILLS);
@@ -197,6 +213,10 @@ export default function Quest_FormModal({
         validationConfigId: initialQuest.validationConfigId || null,
         validationConfig: initialQuest.validationConfig || null,
         hint: initialQuest.hint || '',
+        manualStartEnabled: initialQuest.manualStartEnabled ?? true,
+        autoStartEnabled: initialQuest.autoStartEnabled ?? true,
+        autoStartTriggers: initialQuest.autoStartTriggers ?? [],
+        requiresExplicitStartBeforeValidation: initialQuest.requiresExplicitStartBeforeValidation ?? false,
       });
       // Load context pills
       const cps = initialQuest.contextPillSettings;
@@ -257,6 +277,10 @@ export default function Quest_FormModal({
         validationConfigId: null,
         validationConfig: null,
         hint: '',
+        manualStartEnabled: true,
+        autoStartEnabled: true,
+        autoStartTriggers: [],
+        requiresExplicitStartBeforeValidation: false,
       });
       setVcForm({});
       setPills(DEFAULT_PILLS);
@@ -331,6 +355,9 @@ export default function Quest_FormModal({
       { key: 'dwellRequiredSec', label: 'Dwell Required (sec)' },
       { key: 'graceConsecutiveOutsideSec', label: 'Grace Consecutive Outside (sec)' },
       { key: 'graceTotalOutsideSec', label: 'Grace Total Outside (sec)' },
+      { key: 'earnRateXpPerMinute', label: 'Earn Rate (XP/min)' },
+      { key: 'earnIntervalSec', label: 'Earn Interval (sec)' },
+      { key: 'stopOnExitAfterSec', label: 'Stop On Exit After (sec)' },
       { key: 'maxActiveSessionsPerUser', label: 'Max Active Sessions/User' },
       { key: 'maxSpeedMps', label: 'Max Speed (m/s)' },
       { key: 'cooldownSec', label: 'Cooldown (sec)' },
@@ -440,9 +467,17 @@ export default function Quest_FormModal({
         location,
         geoOverride: geoOverrideEnabled ? { lat: geoOverrideLat, lng: geoOverrideLng } : null,
         validationConfigId: quest.validationConfigId || null,
-        validationConfig: { ...vcForm },
+        validationConfig: {
+          ...vcForm,
+          earnCapXp: vcForm.earnCapXp ?? null,
+          allowReentryWithinExitGrace: vcForm.allowReentryWithinExitGrace ?? true,
+        },
         contextPillSettings,
         hint: quest.hint?.trim() || null,
+        manualStartEnabled: quest.manualStartEnabled ?? true,
+        autoStartEnabled: quest.autoStartEnabled ?? true,
+        autoStartTriggers: quest.autoStartTriggers ?? [],
+        requiresExplicitStartBeforeValidation: quest.requiresExplicitStartBeforeValidation ?? false,
       };
       onSubmit(questToSubmit);
       onClose();
@@ -865,6 +900,33 @@ export default function Quest_FormModal({
               </label>
             </div>
 
+            {/* Accrual */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800">Accrual</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Earn Rate (XP/min) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.earnRateXpPerMinute ?? ''} onChange={(e) => setVcField('earnRateXpPerMinute', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="6" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Earn Interval (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.earnIntervalSec ?? ''} onChange={(e) => setVcField('earnIntervalSec', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="60" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Earn Cap (XP)</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.earnCapXp ?? ''} onChange={(e) => setVcField('earnCapXp', e.target.value === '' ? null : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="Leave empty for no cap" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Stop On Exit After (sec) *</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.stopOnExitAfterSec ?? ''} onChange={(e) => setVcField('stopOnExitAfterSec', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="180" />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={vcForm.allowReentryWithinExitGrace ?? true} onChange={(e) => setVcField('allowReentryWithinExitGrace', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                Allow Reentry Within Exit Grace
+              </label>
+            </div>
+
             {/* Availability Window */}
             <div className="space-y-3 border-t border-gray-200 pt-3">
               <h3 className="text-sm font-semibold text-gray-800">Availability Window</h3>
@@ -1182,6 +1244,58 @@ export default function Quest_FormModal({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── Start Config ── */}
+          <div className="border-t border-gray-200 pt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800">Start Config</h3>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={quest.manualStartEnabled ?? true} onChange={(e) => setQuest(prev => ({ ...prev, manualStartEnabled: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Manual Start Enabled
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={quest.autoStartEnabled ?? true} onChange={(e) => setQuest(prev => ({ ...prev, autoStartEnabled: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Auto Start Enabled
+            </label>
+
+            {(quest.autoStartEnabled ?? true) && (
+              <div className="ml-6">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Auto Start Triggers</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {AUTO_START_TRIGGERS.map(({ value, label }) => {
+                    const selected = (quest.autoStartTriggers || []).includes(value);
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          const current = quest.autoStartTriggers || [];
+                          const updated = current.includes(value)
+                            ? current.filter((t) => t !== value)
+                            : [...current, value];
+                          setQuest(prev => ({ ...prev, autoStartTriggers: updated }));
+                        }}
+                        className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
+                          selected
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                        }`}
+                        disabled={loading}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={quest.requiresExplicitStartBeforeValidation ?? false} onChange={(e) => setQuest(prev => ({ ...prev, requiresExplicitStartBeforeValidation: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+              Requires Explicit Start Before Validation
+            </label>
           </div>
         </form>
 

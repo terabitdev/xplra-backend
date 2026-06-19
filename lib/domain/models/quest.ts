@@ -43,6 +43,18 @@ export interface Quest {
   validationConfig?: Partial<ValidationConfig> | null;
   contextPillSettings?: ContextPillSettings | null;
   hint?: string | null;
+  // Start Config (on the quest document)
+  manualStartEnabled: boolean;
+  autoStartEnabled: boolean;
+  autoStartTriggers: AutoStartTrigger[];
+  requiresExplicitStartBeforeValidation: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type AutoStartTrigger =
+  | 'location_enter'
+  | 'dwell_time'
+  | 'qr_scan'
+  | 'code_input'
+  | 'event_window';
