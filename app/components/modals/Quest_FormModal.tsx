@@ -125,6 +125,7 @@ export default function Quest_FormModal({
     requiresExplicitStartBeforeValidation: false,
   });
   const [vcForm, setVcForm] = useState<Partial<ValidationConfig>>({});
+  const [answerDraft, setAnswerDraft] = useState('');
   const [pills, setPills] = useState<PillsState>(DEFAULT_PILLS);
   const [geoOverrideEnabled, setGeoOverrideEnabled] = useState(false);
   const [geoOverrideLat, setGeoOverrideLat] = useState<number>(0);
@@ -299,6 +300,22 @@ export default function Quest_FormModal({
     setFormErrorMsg(null);
   }, []);
 
+  const addAcceptedAnswer = () => {
+    const val = answerDraft.trim();
+    if (!val) return;
+    setVcForm(prev => {
+      const current = prev.acceptedAnswers || [];
+      if (current.includes(val)) return prev;
+      return { ...prev, acceptedAnswers: [...current, val] };
+    });
+    setAnswerDraft('');
+    setFormErrorMsg(null);
+  };
+
+  const removeAcceptedAnswer = (idx: number) => {
+    setVcForm(prev => ({ ...prev, acceptedAnswers: (prev.acceptedAnswers || []).filter((_, i) => i !== idx) }));
+  };
+
   const handlePlaceChange = (placeId: string | null) => {
     setQuest(prev => ({ ...prev, placeId }));
     if (!geoOverrideEnabled) {
@@ -361,10 +378,14 @@ export default function Quest_FormModal({
       { key: 'maxActiveSessionsPerUser', label: 'Max Active Sessions/User' },
       { key: 'maxSpeedMps', label: 'Max Speed (m/s)' },
       { key: 'cooldownSec', label: 'Cooldown (sec)' },
+      { key: 'requiredAnswerCount', label: 'Required Answer Count' },
     ];
     for (const { key, label } of requiredVcFields) {
       const val = vcForm[key];
       if (val === undefined || val === null || val === '') missing.push(label);
+    }
+    if (!vcForm.acceptedAnswers || vcForm.acceptedAnswers.length === 0) {
+      missing.push('Accepted Answers (at least 1)');
     }
     if (vcForm.requireQrOrCode) {
       if (vcForm.qrTokenTtlSec === undefined || vcForm.qrTokenTtlSec === null) missing.push('QR Token TTL (sec)');
@@ -408,6 +429,24 @@ export default function Quest_FormModal({
 
     if (missing.length > 0) {
       setFormErrorMsg(`Please fill: ${missing.join(', ')}`);
+      return false;
+    }
+
+    // Code Phrase cross-field rules
+    if (
+      vcForm.requiredAnswerCount !== undefined &&
+      vcForm.acceptedAnswers &&
+      vcForm.requiredAnswerCount > vcForm.acceptedAnswers.length
+    ) {
+      setFormErrorMsg('Required Answer Count cannot exceed the number of Accepted Answers');
+      return false;
+    }
+    if (
+      vcForm.minAnswerLength != null &&
+      vcForm.maxAnswerLength != null &&
+      vcForm.minAnswerLength >= vcForm.maxAnswerLength
+    ) {
+      setFormErrorMsg('Min Answer Length must be less than Max Answer Length');
       return false;
     }
 
@@ -471,6 +510,12 @@ export default function Quest_FormModal({
           ...vcForm,
           earnCapXp: vcForm.earnCapXp ?? null,
           allowReentryWithinExitGrace: vcForm.allowReentryWithinExitGrace ?? true,
+          acceptedAnswers: vcForm.acceptedAnswers ?? [],
+          trimWhitespace: vcForm.trimWhitespace ?? true,
+          caseSensitive: vcForm.caseSensitive ?? false,
+          useRegex: vcForm.useRegex ?? false,
+          codePhrasePromptLabel: vcForm.codePhrasePromptLabel?.trim() || null,
+          failureFeedbackMessage: vcForm.failureFeedbackMessage?.trim() || null,
         },
         contextPillSettings,
         hint: quest.hint?.trim() || null,
@@ -1016,6 +1061,85 @@ export default function Quest_FormModal({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Code Phrase */}
+            <div className="space-y-3 border-t border-gray-200 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800">Code Phrase</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Required Answer Count *</label>
+                  <input type="number" min="1" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.requiredAnswerCount ?? ''} onChange={(e) => setVcField('requiredAnswerCount', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="1" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Answer Field Hint</label>
+                  <input type="text" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.codePhrasePromptLabel ?? ''} onChange={(e) => setVcField('codePhrasePromptLabel', e.target.value)} disabled={loading} placeholder="Leave empty for no hint" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Accepted Answers *
+                  {vcForm.useRegex && <span className="text-gray-400 font-normal ml-1">(regex patterns)</span>}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    value={answerDraft}
+                    onChange={(e) => setAnswerDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAcceptedAnswer(); } }}
+                    disabled={loading}
+                    placeholder={vcForm.useRegex ? 'Enter a regex pattern, press Enter' : 'Type an answer, press Enter'}
+                  />
+                  <button type="button" onClick={addAcceptedAnswer} disabled={loading} className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50">+</button>
+                </div>
+                {(vcForm.acceptedAnswers || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {(vcForm.acceptedAnswers || []).map((ans, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg">
+                        {ans}
+                        <button type="button" onClick={() => removeAcceptedAnswer(i)} disabled={loading} className="text-indigo-400 hover:text-indigo-700 leading-none">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={vcForm.trimWhitespace ?? true} onChange={(e) => setVcField('trimWhitespace', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                  Trim Whitespace
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={vcForm.caseSensitive ?? false} onChange={(e) => setVcField('caseSensitive', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                  Case Sensitive
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={vcForm.useRegex ?? false} onChange={(e) => setVcField('useRegex', e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" disabled={loading} />
+                  Use Regex
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Min Answer Length</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.minAnswerLength ?? ''} onChange={(e) => setVcField('minAnswerLength', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Max Answer Length</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxAnswerLength ?? ''} onChange={(e) => setVcField('maxAnswerLength', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Max Attempts</label>
+                  <input type="number" min="0" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.maxCodeAttempts ?? ''} onChange={(e) => setVcField('maxCodeAttempts', e.target.value === '' ? undefined : (parseInt(e.target.value) || 0))} disabled={loading} placeholder="Leave empty for unlimited" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Incorrect Answer Message</label>
+                <input type="text" className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500" value={vcForm.failureFeedbackMessage ?? ''} onChange={(e) => setVcField('failureFeedbackMessage', e.target.value)} disabled={loading} placeholder="Leave empty for default message" />
+              </div>
             </div>
 
             {/* Fraud & Limits */}

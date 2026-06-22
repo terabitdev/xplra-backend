@@ -52,6 +52,17 @@ export interface ValidationConfig {
     maxCodeAttempts: number;
     codeAttemptWindowSec: number;
 
+    // Code Phrase
+    requiredAnswerCount: number;
+    codePhrasePromptLabel?: string | null;
+    acceptedAnswers: string[];
+    trimWhitespace: boolean;
+    caseSensitive: boolean;
+    useRegex: boolean;
+    minAnswerLength?: number | null;
+    maxAnswerLength?: number | null;
+    failureFeedbackMessage?: string | null;
+
     // Fraud & limits
     maxActiveSessionsPerUser: number;
     denyIfMockLocationSuspected: boolean;
