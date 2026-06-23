@@ -104,10 +104,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       validationConfig: d.validationConfig || null,
       contextPillSettings: parseContextPillSettings(d.contextPillSettings),
       hint: d.hint ?? null,
-      manualStartEnabled: d.manualStartEnabled ?? true,
-      autoStartEnabled: d.autoStartEnabled ?? true,
-      autoStartTriggers: sanitizeAutoStartTriggers(d.autoStartTriggers),
-      requiresExplicitStartBeforeValidation: d.requiresExplicitStartBeforeValidation ?? false,
+      manualStartEnabled: d.startConfig?.manualStartEnabled ?? d.manualStartEnabled ?? true,
+      autoStartEnabled: d.startConfig?.autoStartEnabled ?? d.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(d.startConfig?.autoStartTriggers ?? d.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: d.startConfig?.requiresExplicitStartBeforeValidation ?? d.requiresExplicitStartBeforeValidation ?? false,
       createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
       updatedAt: d.updatedAt?.toDate?.()?.toISOString() || d.updatedAt,
     };
@@ -210,6 +210,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           }
         : null;
 
+    const startConfig = {
+      manualStartEnabled: body.manualStartEnabled ?? true,
+      autoStartEnabled: body.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
+    };
+
     const updateData: Record<string, unknown> = {
       categoryId: body.categoryId.trim(),
       title: body.title.trim(),
@@ -228,10 +235,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       hint: body.hint?.trim() || null,
-      manualStartEnabled: body.manualStartEnabled ?? true,
-      autoStartEnabled: body.autoStartEnabled ?? true,
-      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
-      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
+      startConfig,
+      // Remove legacy flat Start Config fields from docs created before nesting
+      manualStartEnabled: admin.firestore.FieldValue.delete(),
+      autoStartEnabled: admin.firestore.FieldValue.delete(),
+      autoStartTriggers: admin.firestore.FieldValue.delete(),
+      requiresExplicitStartBeforeValidation: admin.firestore.FieldValue.delete(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
@@ -243,6 +252,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       quest: {
         id: questId,
         ...updateData,
+        // updateData carries FieldValue.delete() sentinels for the legacy flat
+        // fields; echo the real values back so the client gets a clean response
+        manualStartEnabled: startConfig.manualStartEnabled,
+        autoStartEnabled: startConfig.autoStartEnabled,
+        autoStartTriggers: startConfig.autoStartTriggers,
+        requiresExplicitStartBeforeValidation: startConfig.requiresExplicitStartBeforeValidation,
         geoOverride: geoOverrideFirestore
           ? { lat: Number(body.geoOverride.lat), lng: Number(body.geoOverride.lng) }
           : null,

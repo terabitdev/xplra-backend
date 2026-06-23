@@ -131,6 +131,13 @@ export async function POST(req: Request) {
 
     const id = `quest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+    const startConfig = {
+      manualStartEnabled: body.manualStartEnabled ?? true,
+      autoStartEnabled: body.autoStartEnabled ?? true,
+      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
+      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
+    };
+
     const questDoc: Record<string, unknown> = {
       id,
       categoryId: body.categoryId.trim(),
@@ -150,10 +157,7 @@ export async function POST(req: Request) {
       validationConfig: body.validationConfig || null,
       contextPillSettings: buildContextPillSettings(body.contextPillSettings),
       hint: body.hint?.trim() || null,
-      manualStartEnabled: body.manualStartEnabled ?? true,
-      autoStartEnabled: body.autoStartEnabled ?? true,
-      autoStartTriggers: sanitizeAutoStartTriggers(body.autoStartTriggers),
-      requiresExplicitStartBeforeValidation: Boolean(body.requiresExplicitStartBeforeValidation),
+      startConfig,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -180,10 +184,11 @@ export async function POST(req: Request) {
       validationConfig: questDoc.validationConfig,
       contextPillSettings: body.contextPillSettings || null,
       hint: questDoc.hint ?? null,
-      manualStartEnabled: questDoc.manualStartEnabled,
-      autoStartEnabled: questDoc.autoStartEnabled,
-      autoStartTriggers: questDoc.autoStartTriggers,
-      requiresExplicitStartBeforeValidation: questDoc.requiresExplicitStartBeforeValidation,
+      startConfig,
+      manualStartEnabled: startConfig.manualStartEnabled,
+      autoStartEnabled: startConfig.autoStartEnabled,
+      autoStartTriggers: startConfig.autoStartTriggers,
+      requiresExplicitStartBeforeValidation: startConfig.requiresExplicitStartBeforeValidation,
     });
   } catch (error: unknown) {
     console.error('Create quest error:', error);
