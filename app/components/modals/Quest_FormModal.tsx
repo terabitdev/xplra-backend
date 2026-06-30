@@ -12,6 +12,23 @@ import { fetchEvents } from '../../store/slices/eventsSlice';
 import { AppDispatch, RootState } from '../../store';
 import { ContextPillSettings, AutoStartTrigger } from '@/lib/domain/models/quest';
 
+// Converts a UTC ISO string to a local "YYYY-MM-DDTHH:mm" value for datetime-local inputs.
+function isoToLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Converts a local "YYYY-MM-DDTHH:mm" value from a datetime-local input to a UTC ISO string.
+function localInputToIso(local: string | null | undefined): string {
+  if (!local) return '';
+  const d = new Date(local);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
+}
+
 export interface Quest_ {
   id: string;
   categoryId: string;
@@ -221,7 +238,7 @@ export default function Quest_FormModal({
       });
       // Load context pills
       const cps = initialQuest.contextPillSettings;
-      const toLocal = (iso: string | null | undefined) => iso ? iso.slice(0, 16) : '';
+      const toLocal = isoToLocalInput;
       if (cps) {
         setPills({
           nearby: { enabled: cps.nearbyEligible ?? false },
@@ -471,8 +488,8 @@ export default function Quest_FormModal({
         todayEligible: pills.today.enabled,
         todaySettings: pills.today.enabled
           ? {
-              startDateTime: pills.today.startDateTime,
-              endDateTime: pills.today.endDateTime,
+              startDateTime: localInputToIso(pills.today.startDateTime),
+              endDateTime: localInputToIso(pills.today.endDateTime),
               outsideWindowBehavior: pills.today.outsideWindowBehavior as 'hidePill' | 'hideQuest',
             }
           : null,
@@ -480,8 +497,8 @@ export default function Quest_FormModal({
         limitedSettings: pills.limited.enabled
           ? {
               label: pills.limited.label,
-              startDateTime: pills.limited.startDateTime,
-              endDateTime: pills.limited.endDateTime,
+              startDateTime: localInputToIso(pills.limited.startDateTime),
+              endDateTime: localInputToIso(pills.limited.endDateTime),
               outsideWindowBehavior: pills.limited.outsideWindowBehavior as 'hidePill' | 'hideQuest',
             }
           : null,
@@ -489,7 +506,7 @@ export default function Quest_FormModal({
         eventSettings: pills.event.enabled ? { eventId: pills.event.eventId } : null,
         featuredEligible: pills.featured.enabled,
         featuredSettings: pills.featured.enabled && pills.featured.restrictToWindow
-          ? { startDateTime: pills.featured.startDateTime, endDateTime: pills.featured.endDateTime }
+          ? { startDateTime: localInputToIso(pills.featured.startDateTime), endDateTime: localInputToIso(pills.featured.endDateTime) }
           : null,
       };
 

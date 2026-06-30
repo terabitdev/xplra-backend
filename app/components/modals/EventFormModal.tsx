@@ -17,8 +17,11 @@ interface EventFormModalProps {
 
 function toDatetimeLocal(iso?: string): string {
   if (!iso) return '';
-  // datetime-local requires "YYYY-MM-DDTHH:mm"
-  return iso.slice(0, 16);
+  // datetime-local requires local "YYYY-MM-DDTHH:mm" (convert from UTC ISO).
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function EventFormModal({
