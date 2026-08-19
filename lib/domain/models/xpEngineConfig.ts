@@ -86,12 +86,6 @@ export interface XpEngineConfigResponse extends XpEngineConfigDoc {
 export interface XpEngineConfigApiResponse {
   published: XpEngineConfigResponse | null;
   draft: XpEngineConfigResponse | null;
-  /** Number of archived versions in config/xp_engine/versions — drives the "Rollback" button. */
-  versionHistoryCount: number;
-}
-
-/** A snapshot archived to config/xp_engine/versions/{version} when a newer config is published. */
-export interface XpEngineConfigVersion extends XpEngineConfigDoc {
-  /** Timestamp (ISO) this snapshot was superseded / archived. */
-  archived_at: string | null;
+  /** config/xp_engine_version — the one-step-back backup. Null until the first publish/rollback ever runs. */
+  version: XpEngineConfigResponse | null;
 }

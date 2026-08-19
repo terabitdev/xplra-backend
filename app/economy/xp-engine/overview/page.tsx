@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/app/store/hooks";
 import type { XpEngineConfigApiResponse } from "@/lib/domain/models/xpEngineConfig";
@@ -30,7 +29,9 @@ export default function XpEngineOverviewPage() {
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
   const showToast = (message: string, type: "success" | "error" = "success") =>
@@ -68,10 +69,10 @@ export default function XpEngineOverviewPage() {
   const duplicateDraft = async (): Promise<boolean> => {
     if (!requireAdminUid()) return false;
     try {
-      const res = await fetch("/api/admin/xp_engine/config/duplicate", {
+      const res = await fetch("/api/admin/xp_engine/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid }),
+        body: JSON.stringify({ adminUid, source: "published" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to duplicate config");
@@ -111,13 +112,16 @@ export default function XpEngineOverviewPage() {
     if (!requireAdminUid()) return;
     setIsPublishing(true);
     try {
-      const res = await fetch("/api/admin/xp_engine/config/publish", {
+      const res = await fetch("/api/admin/xp_engine/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminUid }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed to publish config");
+      if (!res.ok) {
+        const detail = Array.isArray(json?.warnings) && json.warnings.length ? ` ${json.warnings.join(" ")}` : "";
+        throw new Error((json?.error || "Failed to publish config") + detail);
+      }
       showToast("Draft published — this is now the live XP config.");
       setShowPublishConfirm(false);
       await loadConfig();
@@ -125,6 +129,27 @@ export default function XpEngineOverviewPage() {
       showToast(err instanceof Error ? err.message : "Failed to publish config", "error");
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleRollback = async () => {
+    if (!requireAdminUid()) return;
+    setIsRollingBack(true);
+    try {
+      const res = await fetch("/api/admin/xp_engine/rollback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to roll back config");
+      showToast(`Rolled back — the previous published config is live again as v${json.published?.version}.`);
+      setShowRollbackConfirm(false);
+      await loadConfig();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to roll back config", "error");
+    } finally {
+      setIsRollingBack(false);
     }
   };
 
@@ -154,7 +179,7 @@ export default function XpEngineOverviewPage() {
 
   const config = data?.published;
   const hasDraft = !!data?.draft;
-  const hasVersionHistory = (data?.versionHistoryCount ?? 0) > 0;
+  const hasVersionBackup = !!data?.version;
 
   if (!config) {
     return (
@@ -196,13 +221,14 @@ export default function XpEngineOverviewPage() {
         >
           Publish
         </button>
-        {hasVersionHistory && (
-          <Link
-            href="/economy/xp-engine/version-history"
+        {hasVersionBackup && (
+          <button
+            type="button"
+            onClick={() => setShowRollbackConfirm(true)}
             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
           >
             Rollback
-          </Link>
+          </button>
         )}
         {!hasDraft && (
           <span className="text-xs text-gray-500">No draft yet — Duplicate Config or Edit Draft to start one.</span>
@@ -321,10 +347,22 @@ export default function XpEngineOverviewPage() {
         onClose={() => setShowPublishConfirm(false)}
         onConfirm={handlePublish}
         title="Publish this draft?"
-        message="This replaces the live XP config used to calculate XP for all players. The current published config will be archived to version history."
+        message="This replaces the live XP config used to calculate XP for all players. The current published config is backed up first, so this can be rolled back."
         confirmLabel="Publish"
         confirmingLabel="Publishing…"
         isConfirming={isPublishing}
+      />
+
+      <ConfirmDialog
+        isOpen={showRollbackConfirm}
+        onClose={() => setShowRollbackConfirm(false)}
+        onConfirm={handleRollback}
+        title="Roll back to the previous version?"
+        message="This restores the last backed-up config as the live XP config. The config it replaces becomes the new backup, so rolling back again would undo this."
+        confirmLabel="Roll Back"
+        confirmingLabel="Rolling back…"
+        tone="danger"
+        isConfirming={isRollingBack}
       />
 
       <Toaster

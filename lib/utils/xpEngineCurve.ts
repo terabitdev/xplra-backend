@@ -58,7 +58,14 @@ export function xpToNextForLevel(level: number, curve: XpCurveConfig, ranges: No
   return Math.round(clamped);
 }
 
-const EXPECTED_MAX_LEVEL = 369;
+/**
+ * The 369-level architecture is a locked structural rule (per product decision):
+ * admins may redistribute how many levels each node spans, and tune node_boost /
+ * curve params, but the total across all nodes must always resolve to this
+ * number. Enforced at draft-save time in app/api/admin/xp_engine/draft, not
+ * just as a publish-time warning.
+ */
+export const EXPECTED_MAX_LEVEL = 369;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -189,28 +196,134 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
   return warnings;
 }
 
-export function computeXpEngineSummary(config: XpEngineConfigDoc): XpEngineComputedSummary {
+export const KEY_CHECKPOINT_LEVELS = [1, 28, 100, 280, 369];
+
+interface CumulativeTable {
+  ranges: NodeRange[];
+  maxLevel: number;
+  /** cumulativeByLevel[i] = total XP earned by the end of level i (1-indexed, empty at index 0). */
+  cumulativeByLevel: number[];
+}
+
+/** Builds the level → XP tables once so summary/preview/simulate don't each re-walk 1..maxLevel. */
+export function buildCumulativeTable(config: XpEngineConfigDoc): CumulativeTable {
   const ranges = buildNodeRanges(config.nodes || []);
   const maxLevel = getMaxLevel(config.nodes || []);
 
+  const cumulativeByLevel: number[] = [0];
   let cumulative = 0;
-  const cumulativeByLevel = new Map<number, number>();
   for (let level = 1; level <= maxLevel; level++) {
     cumulative += xpToNextForLevel(level, config.curve, ranges);
-    cumulativeByLevel.set(level, cumulative);
+    cumulativeByLevel[level] = cumulative;
   }
 
-  const keyLevels = [1, 28, 100, 280, 369].filter((l) => l <= maxLevel);
-  const keyPoints = keyLevels.map((level) => ({
+  return { ranges, maxLevel, cumulativeByLevel };
+}
+
+function sampleAtLevel(level: number, config: XpEngineConfigDoc, table: CumulativeTable) {
+  return {
     level,
-    xpToNext: xpToNextForLevel(level, config.curve, ranges),
-    cumulativeXp: cumulativeByLevel.get(level) ?? 0,
-  }));
+    xpToNext: xpToNextForLevel(level, config.curve, table.ranges),
+    cumulativeXp: table.cumulativeByLevel[level] ?? 0,
+  };
+}
+
+export function computeXpEngineSummary(config: XpEngineConfigDoc): XpEngineComputedSummary {
+  const table = buildCumulativeTable(config);
+  const { ranges, maxLevel, cumulativeByLevel } = table;
+
+  const keyPoints = KEY_CHECKPOINT_LEVELS.filter((l) => l <= maxLevel).map((level) => sampleAtLevel(level, config, table));
 
   return {
     maxLevel,
-    totalXpToMaxLevel: cumulative,
+    totalXpToMaxLevel: cumulativeByLevel[maxLevel] ?? 0,
     keyPoints,
     warnings: computeWarnings(config, ranges, maxLevel),
   };
+}
+
+/**
+ * Denser sample table for the "preview" endpoint: every node boundary plus an
+ * even spread of levels in between, so the admin can see the curve's actual
+ * shape rather than just the 5 canonical checkpoints.
+ */
+export function computeSampleTable(config: XpEngineConfigDoc, step = 20) {
+  const table = buildCumulativeTable(config);
+  const { ranges, maxLevel } = table;
+
+  const levels = new Set<number>([1]);
+  for (const range of ranges) {
+    levels.add(range.startLevel);
+    levels.add(range.endLevel);
+  }
+  for (let level = step; level < maxLevel; level += step) {
+    levels.add(level);
+  }
+  if (maxLevel > 0) levels.add(maxLevel);
+
+  const sortedLevels = Array.from(levels)
+    .filter((l) => l >= 1 && l <= maxLevel)
+    .sort((a, b) => a - b);
+
+  return {
+    maxLevel,
+    totalXpToMaxLevel: table.cumulativeByLevel[maxLevel] ?? 0,
+    samples: sortedLevels.map((level) => sampleAtLevel(level, config, table)),
+  };
+}
+
+/**
+ * ASSUMPTION: "time to 369" is modeled off the daily XP limits that already
+ * exist on the config (limits.daily_xp_cap_soft / _hard / soft_cap_dampening),
+ * since there's no per-action XP value in the schema to simulate from
+ * directly. Two reference players are estimated:
+ *   - "typical": earns daily_xp_cap_soft every day
+ *   - "power":   earns daily_xp_cap_hard every day, with the portion above
+ *                the soft cap reduced by soft_cap_dampening (0..1)
+ * A caller-supplied dailyXpEarned produces a third, custom estimate.
+ */
+export interface XpEngineSimulationEstimate {
+  label: string;
+  dailyXpEarned: number;
+  estimatedDays: number | null;
+}
+
+export function computeSimulation(
+  config: XpEngineConfigDoc,
+  options: { targetLevel?: number; dailyXpEarned?: number } = {}
+) {
+  const table = buildCumulativeTable(config);
+  const { maxLevel, cumulativeByLevel } = table;
+  const targetLevel = Math.min(Math.max(options.targetLevel ?? maxLevel, 1), maxLevel);
+  const totalXpNeeded = cumulativeByLevel[targetLevel] ?? 0;
+
+  const { daily_xp_cap_soft: soft, daily_xp_cap_hard: hard, soft_cap_dampening: dampening } = config.limits || {};
+
+  const daysFor = (dailyXp: number): number | null => {
+    if (!isFiniteNumber(dailyXp) || dailyXp <= 0) return null;
+    return Math.ceil(totalXpNeeded / dailyXp);
+  };
+
+  const estimates: XpEngineSimulationEstimate[] = [];
+
+  if (isFiniteNumber(soft)) {
+    estimates.push({ label: "typical (daily soft cap)", dailyXpEarned: soft, estimatedDays: daysFor(soft) });
+  }
+  if (isFiniteNumber(hard) && isFiniteNumber(soft) && isFiniteNumber(dampening)) {
+    const effectiveHard = soft + (hard - soft) * dampening;
+    estimates.push({
+      label: "power user (daily hard cap, soft-cap dampened)",
+      dailyXpEarned: effectiveHard,
+      estimatedDays: daysFor(effectiveHard),
+    });
+  }
+  if (isFiniteNumber(options.dailyXpEarned)) {
+    estimates.push({
+      label: "custom",
+      dailyXpEarned: options.dailyXpEarned,
+      estimatedDays: daysFor(options.dailyXpEarned),
+    });
+  }
+
+  return { targetLevel, totalXpNeeded, estimates };
 }

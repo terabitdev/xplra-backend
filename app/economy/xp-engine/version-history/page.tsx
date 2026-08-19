@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAppSelector } from "@/app/store/hooks";
-import type { XpEngineConfigVersion } from "@/lib/domain/models/xpEngineConfig";
+import type { XpEngineConfigApiResponse } from "@/lib/domain/models/xpEngineConfig";
 import Toaster from "@/app/components/ui/Toaster";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 
@@ -17,41 +17,46 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
+/**
+ * There's no growing version list — just one backup slot (config/xp_engine_version),
+ * overwritten whenever the live config gets replaced by a publish or rollback.
+ * This tab shows that one backup and lets you restore it, same action as the
+ * "Rollback" button on Overview.
+ */
 export default function XpEngineVersionHistoryPage() {
   const adminUid = useAppSelector((state) => state.user.uid);
 
-  const [versions, setVersions] = useState<XpEngineConfigVersion[]>([]);
+  const [data, setData] = useState<XpEngineConfigApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [rollbackTarget, setRollbackTarget] = useState<number | null>(null);
+  const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
   const showToast = (message: string, type: "success" | "error" = "success") =>
     setToast({ message, type, isVisible: true });
 
-  const loadVersions = useCallback(async () => {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/admin/xp_engine/config/versions");
+      const res = await fetch("/api/admin/xp_engine/config");
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed to load version history");
-      setVersions(json.versions || []);
+      if (!res.ok) throw new Error(json?.error || "Failed to load version backup");
+      setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load version history");
+      setError(err instanceof Error ? err.message : "Failed to load version backup");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadVersions();
-  }, [loadVersions]);
+    loadConfig();
+  }, [loadConfig]);
 
   const handleRollback = async () => {
-    if (rollbackTarget === null) return;
     if (!adminUid) {
       showToast("You must be signed in as an admin to do this.", "error");
       return;
@@ -59,16 +64,16 @@ export default function XpEngineVersionHistoryPage() {
 
     setIsRollingBack(true);
     try {
-      const res = await fetch("/api/admin/xp_engine/config/rollback", {
+      const res = await fetch("/api/admin/xp_engine/rollback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: rollbackTarget, adminUid }),
+        body: JSON.stringify({ adminUid }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to roll back config");
-      showToast(`Rolled back to version ${rollbackTarget} — it's now live as v${json.published?.version}.`);
-      setRollbackTarget(null);
-      await loadVersions();
+      showToast(`Rolled back — the previous published config is live again as v${json.published?.version}.`);
+      setShowRollbackConfirm(false);
+      await loadConfig();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to roll back config", "error");
     } finally {
@@ -80,11 +85,7 @@ export default function XpEngineVersionHistoryPage() {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
         <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-10 bg-gray-100 rounded" />
-          ))}
-        </div>
+        <div className="h-24 bg-gray-100 rounded" />
       </div>
     );
   }
@@ -97,62 +98,58 @@ export default function XpEngineVersionHistoryPage() {
     );
   }
 
-  if (versions.length === 0) {
+  const backup = data?.version;
+
+  if (!backup) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6 text-sm text-gray-500">
-        No archived versions yet. Versions are created automatically whenever a draft is published or the config is
-        rolled back.
+        No previous version to roll back to yet. A backup is created automatically the first time a draft is
+        published.
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left font-medium text-gray-600 px-4 py-2.5">Version</th>
-                <th className="text-left font-medium text-gray-600 px-4 py-2.5">Curve (base / growth / power)</th>
-                <th className="text-left font-medium text-gray-600 px-4 py-2.5">Updated By</th>
-                <th className="text-left font-medium text-gray-600 px-4 py-2.5">Archived At</th>
-                <th className="text-center font-medium text-gray-600 px-4 py-2.5 w-32">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {versions.map((v) => (
-                <tr key={v.version} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-2.5 font-medium text-gray-900">v{v.version}</td>
-                  <td className="px-4 py-2.5 text-gray-700">
-                    {v.curve.base} / {v.curve.growth} / {v.curve.power}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-700">{v.updated_by || "—"}</td>
-                  <td className="px-4 py-2.5 text-gray-700">{formatDateTime(v.archived_at)}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setRollbackTarget(v.version)}
-                        className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-                      >
-                        Rollback to this
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-900">Previous Version (one step back)</h2>
+          <button
+            type="button"
+            onClick={() => setShowRollbackConfirm(true)}
+            className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+          >
+            Rollback to This
+          </button>
         </div>
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <dt className="text-xs text-gray-500">Version</dt>
+            <dd className="text-sm font-medium text-gray-900">v{backup.version}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Curve (base / growth / power)</dt>
+            <dd className="text-sm font-medium text-gray-900">
+              {backup.curve.base} / {backup.curve.growth} / {backup.curve.power}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Updated By</dt>
+            <dd className="text-sm font-medium text-gray-900">{backup.updated_by || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Backed Up At</dt>
+            <dd className="text-sm font-medium text-gray-900">{formatDateTime(backup.updated_at)}</dd>
+          </div>
+        </dl>
       </div>
 
       <ConfirmDialog
-        isOpen={rollbackTarget !== null}
-        onClose={() => setRollbackTarget(null)}
+        isOpen={showRollbackConfirm}
+        onClose={() => setShowRollbackConfirm(false)}
         onConfirm={handleRollback}
-        title={`Roll back to version ${rollbackTarget ?? ""}?`}
-        message="This replaces the live XP config with this archived version. The current published config will be archived first, so this can be undone."
+        title="Roll back to the previous version?"
+        message="This restores the backed-up config as the live XP config. The config it replaces becomes the new backup, so rolling back again would undo this."
         confirmLabel="Roll Back"
         confirmingLabel="Rolling back…"
         tone="danger"

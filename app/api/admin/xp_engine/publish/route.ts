@@ -4,20 +4,25 @@ import { adminDb } from "@/lib/firebase-admin";
 import {
   XP_ENGINE_DRAFT_DOC_ID,
   XP_ENGINE_PUBLISHED_DOC_ID,
+  XP_ENGINE_VERSION_DOC_ID,
   loadConfigResponse,
+  withComputed,
   xpEngineDocRef,
-  xpEngineVersionsRef,
 } from "@/lib/utils/xpEngineConfigStore";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
 
 /**
- * POST /api/admin/xp_engine/config/publish
+ * POST /api/admin/xp_engine/publish
  * Body: { adminUid: string }
  *
- * Promotes config/xp_engine_draft to config/xp_engine:
- *   1. Archives the current published doc to config/xp_engine/versions/{version}
- *   2. Writes the draft into config/xp_engine with version + 1
- *   3. Deletes the draft doc
+ * Validate + publish + version, using the fixed 3-document model:
+ *   1. Rejects if the draft fails validation (same warnings shown on Overview)
+ *   2. Backs up the current config/xp_engine into config/xp_engine_version
+ *      (the single one-step-back slot — overwritten, not appended)
+ *   3. Replaces config/xp_engine with the draft's data, version + 1
+ *   4. Resets config/xp_engine_draft to mirror the new published data, so
+ *      all three documents always exist and are only ever overwritten,
+ *      never deleted
  */
 export async function POST(req: NextRequest) {
   try {
@@ -30,6 +35,7 @@ export async function POST(req: NextRequest) {
 
     const draftRef = xpEngineDocRef(XP_ENGINE_DRAFT_DOC_ID);
     const publishedRef = xpEngineDocRef(XP_ENGINE_PUBLISHED_DOC_ID);
+    const versionRef = xpEngineDocRef(XP_ENGINE_VERSION_DOC_ID);
 
     const [draftSnap, publishedSnap] = await Promise.all([draftRef.get(), publishedRef.get()]);
 
@@ -38,34 +44,54 @@ export async function POST(req: NextRequest) {
     }
 
     const draft = draftSnap.data() as XpEngineConfigDoc;
+
+    // ---- Validate before publishing ----
+    const validated = withComputed(draft);
+    if (validated.computed.warnings.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Draft has validation warnings and cannot be published.",
+          warnings: validated.computed.warnings,
+        },
+        { status: 400 }
+      );
+    }
+
     const currentPublished = publishedSnap.exists ? (publishedSnap.data() as XpEngineConfigDoc) : null;
     const nextVersion = (currentPublished?.version ?? 0) + 1;
 
     const batch = adminDb.batch();
 
+    // 1. Back up the outgoing published config into the single version slot.
     if (currentPublished) {
-      const versionRef = xpEngineVersionsRef().doc(String(currentPublished.version));
       batch.set(versionRef, {
         ...currentPublished,
-        archived_at: FieldValue.serverTimestamp(),
+        backed_up_at: FieldValue.serverTimestamp(),
       });
     }
 
-    batch.set(publishedRef, {
+    const newPublished = {
       ...draft,
       published: true,
       version: nextVersion,
       updated_by: adminUid,
       updated_at: FieldValue.serverTimestamp(),
-    });
+    };
 
-    batch.delete(draftRef);
+    // 2. The draft's data becomes the live published config.
+    batch.set(publishedRef, newPublished);
+
+    // 3. Reset the draft to mirror the newly published config (never deleted).
+    batch.set(draftRef, { ...newPublished, published: false });
 
     await batch.commit();
 
-    const published = await loadConfigResponse(XP_ENGINE_PUBLISHED_DOC_ID);
+    const [published, draftAfter] = await Promise.all([
+      loadConfigResponse(XP_ENGINE_PUBLISHED_DOC_ID),
+      loadConfigResponse(XP_ENGINE_DRAFT_DOC_ID),
+    ]);
 
-    return NextResponse.json({ published, draft: null });
+    return NextResponse.json({ published, draft: draftAfter });
   } catch (error: unknown) {
     console.error("Publish XP engine config error:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to publish XP engine config";
