@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +18,8 @@ import {
   Settings,
   Calendar,
   Flag,
+  ChevronDown,
+  ChevronUp,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -24,6 +27,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const dispatch = useDispatch();
   const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
+  const [isEconomyOpen, setIsEconomyOpen] = useState(pathname.startsWith("/economy"));
+
+  // Keep the dropdown open automatically when navigating straight to a child
+  // route (e.g. via a direct link), without fighting the user's manual toggle.
+  useEffect(() => {
+    if (pathname.startsWith("/economy/")) {
+      setIsEconomyOpen(true);
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
@@ -47,6 +59,12 @@ export default function Sidebar() {
 
   const navLinks = [
     { href: "/", icon: Dashboard, label: "Dashboard" },
+    {
+      href: "/economy",
+      icon: Settings,
+      label: "Economy",
+      children: [{ href: "/economy/xp-engine", label: "XP Engine" }],
+    },
     { href: "/quests_", icon: Task, label: "Quests" },
     { href: "/places_", icon: Location, label: "Places" },
     { href: "/events_", icon: Calendar, label: "Events" },
@@ -55,6 +73,9 @@ export default function Sidebar() {
     { href: "/categories", icon: Tag, label: "Place Categories" },
     { href: "/quest-categories", icon: Tag, label: "Quest Categories" },
     { href: "/validation-configs", icon: Settings, label: "Validation Configs" },
+
+
+
     { href: "/quest-reports", icon: Flag, label: "Quest Reports" },
   ];
 
@@ -112,9 +133,8 @@ export default function Sidebar() {
           {/* Toggle Button */}
           <button
             onClick={() => dispatch(toggleSidebar())}
-            className={`inline-flex items-center justify-center relative shrink-0 select-none border-transparent transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md active:scale-95 group hover:bg-gray-100 ${
-              !isSidebarOpen ? "mx-auto" : ""
-            }`}
+            className={`inline-flex items-center justify-center relative shrink-0 select-none border-transparent transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md active:scale-95 group hover:bg-gray-100 ${!isSidebarOpen ? "mx-auto" : ""
+              }`}
             type="button"
             aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
             aria-pressed={isSidebarOpen}
@@ -138,20 +158,81 @@ export default function Sidebar() {
         <nav className="flex flex-col flex-1 w-full px-3 py-4 space-y-2">
           {navLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            const hasChildren = "children" in link && !!link.children?.length;
+            const isChildActive =
+              hasChildren &&
+              link.children!.some((child) => pathname === child.href || pathname.startsWith(`${child.href}/`));
+            const isParentActive = pathname === link.href;
+            const isActive = isParentActive || isChildActive;
+
+            if (hasChildren) {
+              const isOpen = isSidebarOpen && isEconomyOpen;
+
+              return (
+                <div key={link.href}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isSidebarOpen) {
+                        dispatch(toggleSidebar());
+                        setIsEconomyOpen(true);
+                        return;
+                      }
+                      setIsEconomyOpen((prev) => !prev);
+                    }}
+                    className={`flex items-center rounded-lg transition-all duration-200 ${isSidebarOpen ? "w-full px-4 py-2.5 gap-3" : "w-10 h-10 mx-auto justify-center"
+                      } ${isParentActive
+                        ? "bg-blue-600 text-white font-semibold shadow-md"
+                        : isChildActive
+                          ? "bg-blue-50 text-blue-700 font-semibold"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    title={!isSidebarOpen ? link.label : undefined}
+                  >
+                    <Icon size={20} />
+                    {isSidebarOpen && (
+                      <>
+                        <span className="text-sm flex-1 text-left">{link.label}</span>
+                        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </>
+                    )}
+                  </button>
+
+                  {isOpen && (
+                    <div className="mt-1 ml-4 pl-3 border-l border-gray-200 space-y-1">
+                      {link.children!.map((child) => {
+                        const isChildLinkActive = pathname === child.href || pathname.startsWith(`${child.href}/`);
+
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={closeMobileMenu}
+                            className={`flex items-center rounded-lg transition-all duration-200 w-full px-4 py-2 text-sm ${isChildLinkActive
+                              ? "bg-blue-600 text-white font-semibold shadow-md"
+                              : "text-gray-700 hover:bg-gray-100"
+                              }`}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={closeMobileMenu}
-                className={`flex items-center rounded-lg transition-all duration-200 ${
-                  isSidebarOpen ? "w-full px-4 py-2.5 gap-3" : "w-10 h-10 mx-auto justify-center"
-                } ${
-                  isActive
+                className={`flex items-center rounded-lg transition-all duration-200 ${isSidebarOpen ? "w-full px-4 py-2.5 gap-3" : "w-10 h-10 mx-auto justify-center"
+                  } ${isActive
                     ? "bg-blue-600 text-white font-semibold shadow-md"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
                 title={!isSidebarOpen ? link.label : undefined}
               >
                 <Icon size={20} />
@@ -163,9 +244,8 @@ export default function Sidebar() {
 
         <div className="p-4 border-t border-gray-200">
           <button
-            className={`bg-red-500 hover:bg-red-600 text-white border-none rounded-lg font-medium transition-colors flex items-center shadow-sm ${
-              isSidebarOpen ? "w-full py-2.5 px-4 justify-center gap-2" : "w-10 h-10 mx-auto justify-center p-0"
-            }`}
+            className={`bg-red-500 hover:bg-red-600 text-white border-none rounded-lg font-medium transition-colors flex items-center shadow-sm ${isSidebarOpen ? "w-full py-2.5 px-4 justify-center gap-2" : "w-10 h-10 mx-auto justify-center p-0"
+              }`}
             onClick={handleLogout}
             title={!isSidebarOpen ? "Logout" : undefined}
           >
