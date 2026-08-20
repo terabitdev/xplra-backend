@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/app/store/hooks";
 import type { XpEngineConfigApiResponse } from "@/lib/domain/models/xpEngineConfig";
 import Toaster from "@/app/components/ui/Toaster";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
+import XpEngineDraftEditModal from "@/app/components/modals/XpEngineDraftEditModal";
 
 function formatDateTime(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -19,7 +19,6 @@ function formatDateTime(iso: string | null | undefined) {
 }
 
 export default function XpEngineOverviewPage() {
-  const router = useRouter();
   const adminUid = useAppSelector((state) => state.user.uid);
 
   const [data, setData] = useState<XpEngineConfigApiResponse | null>(null);
@@ -32,6 +31,7 @@ export default function XpEngineOverviewPage() {
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
   const showToast = (message: string, type: "success" | "error" = "success") =>
@@ -96,14 +96,14 @@ export default function XpEngineOverviewPage() {
   const handleEditDraft = async () => {
     setIsEditingDraft(true);
     if (data?.draft) {
-      router.push("/economy/xp-engine/curve-nodes");
+      setShowEditModal(true);
       setIsEditingDraft(false);
       return;
     }
     const ok = await duplicateDraft();
     if (ok) {
       showToast("Draft created from the published config.");
-      router.push("/economy/xp-engine/curve-nodes");
+      setShowEditModal(true);
     }
     setIsEditingDraft(false);
   };
@@ -363,6 +363,14 @@ export default function XpEngineOverviewPage() {
         confirmingLabel="Rolling back…"
         tone="danger"
         isConfirming={isRollingBack}
+      />
+
+      <XpEngineDraftEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSaved={() => {
+          loadConfig();
+        }}
       />
 
       <Toaster
