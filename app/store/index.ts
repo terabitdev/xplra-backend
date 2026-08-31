@@ -15,6 +15,7 @@ import validationConfigsReducer from './slices/validationConfigsSlice';
 import eventsReducer from './slices/eventsSlice';
 import questCategoriesReducer from './slices/questCategoriesSlice';
 import questReportsReducer from './slices/questReportsSlice';
+import userReportsReducer from './slices/userReportsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -34,6 +35,7 @@ export const store = configureStore({
     events: eventsReducer,
     questCategories: questCategoriesReducer,
     questReports: questReportsReducer,
+    userReports: userReportsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
