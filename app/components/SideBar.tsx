@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   WarningAlt,
+  SecurityServices,
 } from "@carbon/icons-react";
 
 export default function Sidebar() {
@@ -79,6 +80,7 @@ export default function Sidebar() {
 
     { href: "/quest-reports", icon: Flag, label: "Quest Reports" },
     { href: "/user-reports", icon: WarningAlt, label: "User Reports" },
+    { href: "/player-reports", icon: SecurityServices, label: "Player Reports" },
   ];
 
   const closeMobileMenu = () => {

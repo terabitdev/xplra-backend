@@ -16,6 +16,7 @@ import eventsReducer from './slices/eventsSlice';
 import questCategoriesReducer from './slices/questCategoriesSlice';
 import questReportsReducer from './slices/questReportsSlice';
 import userReportsReducer from './slices/userReportsSlice';
+import playerReportsReducer from './slices/playerReportsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +37,7 @@ export const store = configureStore({
     questCategories: questCategoriesReducer,
     questReports: questReportsReducer,
     userReports: userReportsReducer,
+    playerReports: playerReportsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
