@@ -34,12 +34,11 @@ export const fetchAchievementDefinitions = createAsyncThunk(
 
 export const createAchievementDefinition = createAsyncThunk(
   'achievementDefinitions/create',
-  async (definitionData: Record<string, unknown>, { rejectWithValue }) => {
+  async (formData: FormData, { rejectWithValue }) => {
     try {
       const response = await fetch('/api/achievement-definitions/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(definitionData),
+        body: formData,
       });
 
       const data = await response.json();
@@ -58,15 +57,11 @@ export const createAchievementDefinition = createAsyncThunk(
 
 export const updateAchievementDefinition = createAsyncThunk(
   'achievementDefinitions/update',
-  async (
-    { id, definitionData }: { id: string; definitionData: Record<string, unknown> },
-    { rejectWithValue }
-  ) => {
+  async ({ id, formData }: { id: string; formData: FormData }, { rejectWithValue }) => {
     try {
       const response = await fetch(`/api/achievement-definitions/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(definitionData),
+        body: formData,
       });
 
       const data = await response.json();

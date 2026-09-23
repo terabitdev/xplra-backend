@@ -12,7 +12,7 @@ interface CategoryOption {
 interface AchievementDefinitionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<AchievementDefinitionInput>) => void;
+  onSubmit: (formData: FormData) => void;
   definition?: AchievementDefinition | null;
 }
 
@@ -23,6 +23,7 @@ const STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
 const VISIBILITIES = ['DISCOVERABLE', 'HIDDEN', 'SECRET'];
 const RULE_TYPES = ['COUNT', 'THRESHOLD', 'STREAK', 'MANUAL'];
 const EVENT_TYPES = ['PLACE_VISITED', 'QUEST_COMPLETED', 'EVENT_ATTENDED', 'CONTRIBUTION_APPROVED'];
+const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 
 const emptyForm: Partial<AchievementDefinitionInput> = {
   title: '',
@@ -53,15 +54,33 @@ export default function AchievementDefinitionFormModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placeCategories, setPlaceCategories] = useState<CategoryOption[]>([]);
 
+  const [badgeFile, setBadgeFile] = useState<File | null>(null);
+  const [badgePreview, setBadgePreview] = useState<string>('');
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [assetError, setAssetError] = useState<string | null>(null);
+
   useEffect(() => {
     if (initialDefinition) {
       setForm({
         ...initialDefinition,
         rule_config: initialDefinition.rule_config || { event_type: '', target: 0 },
       });
+      // Older records (from before this form uploaded real files) may have
+      // plain text saved where a URL belongs — don't preview that as an image.
+      const isUrl = (v: string) => v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/');
+      const badgeUrl = initialDefinition.badge_asset_url || '';
+      const thumbUrl = initialDefinition.thumbnail_url || '';
+      setBadgePreview(isUrl(badgeUrl) ? badgeUrl : '');
+      setThumbnailPreview(isUrl(thumbUrl) ? thumbUrl : '');
     } else {
       setForm(emptyForm);
+      setBadgePreview('');
+      setThumbnailPreview('');
     }
+    setBadgeFile(null);
+    setThumbnailFile(null);
+    setAssetError(null);
     setErrors({});
   }, [initialDefinition, isOpen]);
 
@@ -99,6 +118,47 @@ export default function AchievementDefinitionFormModal({
     }));
   };
 
+  const readAsset = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+
+  const validateAssetFile = (file: File): string | null => {
+    if (file.size > MAX_ASSET_BYTES) return `"${file.name}" exceeds the 4MB limit`;
+    if (!file.type.startsWith('image/')) return `"${file.name}" is not an image`;
+    return null;
+  };
+
+  const handleBadgeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const err = validateAssetFile(file);
+    if (err) {
+      setAssetError(err);
+      return;
+    }
+    setAssetError(null);
+    setBadgeFile(file);
+    setBadgePreview(await readAsset(file));
+  };
+
+  const handleThumbnailChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const err = validateAssetFile(file);
+    if (err) {
+      setAssetError(err);
+      return;
+    }
+    setAssetError(null);
+    setThumbnailFile(file);
+    setThumbnailPreview(await readAsset(file));
+  };
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!form.title?.trim()) errs.title = 'Title is required';
@@ -119,7 +179,13 @@ export default function AchievementDefinitionFormModal({
       if (payload.rule_config?.event_type !== 'PLACE_VISITED') {
         payload.rule_config = { event_type: payload.rule_config?.event_type || '', target: payload.rule_config?.target || 0 };
       }
-      await onSubmit(payload);
+
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(payload));
+      if (badgeFile) formData.append('badge_asset', badgeFile);
+      if (thumbnailFile) formData.append('thumbnail_asset', thumbnailFile);
+
+      await onSubmit(formData);
       onClose();
     } catch {
       // Error handled by parent (toast).
@@ -145,6 +211,12 @@ export default function AchievementDefinitionFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {assetError && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-600 font-medium">{assetError}</p>
+            </div>
+          )}
+
           {/* Basic info */}
           <div>
             <label className={labelClass}>Title *</label>
@@ -187,24 +259,38 @@ export default function AchievementDefinitionFormModal({
             <p className={sectionTitle}>Presentation</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>Badge Asset URL</label>
-                <input
-                  className={inputClass}
-                  value={form.badge_asset_url || ''}
-                  onChange={(e) => setField('badge_asset_url', e.target.value)}
-                  placeholder="https://…"
-                  disabled={loading}
-                />
+                <label className={labelClass}>Badge Asset</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                    {badgePreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={badgePreview} alt="Badge preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] text-gray-400">None</span>
+                    )}
+                  </div>
+                  <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
+                    {badgePreview ? 'Replace' : 'Upload'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleBadgeChange} disabled={loading} />
+                  </label>
+                </div>
               </div>
               <div>
-                <label className={labelClass}>Thumbnail URL</label>
-                <input
-                  className={inputClass}
-                  value={form.thumbnail_url || ''}
-                  onChange={(e) => setField('thumbnail_url', e.target.value)}
-                  placeholder="https://…"
-                  disabled={loading}
-                />
+                <label className={labelClass}>Thumbnail</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                    {thumbnailPreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] text-gray-400">None</span>
+                    )}
+                  </div>
+                  <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
+                    {thumbnailPreview ? 'Replace' : 'Upload'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailChange} disabled={loading} />
+                  </label>
+                </div>
               </div>
             </div>
             <div>

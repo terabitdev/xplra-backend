@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Image from "next/image";
 import DashboardLayout from "../components/DashboardLayout";
 import AchievementDefinitionFormModal from "../components/modals/AchievementDefinitionFormModal";
 import DeleteDialog from "../components/ui/DeleteDialog";
@@ -17,7 +18,7 @@ import {
   deleteAchievementDefinition,
   clearError,
 } from "../store/slices/achievementDefinitionsSlice";
-import { AchievementDefinition, AchievementDefinitionInput } from "@/lib/domain/models/achievementDefinition";
+import { AchievementDefinition } from "@/lib/domain/models/achievementDefinition";
 
 function getRarityStyle(rarity: string) {
   const styles: Record<string, string> = {
@@ -37,6 +38,60 @@ function getStatusStyle(status: string) {
     ARCHIVED: "bg-red-100 text-red-600",
   };
   return styles[status] || "bg-gray-100 text-gray-600";
+}
+
+function isRenderableImageUrl(value: string): boolean {
+  return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/');
+}
+
+// Hosts allowlisted in next.config.js — anything else must fall back to a
+// plain <img>, since next/image throws (not just degrades) on an
+// unconfigured hostname. Older achievement records, from before this tab
+// uploaded real files, can point at arbitrary external hosts (flaticon,
+// gstatic, ...), so this can't be a fixed allowlist of "expected" domains.
+const OPTIMIZED_IMAGE_HOSTS = ['storage.googleapis.com', 'firebasestorage.googleapis.com', 'picsum.photos'];
+
+function isOptimizableImageUrl(value: string): boolean {
+  try {
+    return OPTIMIZED_IMAGE_HOSTS.includes(new URL(value).hostname);
+  } catch {
+    return false; // relative paths, e.g. "/foo.png" — next/image handles these fine too
+  }
+}
+
+function BadgeThumbnail({ definition, size }: { definition: AchievementDefinition; size: number }) {
+  const candidate = definition.badge_asset_url || definition.thumbnail_url || '';
+  // Older records (created before this tab had real uploads) may have plain
+  // text — e.g. "abc" — saved where a URL belongs. next/image throws on
+  // anything that isn't a real path or absolute URL, so guard it here.
+  const src = isRenderableImageUrl(candidate) ? candidate : '';
+
+  if (!src) {
+    return (
+      <div
+        className="shrink-0 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <svg className="w-1/2 h-1/2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden"
+      style={{ width: size, height: size }}
+    >
+      {isOptimizableImageUrl(src) ? (
+        <Image src={src} alt={definition.title} fill className="object-contain p-1" sizes={`${size}px`} />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={definition.title} className="w-full h-full object-contain p-1" />
+      )}
+    </div>
+  );
 }
 
 export default function AchievementDefinitionsPage() {
@@ -75,13 +130,16 @@ export default function AchievementDefinitionsPage() {
   }, []);
 
   const handleSubmit = useCallback(
-    async (data: Partial<AchievementDefinitionInput>) => {
+    async (formData: FormData) => {
       try {
         if (selectedDefinition) {
-          await dispatch(updateAchievementDefinition({ id: selectedDefinition.id, definitionData: data })).unwrap();
+          await dispatch(updateAchievementDefinition({ id: selectedDefinition.id, formData })).unwrap();
           setToast({ message: "Achievement updated successfully", type: "success", isVisible: true });
         } else {
-          await dispatch(createAchievementDefinition({ ...data, created_by: uid || "" })).unwrap();
+          // Inject the current admin's uid as created_by into the JSON payload before sending.
+          const payload = JSON.parse((formData.get("data") as string) || "{}");
+          formData.set("data", JSON.stringify({ ...payload, created_by: uid || "" }));
+          await dispatch(createAchievementDefinition(formData)).unwrap();
           setToast({ message: "Achievement created successfully", type: "success", isVisible: true });
         }
       } catch (err) {
@@ -174,11 +232,16 @@ export default function AchievementDefinitionsPage() {
             <div className="lg:hidden space-y-2">
               {definitions.map((def) => (
                 <div key={def.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">{def.title}</h3>
-                    <span className="shrink-0 text-xs font-medium text-amber-600">+{def.xp_reward} XP</span>
+                  <div className="flex items-start gap-3 mb-2">
+                    <BadgeThumbnail definition={def} size={44} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-gray-900 text-sm truncate flex-1">{def.title}</h3>
+                        <span className="shrink-0 text-xs font-medium text-amber-600">+{def.xp_reward} XP</span>
+                      </div>
+                      <p className="text-xs text-gray-500 line-clamp-2">{def.description}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">{def.description}</p>
                   <div className="flex flex-wrap gap-1 mb-2">
                     <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${getRarityStyle(def.rarity)}`}>{def.rarity}</span>
                     <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${getStatusStyle(def.status)}`}>{def.status}</span>
@@ -213,8 +276,13 @@ export default function AchievementDefinitionsPage() {
                   {definitions.map((def) => (
                     <tr key={def.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-3 py-2.5">
-                        <p className="font-medium text-gray-900">{def.title}</p>
-                        <p className="text-xs text-gray-400 truncate max-w-xs">{def.description}</p>
+                        <div className="flex items-center gap-3">
+                          <BadgeThumbnail definition={def} size={36} />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900">{def.title}</p>
+                            <p className="text-xs text-gray-400 truncate max-w-xs">{def.description}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs text-gray-700">{def.category}</span>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition';
+import { uploadAchievementAsset } from '@/lib/utils/achievementAssets';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -27,15 +28,38 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   }
 }
 
+/**
+ * PATCH /api/achievement-definitions/[id]
+ * multipart/form-data:
+ *   data            — JSON-stringified Partial<AchievementDefinitionInput>
+ *   badge_asset     — optional image file (replaces badge_asset_url)
+ *   thumbnail_asset — optional image file (replaces thumbnail_url)
+ * Fields not present in `data` and with no new file are left untouched.
+ */
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const body = await req.json();
-
     const docRef = adminDb.collection('achievementDefinitions').doc(params.id);
     const doc = await docRef.get();
 
     if (!doc.exists) {
       return NextResponse.json({ error: 'Achievement definition not found' }, { status: 404 });
+    }
+
+    const formData = await req.formData();
+    const dataStr = formData.get('data') as string | null;
+    if (!dataStr) {
+      return NextResponse.json({ error: 'Missing form field "data"' }, { status: 400 });
+    }
+    const body = JSON.parse(dataStr);
+
+    const badgeFile = formData.get('badge_asset') as File | null;
+    const thumbnailFile = formData.get('thumbnail_asset') as File | null;
+
+    if (badgeFile && badgeFile.size > 0) {
+      body.badge_asset_url = await uploadAchievementAsset(badgeFile, params.id, 'badge');
+    }
+    if (thumbnailFile && thumbnailFile.size > 0) {
+      body.thumbnail_url = await uploadAchievementAsset(thumbnailFile, params.id, 'thumbnail');
     }
 
     const updateData = {
