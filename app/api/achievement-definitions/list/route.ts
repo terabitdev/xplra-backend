@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition';
 
+// This handler reads no request data, so Next.js would otherwise cache it
+// as a static response at build time on Vercel — freezing the list at
+// whatever it was when the app was deployed. Force it dynamic so every
+// request re-reads Firestore.
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const snapshot = await adminDb.collection('achievementDefinitions').orderBy('sort_order', 'asc').get();

@@ -10,7 +10,13 @@ import {
  * GET /api/admin/xp_engine/config
  * Always reads live from Firestore (no caching) — the three fixed documents:
  * config/xp_engine (published), config/xp_engine_draft, config/xp_engine_version.
+ *
+ * This handler reads no request data, so Next.js would otherwise cache it as
+ * a static response at build time on Vercel, freezing Overview/Publish/
+ * Rollback at whatever it was when the app was deployed. Force it dynamic.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const [published, draft, version] = await Promise.all([
