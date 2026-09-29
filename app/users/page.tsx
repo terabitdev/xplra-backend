@@ -9,15 +9,19 @@ import Pagination from '../components/ui/Pagination';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import CardSkeleton from '../components/ui/CardSkeleton';
 import { AppDispatch, RootState } from '../store';
-import { fetchUsers } from '../store/slices/usersSlice';
+import { fetchUsers, removeUserBadge, UserBadge } from '../store/slices/usersSlice';
 import { User as UserIcon } from '@carbon/icons-react';
+import BadgeDetailModal from '../components/modals/BadgeDetailModal';
+import { useAppSelector } from '../store/hooks';
 
 export default function UsersPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { users, loading, error, pagination, lastFetched } = useSelector((state: RootState) => state.users);
+  const { uid: adminUid } = useAppSelector((state) => state.user);
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedBadge, setSelectedBadge] = useState<{ badge: UserBadge; targetUid: string } | null>(null);
 
   // Check if data is stale (older than 5 minutes)
   const isDataStale = !lastFetched || (Date.now() - lastFetched > 5 * 60 * 1000);
@@ -95,6 +99,7 @@ export default function UsersPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Badges</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">XP Total</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last XP Update</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Joined</th>
@@ -128,6 +133,26 @@ export default function UsersPage() {
                           }`}>
                             {user.type || 'user'}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {user.badges && user.badges.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 max-w-[220px]">
+                              {user.badges.map((badge) => (
+                                <button
+                                  key={badge.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBadge({ badge, targetUid: user.uid });
+                                  }}
+                                  className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors"
+                                >
+                                  {badge.title}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-semibold text-indigo-600">{user.xpTotal?.toLocaleString() || 0}</span>
@@ -170,6 +195,23 @@ export default function UsersPage() {
                     </div>
                   </div>
 
+                  {user.badges && user.badges.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {user.badges.map((badge) => (
+                        <button
+                          key={badge.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBadge({ badge, targetUid: user.uid });
+                          }}
+                          className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors"
+                        >
+                          {badge.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <span className="text-gray-400 text-xs block">XP Total</span>
@@ -208,6 +250,20 @@ export default function UsersPage() {
         isVisible={toast.isVisible}
         onClose={() => setToast({ ...toast, isVisible: false })}
       />
+
+      {selectedBadge && (
+        <BadgeDetailModal
+          achievementId={selectedBadge.badge.id}
+          assignedAt={selectedBadge.badge.assignedAt}
+          uid={selectedBadge.targetUid}
+          adminUid={adminUid || ''}
+          onClose={() => setSelectedBadge(null)}
+          onRemoved={(achievementId) => {
+            dispatch(removeUserBadge({ uid: selectedBadge.targetUid, achievementId }));
+            setToast({ message: 'Badge removed from user', type: 'success', isVisible: true });
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

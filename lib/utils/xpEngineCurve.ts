@@ -8,16 +8,22 @@ import {
 /**
  * XP Engine curve math (config/xp-engine, curve.type === "piecewise_power").
  *
- * ASSUMPTION (not yet confirmed against a game-design spec): the per-level
- * XP requirement is modeled as
+ * CONFIRMED against "Updated XP Engine Curve Brief" (client-supplied, with
+ * worked examples for L1/L26/L261/L333/L368/L369 and a full validation table
+ * through L369 = 1,203,429 total XP — this implementation reproduces all of
+ * them exactly). The per-level XP requirement is:
  *
- *   xpToNext(level) = clamp(base + growth * level^power, min_xp_to_next, max_xp_to_next)
- *                      * nodeBoost(level)
+ *   rawXpToNext(level) = base * (1 + growth * level) ^ power * nodeBoost(level)
+ *   xpToNext(level)    = round(clamp(rawXpToNext(level), min_xp_to_next, max_xp_to_next))
  *
  * where nodeBoost(level) is curve.node_boost[nodeForLevel] (default 1) and
  * nodeForLevel is resolved from the `nodes` array, which lays out how many
- * levels each node spans back-to-back starting at level 1. If the real
- * formula differs, update this file only — everything else reads through it.
+ * levels each node spans back-to-back starting at level 1.
+ *
+ * Level 369 (the terminal level, last in the last node) is a hard-coded
+ * special case: xpToNext(369) = 0 unconditionally, not run through the
+ * formula/clamp above — per the brief, "do not calculate another level cost
+ * after Level 369."
  */
 
 interface NodeRange {
@@ -51,8 +57,9 @@ function boostForLevel(level: number, ranges: NodeRange[], nodeBoost: Record<str
   return typeof boost === "number" ? boost : 1;
 }
 
-export function xpToNextForLevel(level: number, curve: XpCurveConfig, ranges: NodeRange[]): number {
-  const rawXp = curve.base + curve.growth * Math.pow(level, curve.power);
+export function xpToNextForLevel(level: number, curve: XpCurveConfig, ranges: NodeRange[], maxLevel: number): number {
+  if (level === maxLevel) return 0; // terminal level — no further cost, by design
+  const rawXp = curve.base * Math.pow(1 + curve.growth * level, curve.power);
   const boosted = rawXp * boostForLevel(level, ranges, curve.node_boost || {});
   const clamped = Math.min(Math.max(boosted, curve.min_xp_to_next), curve.max_xp_to_next);
   return Math.round(clamped);
@@ -152,12 +159,13 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
   }
   if (canSimulate) {
     for (let level = 1; level <= maxLevel; level++) {
-      const xp = xpToNextForLevel(level, curve, ranges);
+      const xp = xpToNextForLevel(level, curve, ranges, maxLevel);
       if (!Number.isFinite(xp)) {
         warnings.push(`XP-to-next at level ${level} does not resolve to a finite number.`);
         break;
       }
-      if (xp <= 0) {
+      // Level maxLevel (369) is the terminal level and is 0 by design — not a warning.
+      if (xp <= 0 && level !== maxLevel) {
         warnings.push(`XP-to-next at level ${level} resolves to ${xp}, which is zero or negative.`);
         break;
       }
@@ -184,7 +192,7 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
     // Flag if the curve hits its hard cap well before the final node, which
     // usually means later nodes are indistinguishable from each other.
     const cappedLevel = Array.from({ length: maxLevel }, (_, i) => i + 1).find(
-      (level) => xpToNextForLevel(level, curve, ranges) >= curve.max_xp_to_next
+      (level) => xpToNextForLevel(level, curve, ranges, maxLevel) >= curve.max_xp_to_next
     );
     if (cappedLevel && cappedLevel < maxLevel) {
       warnings.push(
@@ -201,7 +209,14 @@ export const KEY_CHECKPOINT_LEVELS = [1, 28, 100, 280, 369];
 interface CumulativeTable {
   ranges: NodeRange[];
   maxLevel: number;
-  /** cumulativeByLevel[i] = total XP earned by the end of level i (1-indexed, empty at index 0). */
+  /**
+   * cumulativeByLevel[level] = total XP required to REACH `level` — i.e. the
+   * brief's threshold[level]: the sum of xpToNext(1..level-1), NOT including
+   * level's own cost. cumulativeByLevel[1] = 0 (starting point).
+   * cumulativeByLevel[maxLevel] is therefore the total XP for the whole
+   * curve (e.g. 1,203,429 for the confirmed 369-level curve), since the
+   * terminal level's own xpToNext is 0 by definition.
+   */
   cumulativeByLevel: number[];
 }
 
@@ -211,10 +226,9 @@ export function buildCumulativeTable(config: XpEngineConfigDoc): CumulativeTable
   const maxLevel = getMaxLevel(config.nodes || []);
 
   const cumulativeByLevel: number[] = [0];
-  let cumulative = 0;
-  for (let level = 1; level <= maxLevel; level++) {
-    cumulative += xpToNextForLevel(level, config.curve, ranges);
-    cumulativeByLevel[level] = cumulative;
+  if (maxLevel > 0) cumulativeByLevel[1] = 0;
+  for (let level = 1; level < maxLevel; level++) {
+    cumulativeByLevel[level + 1] = cumulativeByLevel[level] + xpToNextForLevel(level, config.curve, ranges, maxLevel);
   }
 
   return { ranges, maxLevel, cumulativeByLevel };
@@ -223,7 +237,7 @@ export function buildCumulativeTable(config: XpEngineConfigDoc): CumulativeTable
 function sampleAtLevel(level: number, config: XpEngineConfigDoc, table: CumulativeTable) {
   return {
     level,
-    xpToNext: xpToNextForLevel(level, config.curve, table.ranges),
+    xpToNext: xpToNextForLevel(level, config.curve, table.ranges, table.maxLevel),
     cumulativeXp: table.cumulativeByLevel[level] ?? 0,
   };
 }

@@ -49,34 +49,6 @@ export const signIn = createAsyncThunk(
   }
 );
 
-export const signUp = createAsyncThunk(
-  'auth/signUp',
-  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
-    try {
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return rejectWithValue(data.error || 'Sign up failed');
-      }
-
-      // Store token in localStorage
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
-
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Network error');
-    }
-  }
-);
-
 export const validateSession = createAsyncThunk(
   'auth/validateSession',
   async (_, { rejectWithValue }) => {
@@ -163,28 +135,6 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(signIn.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-        state.isAuthenticated = false;
-      });
-
-    // Sign Up
-    builder
-      .addCase(signUp.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(signUp.fulfilled, (state, action: PayloadAction<any>) => {
-        state.loading = false;
-        state.user = {
-          uid: action.payload.uid,
-          email: action.payload.email,
-          token: action.payload.token,
-        };
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(signUp.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
         state.isAuthenticated = false;

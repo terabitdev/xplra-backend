@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 
 export default function SignIn() {
@@ -118,16 +117,6 @@ export default function SignIn() {
               )}
             </button>
           </form>
-
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500 transition duration-200">
-                Sign up
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     </div>

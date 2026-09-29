@@ -1,0 +1,14 @@
+Hi team,
+
+I commissioned an AI-assisted static review of the mobile/Functions and admin/backend repositories to better understand XPLRA’s architecture and pre-launch risks. I’m sharing the consolidated Developer Validation Draft for your technical review—not as a confirmed production vulnerability report or an approved fix list.
+
+Please read the review draft first and return the response worksheet with your assessment, deployment applicability, evidence and proposed next steps. You can agree, qualify, dispute, identify an existing control, or show that an item was fixed after the audited snapshot. The original reports are included as reference, not separate work orders.
+
+The cross-repository review located the gameplay Functions, validators and Firestore rules in the mobile repository, so we are no longer generally asking where that source is. We still need to confirm the deployed versions and controls, and review the reported authorization, validation, privacy and XP contract concerns.
+
+Please prioritize whether the sensitive recovery/admin/proxy and direct-Firebase paths apply to the current release. Flag any confirmed active exposure promptly for coordinated handling. Use redacted configuration/test references rather than secret values.
+
+After your review, we can reconcile the evidence and agree on actual MVP requirements, appropriate priorities and any implementation scope. This is not a request to rewrite the stack or build every placeholder feature.
+
+Thank you,
+Luis

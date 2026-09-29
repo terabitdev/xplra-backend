@@ -5,6 +5,54 @@ import { adminDb } from '@/lib/firebase-admin';
 let usersCache: { data: any[]; timestamp: number } | null = null;
 const CACHE_DURATION = 60 * 1000; // 60 seconds
 
+/**
+ * Joins `playerAchievements` -> `achievementDefinitions` to attach each
+ * user's assigned badges (id + title, enough for the Users table; the full
+ * definition is fetched on demand when an admin opens the badge's detail
+ * modal). Only runs over the current page of users, not the full cached
+ * list, so it stays cheap regardless of user count.
+ */
+async function attachBadges(users: any[]) {
+  if (users.length === 0) return users;
+
+  const uids = users.map((u) => u.uid);
+  const chunks: string[][] = [];
+  for (let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
+
+  const paSnaps = await Promise.all(
+    chunks.map((chunk) => adminDb.collection('playerAchievements').where('uid', 'in', chunk).get())
+  );
+
+  const defIds = new Set<string>();
+  paSnaps.forEach((snap) => snap.docs.forEach((doc) => defIds.add(doc.data().achievementDefinitionId)));
+
+  if (defIds.size === 0) return users.map((u) => ({ ...u, badges: [] }));
+
+  const defDocs = await Promise.all(
+    Array.from(defIds).map((id) => adminDb.collection('achievementDefinitions').doc(id).get())
+  );
+  const titleById: Record<string, string> = {};
+  defDocs.forEach((doc) => {
+    if (doc.exists) titleById[doc.id] = doc.data()?.title || 'Untitled';
+  });
+
+  const badgesByUid: Record<string, { id: string; title: string; assignedAt: string | null }[]> = {};
+  paSnaps.forEach((snap) =>
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const title = titleById[data.achievementDefinitionId];
+      if (!title) return;
+      (badgesByUid[data.uid] ||= []).push({
+        id: data.achievementDefinitionId,
+        title,
+        assignedAt: data.assignedAt?.toDate?.()?.toISOString() || null,
+      });
+    })
+  );
+
+  return users.map((u) => ({ ...u, badges: badgesByUid[u.uid] || [] }));
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -19,7 +67,7 @@ export async function GET(req: NextRequest) {
       const total = usersCache.data.length;
       const totalPages = Math.ceil(total / limit);
       const startIndex = (page - 1) * limit;
-      const paginatedData = usersCache.data.slice(startIndex, startIndex + limit);
+      const paginatedData = await attachBadges(usersCache.data.slice(startIndex, startIndex + limit));
 
       return NextResponse.json({
         data: paginatedData,
@@ -55,7 +103,7 @@ export async function GET(req: NextRequest) {
     const total = users.length;
     const totalPages = Math.ceil(total / limit);
     const startIndex = (page - 1) * limit;
-    const paginatedData = users.slice(startIndex, startIndex + limit);
+    const paginatedData = await attachBadges(users.slice(startIndex, startIndex + limit));
 
     return NextResponse.json({
       data: paginatedData,

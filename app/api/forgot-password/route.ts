@@ -12,28 +12,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate password reset link
-    const resetLink = await adminAuth.generatePasswordResetLink(email);
-
-    // In production, you would send this link via email
-    // For now, we'll just return it
-    return NextResponse.json({
-      message: 'Password reset link generated',
-      resetLink, // Remove this in production, send via email instead
-    });
-  } catch (error: any) {
-    console.error('Forgot password error:', error);
-
-    if (error.code === 'auth/user-not-found') {
-      return NextResponse.json(
-        { error: 'No user found with this email' },
-        { status: 404 }
-      );
+    // Generate the reset link server-side only — it must never reach the
+    // client. Until an email service is wired up, this is logged for an
+    // admin to relay manually; see TODO below.
+    try {
+      const resetLink = await adminAuth.generatePasswordResetLink(email);
+      // TODO: send `resetLink` via an actual email provider once one is
+      // chosen/configured. Logged server-side only in the meantime.
+      console.log(`Password reset requested for ${email}: ${resetLink}`);
+    } catch (error: unknown) {
+      // Same response whether the account exists or not, so this endpoint
+      // can't be used to find out which emails have accounts. Still log the
+      // real reason server-side for debugging.
+      console.error('Forgot password error:', error);
     }
 
+    return NextResponse.json({
+      message: 'If an account exists for this email, a password reset link has been sent.',
+    });
+  } catch (error: unknown) {
+    console.error('Forgot password error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to generate reset link' },
-      { status: 400 }
+      { error: 'Something went wrong. Please try again.' },
+      { status: 500 }
     );
   }
 }

@@ -1,5 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
+export interface UserBadge {
+  id: string;
+  title: string;
+  assignedAt: string | null;
+}
+
 export interface User {
   uid: string;
   email?: string;
@@ -13,6 +19,7 @@ export interface User {
   lastDailyReset?: string;
   lastXpUpdate?: string;
   createdAt?: string;
+  badges?: UserBadge[];
 }
 
 interface PaginationInfo {
@@ -101,6 +108,12 @@ const usersSlice = createSlice({
     invalidateCache: (state) => {
       state.lastFetched = null;
     },
+    removeUserBadge: (state, action: PayloadAction<{ uid: string; achievementId: string }>) => {
+      const user = state.users.find((u) => u.uid === action.payload.uid);
+      if (user?.badges) {
+        user.badges = user.badges.filter((b) => b.id !== action.payload.achievementId);
+      }
+    },
   },
   extraReducers: (builder) => {
     // Fetch Users
@@ -123,5 +136,5 @@ const usersSlice = createSlice({
   },
 });
 
-export const { clearError, setPage, invalidateCache } = usersSlice.actions;
+export const { clearError, setPage, invalidateCache, removeUserBadge } = usersSlice.actions;
 export default usersSlice.reducer;
