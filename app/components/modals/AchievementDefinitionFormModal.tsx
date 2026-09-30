@@ -21,12 +21,15 @@ const CATEGORIES = ['EXPLORATION', 'SOCIAL', 'QUESTS', 'EVENTS', 'CONTRIBUTION',
 const RARITIES = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 const STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
 const VISIBILITIES = ['DISCOVERABLE', 'HIDDEN', 'SECRET'];
-const RULE_TYPES = ['COUNT', 'THRESHOLD', 'STREAK', 'MANUAL'];
-const RULE_TYPE_LABELS: Record<string, string> = {
-  COUNT: 'COUNT',
-  THRESHOLD: 'THRESHOLD',
+// Stored value IS the display label (underscores render as spaces) — keep
+// these in sync with whatever the dropdown shows, so the DB never ends up
+// with a legacy name (e.g. "STREAK"/"MANUAL") that doesn't match what the
+// admin actually picked.
+const RULE_TYPES = ['COUNT', 'THRESHOLD', 'COMBINATION', 'SPECIFIC_ACTION'];
+// Old records saved before this rename may still have the legacy values.
+const LEGACY_RULE_TYPE_MAP: Record<string, string> = {
   STREAK: 'COMBINATION',
-  MANUAL: 'SPECIFIC ACTION',
+  MANUAL: 'SPECIFIC_ACTION',
 };
 const EVENT_TYPES = ['PLACE_VISITED', 'QUEST_COMPLETED', 'EVENT_ATTENDED', 'CONTRIBUTION_APPROVED'];
 const THRESHOLD_EVENT_TYPES = ['LEVEL', 'XP'];
@@ -79,6 +82,7 @@ export default function AchievementDefinitionFormModal({
     if (initialDefinition) {
       setForm({
         ...initialDefinition,
+        rule_type: LEGACY_RULE_TYPE_MAP[initialDefinition.rule_type] || initialDefinition.rule_type,
         rule_config: initialDefinition.rule_config || { event_type: '', target: 0 },
       });
       // Older records (from before this form uploaded real files) may have
@@ -113,7 +117,7 @@ export default function AchievementDefinitionFormModal({
       });
   }, [isOpen]);
 
-  const specificActionEventType = form.rule_type === 'MANUAL' ? form.rule_config?.event_type : undefined;
+  const specificActionEventType = form.rule_type === 'SPECIFIC_ACTION' ? form.rule_config?.event_type : undefined;
 
   useEffect(() => {
     if (specificActionEventType === 'PLACE_VISITED' && places.length === 0) {
@@ -196,10 +200,10 @@ export default function AchievementDefinitionFormModal({
     } else if (!isNowThreshold && wasThreshold) {
       setRuleConfigField('event_type', EVENT_TYPES[0]);
     }
-    if (value === 'STREAK' && !form.rule_config?.event_type_2) {
+    if (value === 'COMBINATION' && !form.rule_config?.event_type_2) {
       setRuleConfigField('event_type_2', EVENT_TYPES[0]);
     }
-    if (value === 'MANUAL' && form.rule_config?.event_type === 'CONTRIBUTION_APPROVED') {
+    if (value === 'SPECIFIC_ACTION' && form.rule_config?.event_type === 'CONTRIBUTION_APPROVED') {
       setRuleConfigField('event_type', EVENT_TYPES[0]);
     }
   };
@@ -252,6 +256,9 @@ export default function AchievementDefinitionFormModal({
     if (form.rule_config?.event_type === 'PLACE_VISITED' && !form.rule_config?.target) {
       errs.target = 'Target count is required';
     }
+    if (form.rule_type === 'COMBINATION' && form.rule_config?.event_type_2 === 'PLACE_VISITED' && !form.rule_config?.target_2) {
+      errs.target_2 = 'Target count is required';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -296,8 +303,8 @@ export default function AchievementDefinitionFormModal({
 
   const isSecret = form.visibility === 'SECRET';
   const isThreshold = form.rule_type === 'THRESHOLD';
-  const isCombination = form.rule_type === 'STREAK';
-  const isSpecificAction = form.rule_type === 'MANUAL';
+  const isCombination = form.rule_type === 'COMBINATION';
+  const isSpecificAction = form.rule_type === 'SPECIFIC_ACTION';
   const isCount = form.rule_type === 'COUNT';
   const primaryEventType = form.rule_config?.event_type;
   const showPlaceCategory =
@@ -510,7 +517,7 @@ export default function AchievementDefinitionFormModal({
                   disabled={loading}
                 >
                   {RULE_TYPES.map((rt) => (
-                    <option key={rt} value={rt}>{RULE_TYPE_LABELS[rt] || rt}</option>
+                    <option key={rt} value={rt}>{rt.replace('_', ' ')}</option>
                   ))}
                 </select>
               </div>
@@ -618,6 +625,23 @@ export default function AchievementDefinitionFormModal({
                     </select>
                   </div>
                 )}
+              </div>
+            )}
+
+            <div className={isCombination ? 'grid grid-cols-2 gap-3' : undefined}>
+              <div>
+                <label className={labelClass}>{isCombination ? 'Target Count (1st condition) *' : 'Target Count *'}</label>
+                <input
+                  type="number"
+                  className={inputClass}
+                  value={form.rule_config?.target ?? 0}
+                  onChange={(e) => setRuleConfigField('target', Number(e.target.value))}
+                  disabled={loading}
+                />
+                {errors.target && <p className="text-xs text-red-500 mt-1">{errors.target}</p>}
+              </div>
+
+              {isCombination && (
                 <div>
                   <label className={labelClass}>Target Count (2nd condition) *</label>
                   <input
@@ -627,20 +651,9 @@ export default function AchievementDefinitionFormModal({
                     onChange={(e) => setRuleConfigField('target_2', Number(e.target.value))}
                     disabled={loading}
                   />
+                  {errors.target_2 && <p className="text-xs text-red-500 mt-1">{errors.target_2}</p>}
                 </div>
-              </div>
-            )}
-
-            <div>
-              <label className={labelClass}>{isCombination ? 'Target Count (1st condition) *' : 'Target Count *'}</label>
-              <input
-                type="number"
-                className={inputClass}
-                value={form.rule_config?.target ?? 0}
-                onChange={(e) => setRuleConfigField('target', Number(e.target.value))}
-                disabled={loading}
-              />
-              {errors.target && <p className="text-xs text-red-500 mt-1">{errors.target}</p>}
+              )}
             </div>
           </div>
 
