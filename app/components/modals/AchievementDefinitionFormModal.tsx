@@ -147,10 +147,12 @@ export default function AchievementDefinitionFormModal({
     }
   }, [specificActionEventType, places.length, quests.length, events.length]);
 
-  const countQuestCategoryActive = form.rule_type === 'COUNT' && form.rule_config?.event_type === 'QUEST_COMPLETED';
+  const questCategoryNeeded =
+    (form.rule_type === 'COUNT' || form.rule_type === 'COMBINATION') &&
+    (form.rule_config?.event_type === 'QUEST_COMPLETED' || form.rule_config?.event_type_2 === 'QUEST_COMPLETED');
 
   useEffect(() => {
-    if (!countQuestCategoryActive || questCategories.length > 0) return;
+    if (!questCategoryNeeded || questCategories.length > 0) return;
     fetch('/api/quest-categories/list?fresh=true')
       .then((res) => res.json())
       .then((data) => {
@@ -158,7 +160,7 @@ export default function AchievementDefinitionFormModal({
         setQuestCategories(list.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
       })
       .catch(() => {});
-  }, [countQuestCategoryActive, questCategories.length]);
+  }, [questCategoryNeeded, questCategories.length]);
 
   if (!isOpen) return null;
 
@@ -181,8 +183,10 @@ export default function AchievementDefinitionFormModal({
       | 'target'
       | 'event_type_2'
       | 'place_category_2'
+      | 'quest_category_2'
       | 'target_2'
-      | 'target_id',
+      | 'target_id'
+      | 'target_name',
     value: string | number
   ) => {
     setForm((prev) => ({
@@ -276,12 +280,15 @@ export default function AchievementDefinitionFormModal({
           target: rc.target || 0,
           ...(showPlaceCategory && rc.place_category ? { place_category: rc.place_category } : {}),
           ...(showQuestCategory && rc.quest_category ? { quest_category: rc.quest_category } : {}),
-          ...(isSpecificAction && rc.target_id ? { target_id: rc.target_id } : {}),
+          ...(isSpecificAction && rc.target_id
+            ? { target_id: rc.target_id, ...(rc.target_name ? { target_name: rc.target_name } : {}) }
+            : {}),
           ...(isCombination
             ? {
                 event_type_2: rc.event_type_2 || '',
                 target_2: rc.target_2 || 0,
                 ...(showPlaceCategory2 && rc.place_category_2 ? { place_category_2: rc.place_category_2 } : {}),
+                ...(showQuestCategory2 && rc.quest_category_2 ? { quest_category_2: rc.quest_category_2 } : {}),
               }
             : {}),
         };
@@ -306,11 +313,15 @@ export default function AchievementDefinitionFormModal({
   const isCombination = form.rule_type === 'COMBINATION';
   const isSpecificAction = form.rule_type === 'SPECIFIC_ACTION';
   const isCount = form.rule_type === 'COUNT';
+  const categoryApplicable = isCount || isCombination;
   const primaryEventType = form.rule_config?.event_type;
   const showPlaceCategory =
-    !isSpecificAction && (primaryEventType === 'PLACE_VISITED' || (isCount && primaryEventType === 'CONTRIBUTION_APPROVED'));
-  const showQuestCategory = !isSpecificAction && isCount && primaryEventType === 'QUEST_COMPLETED';
-  const showPlaceCategory2 = form.rule_config?.event_type_2 === 'PLACE_VISITED';
+    categoryApplicable && (primaryEventType === 'PLACE_VISITED' || primaryEventType === 'CONTRIBUTION_APPROVED');
+  const showQuestCategory = categoryApplicable && primaryEventType === 'QUEST_COMPLETED';
+  const secondaryEventType = form.rule_config?.event_type_2;
+  const showPlaceCategory2 =
+    isCombination && (secondaryEventType === 'PLACE_VISITED' || secondaryEventType === 'CONTRIBUTION_APPROVED');
+  const showQuestCategory2 = isCombination && secondaryEventType === 'QUEST_COMPLETED';
   const specificActionOptions: { list: CategoryOption[]; label: string } | null = !isSpecificAction
     ? null
     : form.rule_config?.event_type === 'PLACE_VISITED'
@@ -528,7 +539,10 @@ export default function AchievementDefinitionFormModal({
                   value={form.rule_config?.event_type || ''}
                   onChange={(e) => {
                     setRuleConfigField('event_type', e.target.value);
-                    if (isSpecificAction) setRuleConfigField('target_id', '');
+                    if (isSpecificAction) {
+                      setRuleConfigField('target_id', '');
+                      setRuleConfigField('target_name', '');
+                    }
                   }}
                   disabled={loading}
                 >
@@ -562,7 +576,7 @@ export default function AchievementDefinitionFormModal({
 
             {showQuestCategory && (
               <div>
-                <label className={labelClass}>Quest Category</label>
+                <label className={labelClass}>{isCombination ? 'Quest Category (1st condition)' : 'Quest Category'}</label>
                 <select
                   className={inputClass}
                   value={form.rule_config?.quest_category || ''}
@@ -583,7 +597,11 @@ export default function AchievementDefinitionFormModal({
                 <select
                   className={inputClass}
                   value={form.rule_config?.target_id || ''}
-                  onChange={(e) => setRuleConfigField('target_id', e.target.value)}
+                  onChange={(e) => {
+                    const selected = specificActionOptions.list.find((item) => item.id === e.target.value);
+                    setRuleConfigField('target_id', e.target.value);
+                    setRuleConfigField('target_name', selected?.name || '');
+                  }}
                   disabled={loading}
                 >
                   <option value="">Select a {specificActionOptions.label.toLowerCase()}</option>
@@ -620,6 +638,22 @@ export default function AchievementDefinitionFormModal({
                     >
                       <option value="">Any category</option>
                       {placeCategories.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {showQuestCategory2 && (
+                  <div>
+                    <label className={labelClass}>Quest Category (2nd condition)</label>
+                    <select
+                      className={inputClass}
+                      value={form.rule_config?.quest_category_2 || ''}
+                      onChange={(e) => setRuleConfigField('quest_category_2', e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Any category</option>
+                      {questCategories.map((c) => (
                         <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                     </select>

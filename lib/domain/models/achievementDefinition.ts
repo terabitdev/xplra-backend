@@ -31,15 +31,17 @@ export type RuleEventType = "PLACE_VISITED" | "QUEST_COMPLETED" | "EVENT_ATTENDE
 
 export interface AchievementRuleConfig {
   event_type: string;
-  /** Only meaningful when event_type is PLACE_VISITED, or COUNT + CONTRIBUTION_APPROVED. */
+  /** Only meaningful when rule_type is COUNT or COMBINATION and event_type is PLACE_VISITED or CONTRIBUTION_APPROVED. */
   place_category?: string;
-  /** Only meaningful when rule_type is COUNT and event_type is QUEST_COMPLETED. */
+  /** Only meaningful when rule_type is COUNT or COMBINATION and event_type is QUEST_COMPLETED. */
   quest_category?: string;
   target: number;
   /** Second condition — only used when rule_type is STREAK ("Combination"). */
   event_type_2?: string;
-  /** Only meaningful when event_type_2 is PLACE_VISITED. */
+  /** Only meaningful when event_type_2 is PLACE_VISITED or CONTRIBUTION_APPROVED. */
   place_category_2?: string;
+  /** Only meaningful when event_type_2 is QUEST_COMPLETED. */
+  quest_category_2?: string;
   /** Target count for the second condition — only used when rule_type is STREAK ("Combination"). */
   target_2?: number;
   /**
@@ -49,6 +51,8 @@ export interface AchievementRuleConfig {
    * quests.id, EVENT_ATTENDED -> events.eventId.
    */
   target_id?: string;
+  /** Display name of the place/quest/event target_id points to, stored alongside it for readability in Firestore. */
+  target_name?: string;
 }
 
 export interface AchievementDefinition {
