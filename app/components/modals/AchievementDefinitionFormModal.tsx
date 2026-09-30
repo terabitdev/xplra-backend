@@ -22,7 +22,18 @@ const RARITIES = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 const STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
 const VISIBILITIES = ['DISCOVERABLE', 'HIDDEN', 'SECRET'];
 const RULE_TYPES = ['COUNT', 'THRESHOLD', 'STREAK', 'MANUAL'];
+const RULE_TYPE_LABELS: Record<string, string> = {
+  COUNT: 'COUNT',
+  THRESHOLD: 'THRESHOLD',
+  STREAK: 'COMBINATION',
+  MANUAL: 'SPECIFIC ACTION',
+};
 const EVENT_TYPES = ['PLACE_VISITED', 'QUEST_COMPLETED', 'EVENT_ATTENDED', 'CONTRIBUTION_APPROVED'];
+const THRESHOLD_EVENT_TYPES = ['LEVEL', 'XP'];
+const THRESHOLD_EVENT_TYPE_LABELS: Record<string, string> = {
+  LEVEL: 'Levels',
+  XP: 'XP',
+};
 const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 
 const emptyForm: Partial<AchievementDefinitionInput> = {
@@ -53,6 +64,9 @@ export default function AchievementDefinitionFormModal({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placeCategories, setPlaceCategories] = useState<CategoryOption[]>([]);
+  const [places, setPlaces] = useState<CategoryOption[]>([]);
+  const [quests, setQuests] = useState<CategoryOption[]>([]);
+  const [events, setEvents] = useState<CategoryOption[]>([]);
 
   const [badgeFile, setBadgeFile] = useState<File | null>(null);
   const [badgePreview, setBadgePreview] = useState<string>('');
@@ -98,6 +112,36 @@ export default function AchievementDefinitionFormModal({
       });
   }, [isOpen]);
 
+  const specificActionEventType = form.rule_type === 'MANUAL' ? form.rule_config?.event_type : undefined;
+
+  useEffect(() => {
+    if (specificActionEventType === 'PLACE_VISITED' && places.length === 0) {
+      fetch('/api/places/list?limit=500&fresh=true')
+        .then((res) => res.json())
+        .then((data) => {
+          const list = Array.isArray(data.data) ? data.data : [];
+          setPlaces(list.map((p: { placeId: string; name: string }) => ({ id: p.placeId, name: p.name })));
+        })
+        .catch(() => {});
+    } else if (specificActionEventType === 'QUEST_COMPLETED' && quests.length === 0) {
+      fetch('/api/quests/list?limit=500&fresh=true')
+        .then((res) => res.json())
+        .then((data) => {
+          const list = Array.isArray(data.data) ? data.data : [];
+          setQuests(list.map((q: { id: string; title: string }) => ({ id: q.id, name: q.title })));
+        })
+        .catch(() => {});
+    } else if (specificActionEventType === 'EVENT_ATTENDED' && events.length === 0) {
+      fetch('/api/events/list?limit=500&fresh=true')
+        .then((res) => res.json())
+        .then((data) => {
+          const list = Array.isArray(data.data) ? data.data : [];
+          setEvents(list.map((e: { eventId: string; title: string }) => ({ id: e.eventId, name: e.title })));
+        })
+        .catch(() => {});
+    }
+  }, [specificActionEventType, places.length, quests.length, events.length]);
+
   if (!isOpen) return null;
 
   const inputClass =
@@ -111,11 +155,31 @@ export default function AchievementDefinitionFormModal({
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  const setRuleConfigField = (field: 'event_type' | 'place_category' | 'target', value: string | number) => {
+  const setRuleConfigField = (
+    field: 'event_type' | 'place_category' | 'target' | 'event_type_2' | 'place_category_2' | 'target_id',
+    value: string | number
+  ) => {
     setForm((prev) => ({
       ...prev,
       rule_config: { ...(prev.rule_config || { event_type: '', target: 0 }), [field]: value },
     }));
+  };
+
+  const handleRuleTypeChange = (value: string) => {
+    setField('rule_type', value);
+    const wasThreshold = form.rule_type === 'THRESHOLD';
+    const isNowThreshold = value === 'THRESHOLD';
+    if (isNowThreshold && !wasThreshold) {
+      setRuleConfigField('event_type', 'LEVEL');
+    } else if (!isNowThreshold && wasThreshold) {
+      setRuleConfigField('event_type', EVENT_TYPES[0]);
+    }
+    if (value === 'STREAK' && !form.rule_config?.event_type_2) {
+      setRuleConfigField('event_type_2', EVENT_TYPES[0]);
+    }
+    if (value === 'MANUAL' && form.rule_config?.event_type === 'CONTRIBUTION_APPROVED') {
+      setRuleConfigField('event_type', EVENT_TYPES[0]);
+    }
   };
 
   const readAsset = (file: File): Promise<string> =>
@@ -176,8 +240,20 @@ export default function AchievementDefinitionFormModal({
     setLoading(true);
     try {
       const payload: Partial<AchievementDefinitionInput> = { ...form };
-      if (payload.rule_config?.event_type !== 'PLACE_VISITED') {
-        payload.rule_config = { event_type: payload.rule_config?.event_type || '', target: payload.rule_config?.target || 0 };
+      const rc = payload.rule_config;
+      if (rc) {
+        payload.rule_config = {
+          event_type: rc.event_type || '',
+          target: rc.target || 0,
+          ...(showPlaceCategory && rc.place_category ? { place_category: rc.place_category } : {}),
+          ...(isSpecificAction && rc.target_id ? { target_id: rc.target_id } : {}),
+          ...(isCombination
+            ? {
+                event_type_2: rc.event_type_2 || '',
+                ...(showPlaceCategory2 && rc.place_category_2 ? { place_category_2: rc.place_category_2 } : {}),
+              }
+            : {}),
+        };
       }
 
       const formData = new FormData();
@@ -194,7 +270,21 @@ export default function AchievementDefinitionFormModal({
     }
   };
 
-  const showPlaceCategory = form.rule_config?.event_type === 'PLACE_VISITED';
+  const isSecret = form.visibility === 'SECRET';
+  const isThreshold = form.rule_type === 'THRESHOLD';
+  const isCombination = form.rule_type === 'STREAK';
+  const isSpecificAction = form.rule_type === 'MANUAL';
+  const showPlaceCategory = (form.rule_config?.event_type === 'PLACE_VISITED' || form.rule_type === 'COUNT') && !isSpecificAction;
+  const showPlaceCategory2 = form.rule_config?.event_type_2 === 'PLACE_VISITED';
+  const specificActionOptions: { list: CategoryOption[]; label: string } | null = !isSpecificAction
+    ? null
+    : form.rule_config?.event_type === 'PLACE_VISITED'
+    ? { list: places, label: 'Place' }
+    : form.rule_config?.event_type === 'QUEST_COMPLETED'
+    ? { list: quests, label: 'Quest' }
+    : form.rule_config?.event_type === 'EVENT_ATTENDED'
+    ? { list: events, label: 'Event' }
+    : null;
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-3">
@@ -257,42 +347,44 @@ export default function AchievementDefinitionFormModal({
           {/* Presentation */}
           <div className={sectionClass}>
             <p className={sectionTitle}>Presentation</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Badge Asset</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
-                    {badgePreview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={badgePreview} alt="Badge preview" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-[10px] text-gray-400">None</span>
-                    )}
+            {!isSecret && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Badge Asset</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                      {badgePreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={badgePreview} alt="Badge preview" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] text-gray-400">None</span>
+                      )}
+                    </div>
+                    <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
+                      {badgePreview ? 'Replace' : 'Upload'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleBadgeChange} disabled={loading} />
+                    </label>
                   </div>
-                  <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
-                    {badgePreview ? 'Replace' : 'Upload'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleBadgeChange} disabled={loading} />
-                  </label>
+                </div>
+                <div>
+                  <label className={labelClass}>Thumbnail</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                      {thumbnailPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] text-gray-400">None</span>
+                      )}
+                    </div>
+                    <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
+                      {thumbnailPreview ? 'Replace' : 'Upload'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailChange} disabled={loading} />
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className={labelClass}>Thumbnail</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 shrink-0 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
-                    {thumbnailPreview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-[10px] text-gray-400">None</span>
-                    )}
-                  </div>
-                  <label className="px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-colors">
-                    {thumbnailPreview ? 'Replace' : 'Upload'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailChange} disabled={loading} />
-                  </label>
-                </div>
-              </div>
-            </div>
+            )}
             <div>
               <label className={labelClass}>Asset Type</label>
               <select
@@ -386,32 +478,39 @@ export default function AchievementDefinitionFormModal({
                 <select
                   className={inputClass}
                   value={form.rule_type || 'COUNT'}
-                  onChange={(e) => setField('rule_type', e.target.value)}
+                  onChange={(e) => handleRuleTypeChange(e.target.value)}
                   disabled={loading}
                 >
                   {RULE_TYPES.map((rt) => (
-                    <option key={rt} value={rt}>{rt}</option>
+                    <option key={rt} value={rt}>{RULE_TYPE_LABELS[rt] || rt}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Event Type</label>
+                <label className={labelClass}>{isCombination ? 'Event Type (1st condition)' : 'Event Type'}</label>
                 <select
                   className={inputClass}
                   value={form.rule_config?.event_type || ''}
-                  onChange={(e) => setRuleConfigField('event_type', e.target.value)}
+                  onChange={(e) => {
+                    setRuleConfigField('event_type', e.target.value);
+                    if (isSpecificAction) setRuleConfigField('target_id', '');
+                  }}
                   disabled={loading}
                 >
-                  {EVENT_TYPES.map((et) => (
-                    <option key={et} value={et}>{et}</option>
-                  ))}
+                  {isThreshold
+                    ? THRESHOLD_EVENT_TYPES.map((et) => (
+                        <option key={et} value={et}>{THRESHOLD_EVENT_TYPE_LABELS[et] || et}</option>
+                      ))
+                    : EVENT_TYPES.filter((et) => !isSpecificAction || et !== 'CONTRIBUTION_APPROVED').map((et) => (
+                        <option key={et} value={et}>{et}</option>
+                      ))}
                 </select>
               </div>
             </div>
 
             {showPlaceCategory && (
               <div>
-                <label className={labelClass}>Place Category</label>
+                <label className={labelClass}>{isCombination ? 'Place Category (1st condition)' : 'Place Category'}</label>
                 <select
                   className={inputClass}
                   value={form.rule_config?.place_category || ''}
@@ -423,6 +522,57 @@ export default function AchievementDefinitionFormModal({
                     <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {specificActionOptions && (
+              <div>
+                <label className={labelClass}>{specificActionOptions.label}</label>
+                <select
+                  className={inputClass}
+                  value={form.rule_config?.target_id || ''}
+                  onChange={(e) => setRuleConfigField('target_id', e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">Select a {specificActionOptions.label.toLowerCase()}</option>
+                  {specificActionOptions.list.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {isCombination && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Event Type (2nd condition)</label>
+                  <select
+                    className={inputClass}
+                    value={form.rule_config?.event_type_2 || ''}
+                    onChange={(e) => setRuleConfigField('event_type_2', e.target.value)}
+                    disabled={loading}
+                  >
+                    {EVENT_TYPES.map((et) => (
+                      <option key={et} value={et}>{et}</option>
+                    ))}
+                  </select>
+                </div>
+                {showPlaceCategory2 && (
+                  <div>
+                    <label className={labelClass}>Place Category (2nd condition)</label>
+                    <select
+                      className={inputClass}
+                      value={form.rule_config?.place_category_2 || ''}
+                      onChange={(e) => setRuleConfigField('place_category_2', e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Any category</option>
+                      {placeCategories.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
 
@@ -442,29 +592,15 @@ export default function AchievementDefinitionFormModal({
           {/* Rewards */}
           <div className={sectionClass}>
             <p className={sectionTitle}>Rewards</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>XP Reward</label>
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={form.xp_reward ?? 0}
-                  onChange={(e) => setField('xp_reward', Number(e.target.value))}
-                  disabled={loading}
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-5">
-                <input
-                  type="checkbox"
-                  checked={form.retroactive_enabled ?? false}
-                  onChange={(e) => setField('retroactive_enabled', e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
-                  disabled={loading}
-                />
-                <label className="text-xs text-gray-600">
-                  Retroactively unlock for players who already qualify
-                </label>
-              </div>
+            <div>
+              <label className={labelClass}>XP Reward</label>
+              <input
+                type="number"
+                className={inputClass}
+                value={form.xp_reward ?? 0}
+                onChange={(e) => setField('xp_reward', Number(e.target.value))}
+                disabled={loading}
+              />
             </div>
           </div>
         </form>

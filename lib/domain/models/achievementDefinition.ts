@@ -34,6 +34,17 @@ export interface AchievementRuleConfig {
   /** Only meaningful when event_type is PLACE_VISITED. */
   place_category?: string;
   target: number;
+  /** Second condition — only used when rule_type is STREAK ("Combination"). */
+  event_type_2?: string;
+  /** Only meaningful when event_type_2 is PLACE_VISITED. */
+  place_category_2?: string;
+  /**
+   * The specific place/quest/event id required — only used when rule_type is
+   * MANUAL ("Specific Action"). Which entity it points to depends on
+   * event_type: PLACE_VISITED -> places.placeId, QUEST_COMPLETED ->
+   * quests.id, EVENT_ATTENDED -> events.eventId.
+   */
+  target_id?: string;
 }
 
 export interface AchievementDefinition {
