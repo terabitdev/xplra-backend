@@ -31,13 +31,17 @@ export type RuleEventType = "PLACE_VISITED" | "QUEST_COMPLETED" | "EVENT_ATTENDE
 
 export interface AchievementRuleConfig {
   event_type: string;
-  /** Only meaningful when event_type is PLACE_VISITED. */
+  /** Only meaningful when event_type is PLACE_VISITED, or COUNT + CONTRIBUTION_APPROVED. */
   place_category?: string;
+  /** Only meaningful when rule_type is COUNT and event_type is QUEST_COMPLETED. */
+  quest_category?: string;
   target: number;
   /** Second condition — only used when rule_type is STREAK ("Combination"). */
   event_type_2?: string;
   /** Only meaningful when event_type_2 is PLACE_VISITED. */
   place_category_2?: string;
+  /** Target count for the second condition — only used when rule_type is STREAK ("Combination"). */
+  target_2?: number;
   /**
    * The specific place/quest/event id required — only used when rule_type is
    * MANUAL ("Specific Action"). Which entity it points to depends on
