@@ -59,87 +59,6 @@ function isOptimizableImageUrl(value: string): boolean {
   }
 }
 
-interface AchievementUser {
-  uid: string;
-  name?: string;
-  email?: string;
-  photoURL?: string;
-  assigned: boolean;
-}
-
-interface UsersPanelState {
-  loading: boolean;
-  error: string | null;
-  users: AchievementUser[];
-}
-
-function AchievementUsersDropdown({
-  state,
-  pendingUids,
-  onToggleAssign,
-}: {
-  state: UsersPanelState;
-  pendingUids: Set<string>;
-  onToggleAssign: (uid: string, assign: boolean) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const filtered = state.users.filter((u) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
-  });
-
-  return (
-    <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 flex flex-col" onClick={(e) => e.stopPropagation()}>
-      <div className="p-2 border-b border-gray-100">
-        <p className="px-1 pb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assign to a player</p>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search players..."
-          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-        />
-      </div>
-      {state.loading ? (
-        <div className="flex items-center gap-2 text-sm text-gray-500 px-3 py-3">
-          <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          Loading players...
-        </div>
-      ) : state.error ? (
-        <p className="text-sm text-red-500 px-3 py-3">{state.error}</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-gray-400 px-3 py-3">No players found.</p>
-      ) : (
-        <ul className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-          {filtered.map((u) => {
-            const isPending = pendingUids.has(u.uid);
-            return (
-              <li key={u.uid} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="text-gray-800 font-medium truncate">{u.name || "Unnamed User"}</p>
-                  <p className="text-xs text-gray-400 truncate">{u.email || u.uid}</p>
-                </div>
-                <button
-                  onClick={() => onToggleAssign(u.uid, !u.assigned)}
-                  disabled={isPending}
-                  className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
-                    u.assigned
-                      ? "bg-green-50 text-green-700 hover:bg-red-50 hover:text-red-600"
-                      : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                  }`}
-                >
-                  {isPending ? "..." : u.assigned ? "Assigned" : "Assign"}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 function BadgeThumbnail({ definition, size }: { definition: AchievementDefinition; size: number }) {
   const candidate = definition.badge_asset_url || definition.thumbnail_url || '';
   // Older records (created before this tab had real uploads) may have plain
@@ -186,70 +105,6 @@ export default function AchievementDefinitionsPage() {
   const [definitionToDelete, setDefinitionToDelete] = useState<AchievementDefinition | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
-  const [openUsersId, setOpenUsersId] = useState<string | null>(null);
-  const [usersPanels, setUsersPanels] = useState<Record<string, UsersPanelState>>({});
-  const [pendingUids, setPendingUids] = useState<Set<string>>(new Set());
-
-  const handleToggleAssign = useCallback(
-    async (definitionId: string, targetUid: string, assign: boolean) => {
-      setPendingUids((prev) => new Set(prev).add(targetUid));
-      try {
-        const res = await fetch(`/api/achievement-definitions/${definitionId}/assign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: targetUid, assign, adminUid: uid || "" }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to update assignment");
-
-        setUsersPanels((prev) => {
-          const panel = prev[definitionId];
-          if (!panel) return prev;
-          return {
-            ...prev,
-            [definitionId]: {
-              ...panel,
-              users: panel.users.map((u) => (u.uid === targetUid ? { ...u, assigned: assign } : u)),
-            },
-          };
-        });
-        setToast({ message: assign ? "Achievement assigned to player" : "Achievement removed from player", type: "success", isVisible: true });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to update assignment";
-        setToast({ message, type: "error", isVisible: true });
-      } finally {
-        setPendingUids((prev) => {
-          const next = new Set(prev);
-          next.delete(targetUid);
-          return next;
-        });
-      }
-    },
-    [uid]
-  );
-
-  const handleToggleUsers = useCallback(
-    async (definitionId: string) => {
-      if (openUsersId === definitionId) {
-        setOpenUsersId(null);
-        return;
-      }
-      setOpenUsersId(definitionId);
-      if (usersPanels[definitionId]) return; // already fetched
-
-      setUsersPanels((prev) => ({ ...prev, [definitionId]: { loading: true, error: null, users: [] } }));
-      try {
-        const res = await fetch(`/api/achievement-definitions/${definitionId}/users`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load players");
-        setUsersPanels((prev) => ({ ...prev, [definitionId]: { loading: false, error: null, users: data.users || [] } }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load players";
-        setUsersPanels((prev) => ({ ...prev, [definitionId]: { loading: false, error: message, users: [] } }));
-      }
-    },
-    [openUsersId, usersPanels]
-  );
 
   useEffect(() => {
     if (definitions.length === 0) {
@@ -393,24 +248,6 @@ export default function AchievementDefinitionsPage() {
                     <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-600">{def.category}</span>
                   </div>
                   <div className="flex gap-2">
-                    <div className="relative">
-                      <button
-                        onClick={() => handleToggleUsers(def.id)}
-                        className={`h-full px-2.5 py-1.5 rounded-lg transition-colors ${openUsersId === def.id ? "bg-indigo-100 text-indigo-600" : "bg-gray-50 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600"}`}
-                        title="Show players who unlocked this"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-4a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      </button>
-                      {openUsersId === def.id && (
-                        <AchievementUsersDropdown
-                          state={usersPanels[def.id] || { loading: true, error: null, users: [] }}
-                          pendingUids={pendingUids}
-                          onToggleAssign={(targetUid, assign) => handleToggleAssign(def.id, targetUid, assign)}
-                        />
-                      )}
-                    </div>
                     <button onClick={() => handleEdit(def)} className="flex-1 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
                       Edit
                     </button>
@@ -432,7 +269,7 @@ export default function AchievementDefinitionsPage() {
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Rarity</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">Status</th>
                     <th className="text-left font-medium text-gray-600 px-3 py-2.5">XP Reward</th>
-                    <th className="text-center font-medium text-gray-600 px-3 py-2.5 w-28">Actions</th>
+                    <th className="text-center font-medium text-gray-600 px-3 py-2.5 w-20">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -461,24 +298,6 @@ export default function AchievementDefinitionsPage() {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center justify-center gap-1">
-                          <div className="relative">
-                            <button
-                              onClick={() => handleToggleUsers(def.id)}
-                              className={`p-1.5 rounded transition-colors ${openUsersId === def.id ? "bg-indigo-100 text-indigo-600" : "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"}`}
-                              title="Show players who unlocked this"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-4a4 4 0 11-8 0 4 4 0 018 0z" />
-                              </svg>
-                            </button>
-                            {openUsersId === def.id && (
-                              <AchievementUsersDropdown
-                                state={usersPanels[def.id] || { loading: true, error: null, users: [] }}
-                                pendingUids={pendingUids}
-                                onToggleAssign={(targetUid, assign) => handleToggleAssign(def.id, targetUid, assign)}
-                              />
-                            )}
-                          </div>
                           <button onClick={() => handleEdit(def)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
