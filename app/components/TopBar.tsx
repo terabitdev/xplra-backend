@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Logout, Edit, Menu } from "@carbon/icons-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { fetchUserProfile, updateUserProfile, setEditModalOpen } from "../store/slices/userSlice";
+import { fetchUserProfile, updateUserProfile, setEditModalOpen, clearUser } from "../store/slices/userSlice";
 import SearchBar from "./SearchBar";
 import { useSearch } from "../contexts/SearchContext";
 import { useSelector, useDispatch } from "react-redux";
@@ -83,6 +83,7 @@ function TopBar({ hideSearch = false }: TopBarProps) {
 
       if (res.ok) {
         localStorage.removeItem("token");
+        userDispatch(clearUser());
         router.push("/signin");
       }
     } catch (error) {

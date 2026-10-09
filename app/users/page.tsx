@@ -129,7 +129,7 @@ export default function UsersPage() {
                         <td className="px-4 py-3 text-sm text-gray-600">{user.email || 'N/A'}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            user.type === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                            user.type?.toLowerCase() === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                           }`}>
                             {user.type || 'user'}
                           </span>
@@ -188,7 +188,7 @@ export default function UsersPage() {
                       <h3 className="font-semibold text-gray-900 truncate">{user.displayName || 'Unnamed User'}</h3>
                       <p className="text-sm text-gray-500 truncate">{user.email || 'No email'}</p>
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mt-1 ${
-                        user.type === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                        user.type?.toLowerCase() === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                       }`}>
                         {user.type || 'user'}
                       </span>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeApp, getApps } from 'firebase/app';
+import { adminDb } from '@/lib/firebase-admin';
 
 // Initialize Firebase client app if not already initialized
 if (!getApps().length) {
@@ -24,10 +25,24 @@ export async function POST(req: Request) {
     // Sign in with Firebase client SDK to get ID token
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const idToken = await userCredential.user.getIdToken();
+    const uid = userCredential.user.uid;
+
+    // This panel is admin-only — being a valid Firebase Auth user (e.g. a
+    // mobile app player) isn't enough. Reject anyone whose Firestore
+    // users/{uid} doc doesn't have type "Admin" before ever handing back a
+    // usable token.
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+    const userType = userDoc.data()?.type;
+    if (userType?.toLowerCase() !== 'admin') {
+      return NextResponse.json(
+        { error: 'This account does not have access to the admin panel.' },
+        { status: 403 }
+      );
+    }
 
     return NextResponse.json({
       token: idToken,
-      uid: userCredential.user.uid,
+      uid,
       email: userCredential.user.email
     });
   } catch (error: any) {

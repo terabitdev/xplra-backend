@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleSidebar, closeSidebar } from "../store/slices/uiSlice";
+import { clearUser } from "../store/slices/userSlice";
 import { RootState } from "../store";
 import {
   Dashboard,
@@ -51,6 +52,7 @@ export default function Sidebar() {
 
       if (res.ok) {
         localStorage.removeItem("token");
+        dispatch(clearUser());
         router.push("/signin");
       } else {
         console.error("Failed to log out");
