@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { calculateLevel, xpToNextLevel } from '@/lib/utils/xpCalculations';
+import { loadPublishedConfigCached } from '@/lib/utils/xpEngineConfigStore';
+import { getLevelProgressFromXp } from '@/lib/utils/xpEngineCurve';
 
 /**
  * GET /api/xp-ledger/balance
@@ -26,16 +27,24 @@ export async function GET(req: NextRequest) {
     const userData = userDoc.data();
     const xpTotal = userData?.xpTotal || 0;
     const xpEarnedAllTime = userData?.xpEarnedAllTime || 0;
-    const level = userData?.level || calculateLevel(xpTotal);
     const dailyXpEarned = userData?.dailyXpEarned || 0;
     const lastDailyReset = userData?.lastDailyReset;
+
+    // Level/xpToNextLevel are always recomputed live from xpTotal against
+    // the published XP Engine curve — never trusted from the stored `level`
+    // field — so this self-corrects for any user whose stored level was
+    // written before the engine was wired in, with no backfill needed.
+    const xpEngineConfig = await loadPublishedConfigCached();
+    const progress = xpEngineConfig ? getLevelProgressFromXp(xpTotal, xpEngineConfig) : null;
+    const level = progress?.level ?? userData?.level ?? 1;
+    const xpToNextLevelValue = progress?.xpToNext ?? 0;
 
     return NextResponse.json({
       uid,
       xpTotal,
       xpEarnedAllTime,
       level,
-      xpToNextLevel: xpToNextLevel(xpTotal),
+      xpToNextLevel: xpToNextLevelValue,
       dailyXpEarned,
       lastDailyReset,
       lastXpUpdate: userData?.lastXpUpdate,

@@ -41,3 +41,27 @@ export async function loadConfigResponse(docId: string): Promise<XpEngineConfigR
   if (!snap.exists) return null;
   return withComputed(snap.data() as XpEngineConfigDoc);
 }
+
+// Short-lived in-memory cache for the PUBLISHED config specifically, since
+// it's read on every live XP grant/balance check (unlike the admin routes
+// above, which are low-traffic). Invalidated immediately on publish/rollback
+// so a newly published curve takes effect on the next request, not after a
+// stale window expires.
+let publishedConfigCache: { config: XpEngineConfigDoc; timestamp: number } | null = null;
+const PUBLISHED_CONFIG_CACHE_MS = 30_000;
+
+export async function loadPublishedConfigCached(): Promise<XpEngineConfigDoc | null> {
+  const now = Date.now();
+  if (publishedConfigCache && now - publishedConfigCache.timestamp < PUBLISHED_CONFIG_CACHE_MS) {
+    return publishedConfigCache.config;
+  }
+  const snap = await xpEngineDocRef(XP_ENGINE_PUBLISHED_DOC_ID).get();
+  if (!snap.exists) return null;
+  const config = normalizeConfigDoc(snap.data() as XpEngineConfigDoc);
+  publishedConfigCache = { config, timestamp: now };
+  return config;
+}
+
+export function invalidatePublishedConfigCache(): void {
+  publishedConfigCache = null;
+}

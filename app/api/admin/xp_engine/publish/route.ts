@@ -5,6 +5,7 @@ import {
   XP_ENGINE_DRAFT_DOC_ID,
   XP_ENGINE_PUBLISHED_DOC_ID,
   XP_ENGINE_VERSION_DOC_ID,
+  invalidatePublishedConfigCache,
   loadConfigResponse,
   withComputed,
   xpEngineDocRef,
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
     batch.set(draftRef, { ...newPublished, published: false });
 
     await batch.commit();
+    invalidatePublishedConfigCache();
 
     const [published, draftAfter] = await Promise.all([
       loadConfigResponse(XP_ENGINE_PUBLISHED_DOC_ID),

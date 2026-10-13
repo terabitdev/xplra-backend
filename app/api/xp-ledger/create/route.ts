@@ -3,7 +3,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { CreateXpLedgerRequest, XpLedgerEntry } from '@/lib/domain/models/xpLedger';
 import { FieldValue } from 'firebase-admin/firestore';
 import { canCompleteQuest, canEarnDailyXp, recordQuestCompletion, updateDailyXp } from '@/lib/utils/xpEnforcement';
-import { calculateLevel } from '@/lib/utils/xpCalculations';
+import { loadPublishedConfigCached } from '@/lib/utils/xpEngineConfigStore';
+import { getLevelProgressFromXp } from '@/lib/utils/xpEngineCurve';
 
 export async function POST(req: NextRequest) {
   try {
@@ -85,6 +86,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ===== CALCULATE LEVEL AND DAILY XP =====
+    // Level is always resolved from the published XP Engine curve (binary
+    // search against its threshold table), never a separate formula — see
+    // lib/utils/xpEngineCurve.ts. Falls back to leaving the level unchanged
+    // only if no published config exists at all, which should not happen in
+    // practice since the engine always has a published doc.
+    const xpEngineConfig = await loadPublishedConfigCached();
+    const progress = xpEngineConfig ? getLevelProgressFromXp(newXpTotal, xpEngineConfig) : null;
+    const newLevel = progress?.level ?? userData?.level ?? 1;
+
     // Create ledger entry
     const entryId = `xp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const entry: XpLedgerEntry = {
@@ -99,10 +110,8 @@ export async function POST(req: NextRequest) {
       adminUid,
       metadata,
       createdAt: new Date().toISOString(),
+      ...(xpEngineConfig ? { configVersion: xpEngineConfig.version } : {}),
     };
-
-    // ===== CALCULATE LEVEL AND DAILY XP =====
-    const newLevel = calculateLevel(newXpTotal);
 
     // Update daily XP counter
     const { dailyXpEarned, wasReset } = await updateDailyXp(uid, xpDelta > 0 ? xpDelta : 0);

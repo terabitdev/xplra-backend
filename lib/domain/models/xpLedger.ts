@@ -45,6 +45,9 @@ export interface XpLedgerEntry {
 
   /** Timestamp */
   createdAt?: string;
+
+  /** Published XP Engine config version this entry's level was computed against, if available. */
+  configVersion?: number;
 }
 
 /**

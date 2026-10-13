@@ -296,6 +296,58 @@ export function computeSampleTable(config: XpEngineConfigDoc, step = 20) {
  *                the soft cap reduced by soft_cap_dampening (0..1)
  * A caller-supplied dailyXpEarned produces a third, custom estimate.
  */
+export interface XpLevelProgress {
+  level: number;
+  /** XP still needed to reach level + 1 (0 at the terminal level). */
+  xpToNext: number;
+  /** Total XP required to have reached `level` (the brief's threshold[level]). */
+  cumulativeXp: number;
+  /** How far into the current level the player's xpTotal already is. */
+  xpIntoLevel: number;
+}
+
+/**
+ * Resolves a player's level/progress from their total XP via binary search
+ * against the cumulative threshold table — per the brief's section 7
+ * ("Use binary search against the threshold array when calculating a
+ * player's current level"). This is the single source of truth live XP
+ * grants and balance reads should use, instead of any separate formula.
+ */
+export function getLevelProgressFromXp(xpTotal: number, config: XpEngineConfigDoc): XpLevelProgress {
+  const table = buildCumulativeTable(config);
+  const { maxLevel, cumulativeByLevel } = table;
+
+  if (maxLevel <= 0) {
+    return { level: 0, xpToNext: 0, cumulativeXp: 0, xpIntoLevel: 0 };
+  }
+
+  const clampedXp = Math.max(0, xpTotal);
+
+  // Highest level whose threshold is <= clampedXp.
+  let lo = 1;
+  let hi = maxLevel;
+  let level = 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if ((cumulativeByLevel[mid] ?? 0) <= clampedXp) {
+      level = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  const cumulativeXp = cumulativeByLevel[level] ?? 0;
+  const xpToNext = xpToNextForLevel(level, config.curve, table.ranges, maxLevel);
+
+  return {
+    level,
+    xpToNext,
+    cumulativeXp,
+    xpIntoLevel: clampedXp - cumulativeXp,
+  };
+}
+
 export interface XpEngineSimulationEstimate {
   label: string;
   dailyXpEarned: number;
