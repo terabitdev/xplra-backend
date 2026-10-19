@@ -150,15 +150,22 @@ export default function ContributionsPage() {
       setApproveOpen(false);
       setDetailsOpen(false);
 
-      // Show what was actually credited, not what was requested — they can
-      // legitimately differ (capped, zero, or unconfirmed grant).
+      // Show the real reward_state from the grant function — never imply
+      // the requested XP was paid unless the state is explicitly "granted".
       const creditedXp = result.contributionXp;
-      if (creditedXp === null || creditedXp === undefined) {
-        showToast('Contribution approved, but the credited XP amount was not confirmed. Check the player\'s XP ledger.', 'error');
-      } else if (creditedXp !== contributionXp) {
-        showToast(`Contribution approved — ${creditedXp} XP credited (requested ${contributionXp}).`, 'success');
+      const rewardState = result.rewardState;
+      const REWARD_STATE_LABELS: Record<string, string> = {
+        granted: `Contribution approved — ${creditedXp ?? 0} XP credited.`,
+        capped: 'Contribution approved — XP was capped (daily/source limit reached).',
+        blocked: 'Contribution approved — XP grant was blocked.',
+        pending: 'Contribution approved — XP grant is pending.',
+        none: 'Contribution approved — no XP was granted.',
+        failed: 'Contribution approved — XP grant failed.',
+      };
+      if (rewardState && REWARD_STATE_LABELS[rewardState]) {
+        showToast(REWARD_STATE_LABELS[rewardState], rewardState === 'granted' ? 'success' : 'error');
       } else {
-        showToast(`Contribution approved — ${creditedXp} XP credited.`, 'success');
+        showToast('Contribution approved, but the reward state was not confirmed. Check the player\'s XP ledger.', 'error');
       }
 
       const approvedPlace: Place_ = {

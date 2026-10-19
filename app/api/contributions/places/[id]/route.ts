@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
+// NOTE: this is a legacy approval path over the older `contributions_places`
+// collection — it does NOT call grantContributionXp, so it never grants XP.
+// No frontend code currently calls it, but it was reachable directly over
+// HTTP with zero authorization until this fix.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { action, reviewNote, adminUid } = await req.json();
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const { action, reviewNote } = await req.json();
+    const adminUid = auth.uid;
     const contributionId = params.id;
 
     const contributionRef = adminDb.collection('contributions_places').doc(contributionId);
@@ -83,8 +94,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const contributionId = params.id;
 
     const contributionRef = adminDb.collection('contributions_places').doc(contributionId);

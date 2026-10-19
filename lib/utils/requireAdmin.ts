@@ -1,7 +1,7 @@
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 export type AdminAuthResult =
-  | { ok: true; uid: string; email: string | null }
+  | { ok: true; uid: string; email: string | null; token: string }
   | { ok: false; status: 401 | 403; error: string };
 
 /**
@@ -36,5 +36,5 @@ export async function verifyAdminRequest(req: Request): Promise<AdminAuthResult>
     return { ok: false, status: 403, error: "This account does not have admin access." };
   }
 
-  return { ok: true, uid: decoded.uid, email: decoded.email ?? null };
+  return { ok: true, uid: decoded.uid, email: decoded.email ?? null, token };
 }

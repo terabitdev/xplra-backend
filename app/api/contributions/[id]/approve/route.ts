@@ -57,19 +57,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const result = json?.result ?? {};
-    // Report what was actually credited, never silently substitute the
-    // requested amount — a capped/failed/zero grant must not be displayed
-    // as if the full requested amount was paid.
-    const xpAwarded: number | null = typeof result.xp_awarded === 'number' ? result.xp_awarded : null;
+    const rewardState: string | null = typeof result.reward_state === 'string' ? result.reward_state : null;
+    // Only treat XP as actually credited when reward_state is explicitly
+    // "granted" — never fall back to the requested amount for capped,
+    // blocked, pending, none, or failed states, and never infer "granted"
+    // just because a number happens to be present.
+    const xpAwarded: number | null =
+      rewardState === 'granted' && typeof result.xp_awarded === 'number' ? result.xp_awarded : null;
+
+    const REWARD_STATE_MESSAGES: Record<string, string> = {
+      granted: `Contribution approved — ${xpAwarded ?? 0} XP credited.`,
+      capped: 'Contribution approved, but the XP was capped (daily/source limit reached).',
+      blocked: 'Contribution approved, but the XP grant was blocked.',
+      pending: 'Contribution approved — XP grant is pending.',
+      none: 'Contribution approved — no XP was granted.',
+      failed: 'Contribution approved, but the XP grant failed.',
+    };
 
     return NextResponse.json({
       message:
-        xpAwarded !== null
-          ? `Contribution approved — ${xpAwarded} XP credited.`
-          : 'Contribution approved, but the credited XP amount was not confirmed by the grant function.',
+        rewardState && REWARD_STATE_MESSAGES[rewardState]
+          ? REWARD_STATE_MESSAGES[rewardState]
+          : 'Contribution approved, but the reward state was not confirmed by the grant function.',
       placeId,
       contributionXp: xpAwarded,
       requestedXp: contributionXp,
+      rewardState,
     });
   } catch (error: unknown) {
     console.error('Approve contribution error:', error);

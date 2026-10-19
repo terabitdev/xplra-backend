@@ -23,6 +23,12 @@ export const XP_ENGINE_PUBLISHED_DOC_ID = "xp_engine";
 export const XP_ENGINE_DRAFT_DOC_ID = "xp_engine_draft";
 export const XP_ENGINE_VERSION_DOC_ID = "xp_engine_version";
 
+// Full immutable publish/rollback history — one doc per version number,
+// created once and never edited or deleted. Separate from the single-slot
+// xp_engine_version backup above, which only ever holds the most recent
+// previous config for one-step rollback.
+export const XP_ENGINE_VERSIONS_COLLECTION = "xp_engine_versions";
+
 export function xpEngineDocRef(docId: string) {
   return adminDb.collection(XP_ENGINE_CONFIG_COLLECTION).doc(docId);
 }

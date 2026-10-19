@@ -118,7 +118,12 @@ export const approveContribution = createAsyncThunk(
       }
       // Use the server's reported credited amount, not the requested one —
       // they can legitimately differ (capped, zero, or unconfirmed grant).
-      return { placeId, contributionXp: data.contributionXp as number | null, requestedXp: contributionXp };
+      return {
+        placeId,
+        contributionXp: data.contributionXp as number | null,
+        requestedXp: contributionXp,
+        rewardState: data.rewardState as string | null,
+      };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);

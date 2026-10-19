@@ -78,10 +78,30 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/**
+ * Exact numeric ranges the game itself enforces — the panel's own
+ * validation must be at least this strict, so a config that passes here
+ * cannot still be rejected by the game for a range the panel didn't check.
+ */
+const EXPECTED_NODE_COUNT = 13;
+const CURVE_TYPE = "piecewise_power";
+const BASE_MIN = 50;
+const BASE_MAX = 5000;
+const GROWTH_MIN = 0;
+const GROWTH_MAX = 0.2;
+const POWER_MIN = 1;
+const POWER_MAX = 2;
+const NODE_BOOST_MIN = 1;
+const NODE_BOOST_MAX = 2;
+
+function isWholeNumber(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isInteger(value);
+}
+
 /** Validates the config, grouped by the categories the Overview warnings panel calls out. */
 function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLevel: number): string[] {
   const warnings: string[] = [];
-  const { curve, limits, multipliers, nodes } = config;
+  const { curve, limits, multipliers, nodes, version } = config;
 
   // ---- Invalid level ranges ----
   const seenNodeIds = new Set<number>();
@@ -97,6 +117,19 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
     }
     seenNodeIds.add(n.node);
   }
+  if (!nodes || nodes.length !== EXPECTED_NODE_COUNT) {
+    warnings.push(`There must be exactly ${EXPECTED_NODE_COUNT} nodes (got ${nodes?.length ?? 0}).`);
+  }
+  for (let id = 1; id <= EXPECTED_NODE_COUNT; id++) {
+    if (!seenNodeIds.has(id)) {
+      warnings.push(`Node ${id} is missing — nodes must be numbered 1-${EXPECTED_NODE_COUNT}.`);
+    }
+  }
+  Array.from(seenNodeIds).forEach((id) => {
+    if (id < 1 || id > EXPECTED_NODE_COUNT) {
+      warnings.push(`Node ${id} is out of range — node ids must be between 1 and ${EXPECTED_NODE_COUNT}.`);
+    }
+  });
 
   // ---- Gaps or overlaps in progression ranges ----
   for (let i = 1; i < ranges.length; i++) {
@@ -125,31 +158,36 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
       warnings.push(`${name} is missing or not a valid number (got ${JSON.stringify(value)}).`);
     }
   }
-  if (!curve?.type) {
-    warnings.push(`curve.type is missing.`);
+  if (curve?.type !== CURVE_TYPE) {
+    warnings.push(`curve.type must be "${CURVE_TYPE}" (got ${JSON.stringify(curve?.type)}).`);
   }
-  if (isFiniteNumber(curve?.min_xp_to_next) && isFiniteNumber(curve?.max_xp_to_next) && curve.min_xp_to_next > curve.max_xp_to_next) {
+  if (isFiniteNumber(curve?.base) && (curve.base < BASE_MIN || curve.base > BASE_MAX)) {
+    warnings.push(`curve.base (${curve.base}) must be between ${BASE_MIN} and ${BASE_MAX}.`);
+  }
+  if (isFiniteNumber(curve?.growth) && (curve.growth < GROWTH_MIN || curve.growth > GROWTH_MAX)) {
+    warnings.push(`curve.growth (${curve.growth}) must be between ${GROWTH_MIN} and ${GROWTH_MAX}.`);
+  }
+  if (isFiniteNumber(curve?.power) && (curve.power < POWER_MIN || curve.power > POWER_MAX)) {
+    warnings.push(`curve.power (${curve.power}) must be between ${POWER_MIN} and ${POWER_MAX}.`);
+  }
+  if (isFiniteNumber(curve?.min_xp_to_next) && curve.min_xp_to_next < 1) {
+    warnings.push(`curve.min_xp_to_next (${curve.min_xp_to_next}) must be at least 1.`);
+  }
+  if (isFiniteNumber(curve?.min_xp_to_next) && isFiniteNumber(curve?.max_xp_to_next) && curve.max_xp_to_next <= curve.min_xp_to_next) {
     warnings.push(
-      `curve.min_xp_to_next (${curve.min_xp_to_next}) is greater than curve.max_xp_to_next (${curve.max_xp_to_next}).`
+      `curve.max_xp_to_next (${curve.max_xp_to_next}) must be greater than curve.min_xp_to_next (${curve.min_xp_to_next}).`
     );
   }
-  if (isFiniteNumber(curve?.growth) && curve.growth <= 0) {
-    warnings.push(`curve.growth (${curve.growth}) should be greater than 0, or XP per level will never increase.`);
-  }
   for (const [key, boost] of Object.entries(curve?.node_boost || {})) {
-    if (!isFiniteNumber(boost) || boost <= 0) {
-      warnings.push(`curve.node_boost["${key}"] (${boost}) must be a positive number.`);
+    const nodeId = Number(key);
+    if (!isFiniteNumber(boost) || boost < NODE_BOOST_MIN || boost > NODE_BOOST_MAX) {
+      warnings.push(`curve.node_boost["${key}"] (${boost}) must be between ${NODE_BOOST_MIN} and ${NODE_BOOST_MAX}.`);
+    }
+    if (!Number.isInteger(nodeId) || nodeId < 1 || nodeId > EXPECTED_NODE_COUNT) {
+      warnings.push(`curve.node_boost has an entry for node ${key}, but node boosts only apply to nodes 1-${EXPECTED_NODE_COUNT}.`);
     } else if (!ranges.some((r) => String(r.node) === key)) {
       warnings.push(`curve.node_boost has an entry for node ${key}, but no matching node exists in "nodes".`);
     }
-  }
-
-  // ---- Negative or zero XP requirements ----
-  if (isFiniteNumber(curve?.min_xp_to_next) && curve.min_xp_to_next <= 0) {
-    warnings.push(`curve.min_xp_to_next (${curve.min_xp_to_next}) must be greater than 0.`);
-  }
-  if (isFiniteNumber(curve?.max_xp_to_next) && curve.max_xp_to_next <= 0) {
-    warnings.push(`curve.max_xp_to_next (${curve.max_xp_to_next}) must be greater than 0.`);
   }
 
   // ---- Configuration that does not resolve correctly through Level 369 ----
@@ -172,24 +210,35 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
     }
   }
 
+  // ---- version ----
+  if (!isWholeNumber(version) || version <= 0) {
+    warnings.push(`version must be a positive whole number (got ${JSON.stringify(version)}).`);
+  }
+
   // ---- Other operational checks ----
-  if (isFiniteNumber(limits?.daily_xp_cap_soft) && isFiniteNumber(limits?.daily_xp_cap_hard) && limits.daily_xp_cap_soft > limits.daily_xp_cap_hard) {
+  if (isWholeNumber(limits?.daily_xp_cap_soft) && isWholeNumber(limits?.daily_xp_cap_hard) && limits.daily_xp_cap_hard <= limits.daily_xp_cap_soft) {
     warnings.push(
-      `limits.daily_xp_cap_soft (${limits.daily_xp_cap_soft}) is greater than limits.daily_xp_cap_hard (${limits.daily_xp_cap_hard}).`
+      `limits.daily_xp_cap_hard (${limits.daily_xp_cap_hard}) must be greater than limits.daily_xp_cap_soft (${limits.daily_xp_cap_soft}).`
     );
   }
   for (const [name, value] of [
     ["limits.daily_xp_cap_soft", limits?.daily_xp_cap_soft],
-    ["limits.daily_xp_cap_hard", limits?.daily_xp_cap_hard],
     ["limits.grant_rate_limit_per_min", limits?.grant_rate_limit_per_min],
   ] as const) {
-    if (!isFiniteNumber(value) || value < 0) {
-      warnings.push(`${name} is missing or not a non-negative number (got ${JSON.stringify(value)}).`);
+    if (!isWholeNumber(value) || value <= 0) {
+      warnings.push(`${name} must be a positive whole number (got ${JSON.stringify(value)}).`);
     }
   }
-  if (!isFiniteNumber(limits?.soft_cap_dampening) || limits.soft_cap_dampening < 0 || limits.soft_cap_dampening > 1) {
+  if (!isWholeNumber(limits?.daily_xp_cap_hard) || limits.daily_xp_cap_hard <= 0) {
+    warnings.push(`limits.daily_xp_cap_hard must be a positive whole number (got ${JSON.stringify(limits?.daily_xp_cap_hard)}).`);
+  }
+  if (
+    limits?.soft_cap_dampening !== undefined &&
+    limits?.soft_cap_dampening !== null &&
+    (!isFiniteNumber(limits.soft_cap_dampening) || limits.soft_cap_dampening < 0 || limits.soft_cap_dampening > 1)
+  ) {
     warnings.push(
-      `limits.soft_cap_dampening must be a number between 0 and 1 (got ${JSON.stringify(limits?.soft_cap_dampening)}).`
+      `limits.soft_cap_dampening must be a number between 0 and 1 when set (got ${JSON.stringify(limits.soft_cap_dampening)}).`
     );
   }
   for (const [name, value] of [
@@ -197,15 +246,35 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
     ["limits.source_caps.place_checkin_per_day", limits?.source_caps?.place_checkin_per_day],
     ["limits.source_caps.promo_per_day", limits?.source_caps?.promo_per_day],
   ] as const) {
-    if (!isFiniteNumber(value) || value < 0) {
-      warnings.push(`${name} is missing or not a non-negative number (got ${JSON.stringify(value)}).`);
+    if (!isWholeNumber(value) || value <= 0) {
+      warnings.push(`${name} must be a positive whole number (got ${JSON.stringify(value)}).`);
     }
   }
 
-  const membershipValues = Object.values(multipliers?.membership || {});
+  const membershipEntries = Object.entries(multipliers?.membership || {});
+  for (const [tier, value] of membershipEntries) {
+    if (!isFiniteNumber(value) || value <= 0) {
+      warnings.push(`multipliers.membership["${tier}"] (${value}) must be greater than 0.`);
+    }
+  }
+  const membershipValues = membershipEntries.map(([, v]) => v).filter(isFiniteNumber);
   const maxMembershipMultiplier = membershipValues.length ? Math.max(...membershipValues) : 0;
+
+  if (multipliers?.streak) {
+    const { per_active_day, cap } = multipliers.streak;
+    if (!isFiniteNumber(per_active_day) || per_active_day < 0) {
+      warnings.push(`multipliers.streak.per_active_day must be a number >= 0 (got ${JSON.stringify(per_active_day)}).`);
+    }
+    if (!isFiniteNumber(cap) || cap < 1) {
+      warnings.push(`multipliers.streak.cap must be a number >= 1 (got ${JSON.stringify(cap)}).`);
+    }
+  }
+  if (!isFiniteNumber(multipliers?.global_multiplier_cap) || multipliers.global_multiplier_cap < 1) {
+    warnings.push(`multipliers.global_multiplier_cap must be a number >= 1 (got ${JSON.stringify(multipliers?.global_multiplier_cap)}).`);
+  }
+
   const maxStreakMultiplier = multipliers?.streak?.enabled ? multipliers.streak.cap : 0;
-  if (multipliers && maxMembershipMultiplier + maxStreakMultiplier > multipliers.global_multiplier_cap) {
+  if (multipliers && isFiniteNumber(multipliers.global_multiplier_cap) && maxMembershipMultiplier + maxStreakMultiplier > multipliers.global_multiplier_cap) {
     warnings.push(
       `Highest membership multiplier + streak cap (${(maxMembershipMultiplier + maxStreakMultiplier).toFixed(2)}) exceeds multipliers.global_multiplier_cap (${multipliers.global_multiplier_cap}).`
     );

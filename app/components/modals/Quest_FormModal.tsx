@@ -94,11 +94,14 @@ const DEFAULT_PILLS: PillsState = {
   featured: { enabled: false, restrictToWindow: false, startDateTime: '', endDateTime: '' },
 };
 
+// QR Code is disabled game-side for now — the game refuses to start a quest
+// unless its type is exactly checkin, dwell, accrual, or codePhrase. Kept
+// out of the creatable list below; see the select's render for how an
+// existing qrCode quest still stays visible when editing it.
 const QUEST_TYPES: { value: Quest_['type']; label: string }[] = [
   { value: 'checkin', label: 'Check-In' },
   { value: 'dwell', label: 'Dwell' },
   { value: 'accrual', label: 'Accrual' },
-  { value: 'qrCode', label: 'QR Code' },
   { value: 'codePhrase', label: 'Code Phrase' },
 ];
 
@@ -367,7 +370,9 @@ export default function Quest_FormModal({
     if (!quest.categoryId?.trim()) missing.push('Category');
     if (!quest.title?.trim()) missing.push('Title');
     if (!quest.description?.trim()) missing.push('Description');
-    if (quest.xp === undefined || quest.xp === null) missing.push('XP');
+    if (quest.xp === undefined || quest.xp === null || !Number.isFinite(quest.xp) || quest.xp < 0) {
+      missing.push('XP (must be a non-negative number)');
+    }
     if (!quest.type) missing.push('Type');
 
     if (!geoOverrideEnabled && !quest.placeId) {
@@ -645,6 +650,9 @@ export default function Quest_FormModal({
                 {QUEST_TYPES.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
+                {quest.type === 'qrCode' && (
+                  <option value="qrCode">QR Code (disabled in-game — change this)</option>
+                )}
               </select>
             </div>
             <div>
@@ -653,8 +661,15 @@ export default function Quest_FormModal({
                 type="number"
                 min="0"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={quest.xp !== undefined && quest.xp !== null ? quest.xp : ''}
-                onChange={(e) => setQuest(prev => ({ ...prev, xp: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) }))}
+                value={quest.xp !== undefined && quest.xp !== null && !Number.isNaN(quest.xp) ? quest.xp : ''}
+                onChange={(e) => {
+                  // Keep an invalid/empty entry as NaN rather than silently
+                  // coercing it to 0 — validateForm below rejects it on save
+                  // instead of quietly saving a quest worth 0 XP.
+                  const raw = e.target.value.trim();
+                  const parsed = raw === '' ? NaN : Number(raw);
+                  setQuest(prev => ({ ...prev, xp: parsed }));
+                }}
                 disabled={loading}
                 placeholder="100"
               />

@@ -58,14 +58,16 @@ export async function PUT(req: Request) {
             updateData.photoURL = photoURL;
         }
 
-        // If user doesn't exist, create with default type
+        // If user doesn't exist, create with no privileged type. Any
+        // Firebase-authenticated caller can reach this endpoint with a
+        // brand-new account — auto-granting 'Admin' here let any player
+        // self-provision admin-panel access on their first call.
         if (!userDoc.exists) {
             await userRef.set({
                 uid,
                 email: decodedToken.email,
                 displayName: displayName || decodedToken.email?.split('@')[0] || 'User',
                 photoURL: photoURL || null,
-                type: 'Admin', // Default type
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             });
@@ -111,13 +113,13 @@ export async function GET(req: Request) {
         const userDoc = await userRef.get();
 
         if (!userDoc.exists) {
-            // Create user document if it doesn't exist
+            // Create user document if it doesn't exist — no privileged type,
+            // see the matching note in PUT above.
             await userRef.set({
                 uid,
                 email: decodedToken.email,
                 displayName: decodedToken.email?.split('@')[0] || 'User',
                 photoURL: null,
-                type: 'Admin',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             });
@@ -127,7 +129,7 @@ export async function GET(req: Request) {
                 email: decodedToken.email,
                 displayName: decodedToken.email?.split('@')[0] || 'User',
                 photoURL: null,
-                type: 'Admin',
+                type: null,
             });
         }
 

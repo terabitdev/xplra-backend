@@ -19,6 +19,20 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
+interface ImpactPreviewResult {
+  valid: boolean;
+  errors: string[];
+  table?: { version: number; totalXpToMax: number; hash: string };
+  impact?: {
+    scanned: number;
+    withoutXp: number;
+    changedVsLive: number;
+    upVsLive: number;
+    downVsLive: number;
+    largestLevelMove: number;
+  } | null;
+}
+
 export default function XpEngineOverviewPage() {
   const adminUid = useAppSelector((state) => state.user.uid);
 
@@ -34,6 +48,10 @@ export default function XpEngineOverviewPage() {
   const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
+
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewResult, setPreviewResult] = useState<ImpactPreviewResult | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const showToast = (message: string, type: "success" | "error" = "success") =>
     setToast({ message, type, isVisible: true });
@@ -109,6 +127,26 @@ export default function XpEngineOverviewPage() {
     setIsEditingDraft(false);
   };
 
+  const handlePreviewImpact = async () => {
+    if (!requireAdminUid()) return;
+    setIsPreviewing(true);
+    setPreviewError(null);
+    try {
+      const res = await fetch("/api/admin/xp_engine/preview-impact", {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to check this draft against the game");
+      setPreviewResult(json as ImpactPreviewResult);
+    } catch (err) {
+      setPreviewResult(null);
+      setPreviewError(err instanceof Error ? err.message : "Failed to check this draft against the game");
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   const handlePublish = async () => {
     if (!requireAdminUid()) return;
     setIsPublishing(true);
@@ -119,9 +157,14 @@ export default function XpEngineOverviewPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        const detail = Array.isArray(json?.warnings) && json.warnings.length ? ` ${json.warnings.join(" ")}` : "";
+        const detail = Array.isArray(json?.warnings)
+          ? ` ${json.warnings.join(" ")}`
+          : Array.isArray(json?.errors)
+            ? ` ${json.errors.join(" ")}`
+            : "";
         throw new Error((json?.error || "Failed to publish config") + detail);
       }
+      setPreviewResult({ valid: true, errors: [], table: json.table, impact: json.impact });
       showToast("Draft published — this is now the live XP config.");
       setShowPublishConfirm(false);
       await loadConfig();
@@ -213,6 +256,15 @@ export default function XpEngineOverviewPage() {
         </button>
         <button
           type="button"
+          onClick={handlePreviewImpact}
+          disabled={!hasDraft || isPreviewing}
+          className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={hasDraft ? "Check this draft against the game's own rules, without publishing" : "No draft to check"}
+        >
+          {isPreviewing ? "Checking…" : "Preview Impact"}
+        </button>
+        <button
+          type="button"
           onClick={() => setShowPublishConfirm(true)}
           disabled={!hasDraft}
           className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -233,6 +285,54 @@ export default function XpEngineOverviewPage() {
           <span className="text-xs text-gray-500">No draft yet — Duplicate Config or Edit Draft to start one.</span>
         )}
       </div>
+
+      {/* Game-side check result (previewXpConfigImpact) */}
+      {previewError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{previewError}</div>
+      )}
+      {previewResult && !previewResult.valid && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h2 className="text-sm font-semibold text-red-800 mb-2">The game rejected this draft</h2>
+          <ul className="list-disc list-inside space-y-1">
+            {previewResult.errors.map((e, i) => (
+              <li key={i} className="text-sm text-red-800">
+                {e}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {previewResult && previewResult.valid && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h2 className="text-sm font-semibold text-blue-900 mb-2">Game-side check passed</h2>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <dt className="text-xs text-blue-700">Table Hash</dt>
+              <dd className="text-sm font-medium text-blue-900 font-mono">
+                {previewResult.table?.hash ? previewResult.table.hash.slice(0, 12) : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-blue-700">Total XP to Max</dt>
+              <dd className="text-sm font-medium text-blue-900">
+                {previewResult.table?.totalXpToMax != null ? previewResult.table.totalXpToMax.toLocaleString() : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-blue-700">Players Scanned</dt>
+              <dd className="text-sm font-medium text-blue-900">{previewResult.impact?.scanned ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-blue-700">Level Would Change</dt>
+              <dd className="text-sm font-medium text-blue-900">
+                {previewResult.impact
+                  ? `${previewResult.impact.changedVsLive} (${previewResult.impact.upVsLive}↑ / ${previewResult.impact.downVsLive}↓)`
+                  : "—"}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {/* Configuration status / version */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -346,7 +446,7 @@ export default function XpEngineOverviewPage() {
         onClose={() => setShowPublishConfirm(false)}
         onConfirm={handlePublish}
         title="Publish this draft?"
-        message="This replaces the live XP config used to calculate XP for all players. The current published config is backed up first, so this can be rolled back."
+        message="This runs the draft through the game's own checker first and is rejected if it fails. If it passes, it replaces the live XP config used to calculate XP for all players — the current published config is backed up first, so this can be rolled back."
         confirmLabel="Publish"
         confirmingLabel="Publishing…"
         isConfirming={isPublishing}

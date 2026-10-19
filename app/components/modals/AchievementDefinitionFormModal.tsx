@@ -257,6 +257,9 @@ export default function AchievementDefinitionFormModal({
     const errs: Record<string, string> = {};
     if (!form.title?.trim()) errs.title = 'Title is required';
     if (!form.description?.trim()) errs.description = 'Description is required';
+    if (form.xp_reward === undefined || form.xp_reward === null || !Number.isFinite(form.xp_reward) || form.xp_reward < 0) {
+      errs.xp_reward = 'XP Reward must be a non-negative number';
+    }
     if (form.rule_config?.event_type === 'PLACE_VISITED' && !form.rule_config?.target) {
       errs.target = 'Target count is required';
     }
@@ -695,14 +698,18 @@ export default function AchievementDefinitionFormModal({
           <div className={sectionClass}>
             <p className={sectionTitle}>Rewards</p>
             <div>
-              <label className={labelClass}>XP Reward</label>
+              <label className={labelClass}>XP Reward *</label>
               <input
                 type="number"
                 className={inputClass}
-                value={form.xp_reward ?? 0}
-                onChange={(e) => setField('xp_reward', Number(e.target.value))}
+                value={form.xp_reward !== undefined && form.xp_reward !== null && !Number.isNaN(form.xp_reward) ? form.xp_reward : ''}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setField('xp_reward', raw === '' ? NaN : Number(raw));
+                }}
                 disabled={loading}
               />
+              {errors.xp_reward && <p className="text-xs text-red-500 mt-1">{errors.xp_reward}</p>}
             </div>
           </div>
         </form>
