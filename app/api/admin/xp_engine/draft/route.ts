@@ -8,10 +8,12 @@ import {
 } from "@/lib/utils/xpEngineConfigStore";
 import { EXPECTED_MAX_LEVEL, getMaxLevel } from "@/lib/utils/xpEngineCurve";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * POST /api/admin/xp_engine/draft
- * Body: { adminUid: string, source?: "published", patch?: Partial<XpEngineConfigDoc> }
+ * Requires Authorization: Bearer <admin ID token>.
+ * Body: { source?: "published", patch?: Partial<XpEngineConfigDoc> }
  *
  * Create/update the working draft (config/xp_engine_draft):
  *   - No draft yet, or source: "published"  -> (re)seed the draft from the
@@ -34,14 +36,14 @@ import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
  */
 export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json().catch(() => ({}));
-    const adminUid: string | undefined = body?.adminUid;
     const source: string | undefined = body?.source;
     const patch: Partial<XpEngineConfigDoc> | undefined = body?.patch;
-
-    if (!adminUid) {
-      return NextResponse.json({ error: "adminUid is required" }, { status: 400 });
-    }
 
     const draftRef = xpEngineDocRef(XP_ENGINE_DRAFT_DOC_ID);
     const publishedRef = xpEngineDocRef(XP_ENGINE_PUBLISHED_DOC_ID);
@@ -62,7 +64,20 @@ export async function POST(req: NextRequest) {
       nextVersion = base.version + 1;
     }
 
-    const merged: XpEngineConfigDoc = { ...base, ...(patch || {}) };
+    // A plain top-level spread here would be unsafe for nested objects: a
+    // patch touching only one field of `limits` (e.g. the Caps & Limits tab
+    // saving just source_caps) would silently replace the whole `limits`
+    // object, wiping out daily_xp_cap_soft/hard, grant_rate_limit_per_min,
+    // etc. Each known nested object is merged onto its existing base value
+    // instead of being replaced wholesale. `nodes` stays a full-array
+    // replacement — merging arrays by index would be meaningless here.
+    const merged: XpEngineConfigDoc = {
+      ...base,
+      ...(patch || {}),
+      curve: patch?.curve ? { ...base.curve, ...patch.curve } : base.curve,
+      limits: patch?.limits ? { ...base.limits, ...patch.limits } : base.limits,
+      multipliers: patch?.multipliers ? { ...base.multipliers, ...patch.multipliers } : base.multipliers,
+    };
 
     if (patch?.nodes) {
       const mergedMaxLevel = getMaxLevel(merged.nodes || []);
@@ -80,7 +95,7 @@ export async function POST(req: NextRequest) {
       ...merged,
       published: false,
       version: nextVersion,
-      updated_by: adminUid,
+      updated_by: auth.uid,
       updated_at: FieldValue.serverTimestamp(),
     });
 

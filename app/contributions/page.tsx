@@ -146,14 +146,25 @@ export default function ContributionsPage() {
     if (!selected) return;
     setActionLoading(true);
     try {
-      await dispatch(approveContribution({ placeId: selected.placeId, contributionXp })).unwrap();
+      const result = await dispatch(approveContribution({ placeId: selected.placeId, contributionXp })).unwrap();
       setApproveOpen(false);
       setDetailsOpen(false);
+
+      // Show what was actually credited, not what was requested — they can
+      // legitimately differ (capped, zero, or unconfirmed grant).
+      const creditedXp = result.contributionXp;
+      if (creditedXp === null || creditedXp === undefined) {
+        showToast('Contribution approved, but the credited XP amount was not confirmed. Check the player\'s XP ledger.', 'error');
+      } else if (creditedXp !== contributionXp) {
+        showToast(`Contribution approved — ${creditedXp} XP credited (requested ${contributionXp}).`, 'success');
+      } else {
+        showToast(`Contribution approved — ${creditedXp} XP credited.`, 'success');
+      }
 
       const approvedPlace: Place_ = {
         ...(selected as unknown as Place_),
         status: 'approved',
-        contributionXp,
+        contributionXp: creditedXp ?? undefined,
       };
       setEditPlace(approvedPlace);
       setEditPlaceOpen(true);

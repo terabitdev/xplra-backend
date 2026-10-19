@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppSelector } from "@/app/store/hooks";
 import type { XpEngineConfigApiResponse } from "@/lib/domain/models/xpEngineConfig";
+import { authHeaders } from "@/lib/utils/authHeaders";
 import Toaster from "@/app/components/ui/Toaster";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 
@@ -66,8 +67,7 @@ export default function XpEngineVersionHistoryPage() {
     try {
       const res = await fetch("/api/admin/xp_engine/rollback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to roll back config");

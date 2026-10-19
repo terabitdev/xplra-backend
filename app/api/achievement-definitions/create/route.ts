@@ -3,32 +3,36 @@ import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { AchievementDefinitionInput } from '@/lib/domain/models/achievementDefinition';
 import { uploadAchievementAsset } from '@/lib/utils/achievementAssets';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 /**
  * POST /api/achievement-definitions/create
+ * Requires Authorization: Bearer <admin ID token>.
  * multipart/form-data:
- *   data            — JSON-stringified Partial<AchievementDefinitionInput> & { created_by }
+ *   data            — JSON-stringified Partial<AchievementDefinitionInput>
  *   badge_asset     — optional image file (replaces badge_asset_url)
  *   thumbnail_asset — optional image file (replaces thumbnail_url)
  */
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const dataStr = formData.get('data') as string | null;
     if (!dataStr) {
       return NextResponse.json({ error: 'Missing form field "data"' }, { status: 400 });
     }
 
-    const body: Partial<AchievementDefinitionInput> & { created_by?: string } = JSON.parse(dataStr);
+    const body: Partial<AchievementDefinitionInput> = JSON.parse(dataStr);
 
     if (!body.title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
     if (!body.description?.trim()) {
       return NextResponse.json({ error: 'Description is required' }, { status: 400 });
-    }
-    if (!body.created_by) {
-      return NextResponse.json({ error: 'created_by (admin uid) is required' }, { status: 400 });
     }
 
     // Pre-generate the doc ref so uploaded assets can live under a stable
@@ -65,7 +69,7 @@ export async function POST(req: Request) {
       xp_reward: Number(body.xp_reward) || 0,
       retroactive_enabled: body.retroactive_enabled ?? false,
       sort_order: Number(body.sort_order) || 0,
-      created_by: body.created_by,
+      created_by: auth.uid,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     };

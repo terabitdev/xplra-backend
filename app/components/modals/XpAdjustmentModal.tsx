@@ -52,7 +52,8 @@ export default function XpAdjustmentModal({ isOpen, onClose, onSuccess, uid }: X
         description: description.trim(),
         relatedEntityId: relatedEntityId.trim() || undefined,
         idempotencyKey,
-        adminUid: 'admin_placeholder', // Should come from auth context
+        // adminUid intentionally omitted — the server derives the real actor
+        // from the verified Authorization token, not anything sent here.
       })).unwrap();
 
       // Reset form

@@ -11,10 +11,11 @@ import {
   xpEngineDocRef,
 } from "@/lib/utils/xpEngineConfigStore";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * POST /api/admin/xp_engine/publish
- * Body: { adminUid: string }
+ * Requires Authorization: Bearer <admin ID token>.
  *
  * Validate + publish + version, using the fixed 3-document model:
  *   1. Rejects if the draft fails validation (same warnings shown on Overview)
@@ -27,65 +28,78 @@ import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const adminUid: string | undefined = body?.adminUid;
-
-    if (!adminUid) {
-      return NextResponse.json({ error: "adminUid is required" }, { status: 400 });
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const draftRef = xpEngineDocRef(XP_ENGINE_DRAFT_DOC_ID);
     const publishedRef = xpEngineDocRef(XP_ENGINE_PUBLISHED_DOC_ID);
     const versionRef = xpEngineDocRef(XP_ENGINE_VERSION_DOC_ID);
 
-    const [draftSnap, publishedSnap] = await Promise.all([draftRef.get(), publishedRef.get()]);
+    // Reading draft/published and deriving nextVersion from that read, then
+    // committing separately, is a race: two concurrent publishes can both
+    // read the same version and both compute the same nextVersion, and the
+    // second write silently overwrites the first while both responses claim
+    // the same version number. Wrapping the read and every write in one
+    // transaction makes this a real compare-and-set — Firestore retries this
+    // whole callback with a fresh read if another transaction committed a
+    // conflicting change to any document read here first.
+    const txnResult = await adminDb.runTransaction(async (transaction) => {
+      const [draftSnap, publishedSnap] = await Promise.all([
+        transaction.get(draftRef),
+        transaction.get(publishedRef),
+      ]);
 
-    if (!draftSnap.exists) {
-      return NextResponse.json({ error: "No draft to publish" }, { status: 400 });
-    }
+      if (!draftSnap.exists) {
+        return { kind: "error" as const, status: 400, error: "No draft to publish" };
+      }
 
-    const draft = draftSnap.data() as XpEngineConfigDoc;
+      const draft = draftSnap.data() as XpEngineConfigDoc;
 
-    // ---- Validate before publishing ----
-    const validated = withComputed(draft);
-    if (validated.computed.warnings.length > 0) {
-      return NextResponse.json(
-        {
+      const validated = withComputed(draft);
+      if (validated.computed.warnings.length > 0) {
+        return {
+          kind: "error" as const,
+          status: 400,
           error: "Draft has validation warnings and cannot be published.",
           warnings: validated.computed.warnings,
-        },
-        { status: 400 }
-      );
+        };
+      }
+
+      const currentPublished = publishedSnap.exists ? (publishedSnap.data() as XpEngineConfigDoc) : null;
+      const nextVersion = (currentPublished?.version ?? 0) + 1;
+
+      // 1. Back up the outgoing published config into the single version slot.
+      if (currentPublished) {
+        transaction.set(versionRef, {
+          ...currentPublished,
+          backed_up_at: FieldValue.serverTimestamp(),
+        });
+      }
+
+      const newPublished = {
+        ...draft,
+        published: true,
+        version: nextVersion,
+        updated_by: auth.uid,
+        updated_at: FieldValue.serverTimestamp(),
+      };
+
+      // 2. The draft's data becomes the live published config.
+      transaction.set(publishedRef, newPublished);
+
+      // 3. Reset the draft to mirror the newly published config (never deleted).
+      transaction.set(draftRef, { ...newPublished, published: false });
+
+      return { kind: "ok" as const };
+    });
+
+    if (txnResult.kind === "error") {
+      const { kind, status, ...rest } = txnResult;
+      return NextResponse.json(rest, { status });
     }
 
-    const currentPublished = publishedSnap.exists ? (publishedSnap.data() as XpEngineConfigDoc) : null;
-    const nextVersion = (currentPublished?.version ?? 0) + 1;
-
-    const batch = adminDb.batch();
-
-    // 1. Back up the outgoing published config into the single version slot.
-    if (currentPublished) {
-      batch.set(versionRef, {
-        ...currentPublished,
-        backed_up_at: FieldValue.serverTimestamp(),
-      });
-    }
-
-    const newPublished = {
-      ...draft,
-      published: true,
-      version: nextVersion,
-      updated_by: adminUid,
-      updated_at: FieldValue.serverTimestamp(),
-    };
-
-    // 2. The draft's data becomes the live published config.
-    batch.set(publishedRef, newPublished);
-
-    // 3. Reset the draft to mirror the newly published config (never deleted).
-    batch.set(draftRef, { ...newPublished, published: false });
-
-    await batch.commit();
     invalidatePublishedConfigCache();
 
     const [published, draftAfter] = await Promise.all([

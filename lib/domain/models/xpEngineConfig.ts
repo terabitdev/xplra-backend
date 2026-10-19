@@ -19,6 +19,7 @@ export interface XpEngineLimits {
   daily_xp_cap_hard: number;
   grant_rate_limit_per_min: number;
   soft_cap_dampening: number;
+  source_caps: XpEngineSourceCaps;
 }
 
 export interface XpEngineSourceCaps {
@@ -55,7 +56,6 @@ export interface XpEngineNode {
 export interface XpEngineConfigDoc {
   curve: XpCurveConfig;
   limits: XpEngineLimits;
-  source_caps: XpEngineSourceCaps;
   multipliers: XpEngineMultipliers;
   nodes: XpEngineNode[];
   published: boolean;

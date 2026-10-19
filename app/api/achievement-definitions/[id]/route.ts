@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition';
 import { uploadAchievementAsset } from '@/lib/utils/achievementAssets';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -30,6 +31,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 /**
  * PATCH /api/achievement-definitions/[id]
+ * Requires Authorization: Bearer <admin ID token>.
  * multipart/form-data:
  *   data            — JSON-stringified Partial<AchievementDefinitionInput>
  *   badge_asset     — optional image file (replaces badge_asset_url)
@@ -38,6 +40,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
  */
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const docRef = adminDb.collection('achievementDefinitions').doc(params.id);
     const doc = await docRef.get();
 
@@ -90,8 +97,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const docRef = adminDb.collection('achievementDefinitions').doc(params.id);
     const doc = await docRef.get();
 

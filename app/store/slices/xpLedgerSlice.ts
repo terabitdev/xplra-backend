@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { XpLedgerEntry, CreateXpLedgerRequest } from '@/lib/domain/models/xpLedger';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface XpLedgerState {
   entries: XpLedgerEntry[];
@@ -47,7 +48,7 @@ export const createXpLedgerEntry = createAsyncThunk(
     try {
       const response = await fetch('/api/xp-ledger/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(entryData),
       });
 

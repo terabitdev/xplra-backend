@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppSelector } from "@/app/store/hooks";
 import type { XpEngineConfigApiResponse } from "@/lib/domain/models/xpEngineConfig";
+import { authHeaders } from "@/lib/utils/authHeaders";
 import Toaster from "@/app/components/ui/Toaster";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import XpEngineDraftEditModal from "@/app/components/modals/XpEngineDraftEditModal";
@@ -71,8 +72,8 @@ export default function XpEngineOverviewPage() {
     try {
       const res = await fetch("/api/admin/xp_engine/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid, source: "published" }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ source: "published" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to duplicate config");
@@ -114,8 +115,7 @@ export default function XpEngineOverviewPage() {
     try {
       const res = await fetch("/api/admin/xp_engine/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -138,8 +138,7 @@ export default function XpEngineOverviewPage() {
     try {
       const res = await fetch("/api/admin/xp_engine/rollback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to roll back config");

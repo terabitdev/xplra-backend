@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppSelector } from "@/app/store/hooks";
 import { computeXpEngineSummary, EXPECTED_MAX_LEVEL } from "@/lib/utils/xpEngineCurve";
+import { authHeaders } from "@/lib/utils/authHeaders";
 import type { XpCurveConfig, XpEngineConfigApiResponse, XpEngineNode } from "@/lib/domain/models/xpEngineConfig";
 import Toaster from "@/app/components/ui/Toaster";
 
@@ -83,8 +84,8 @@ export default function CurveNodesEditor({ onSaved }: CurveNodesEditorProps) {
     try {
       const res = await fetch("/api/admin/xp_engine/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid, source: "published" }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ source: "published" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to create draft");
@@ -151,9 +152,8 @@ export default function CurveNodesEditor({ onSaved }: CurveNodesEditorProps) {
     try {
       const res = await fetch("/api/admin/xp_engine/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          adminUid,
           patch: {
             curve: { ...curve, node_boost: nodeBoost },
             nodes,

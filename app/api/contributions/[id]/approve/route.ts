@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 // The approval write (status + XP grant) is delegated to the Firebase callable
 // `grantContributionXp`. Overridable via env for emulator/other projects.
@@ -16,6 +17,11 @@ const STATUS_MAP: Record<string, number> = {
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const placeId = params.id;
     const body = await req.json();
     const contributionXp = Number(body?.contributionXp);
@@ -51,10 +57,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const result = json?.result ?? {};
+    // Report what was actually credited, never silently substitute the
+    // requested amount — a capped/failed/zero grant must not be displayed
+    // as if the full requested amount was paid.
+    const xpAwarded: number | null = typeof result.xp_awarded === 'number' ? result.xp_awarded : null;
+
     return NextResponse.json({
-      message: 'Contribution approved',
+      message:
+        xpAwarded !== null
+          ? `Contribution approved — ${xpAwarded} XP credited.`
+          : 'Contribution approved, but the credited XP amount was not confirmed by the grant function.',
       placeId,
-      contributionXp: result.xp_awarded ?? contributionXp,
+      contributionXp: xpAwarded,
+      requestedXp: contributionXp,
     });
   } catch (error: unknown) {
     console.error('Approve contribution error:', error);

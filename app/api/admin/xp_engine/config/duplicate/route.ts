@@ -7,10 +7,10 @@ import {
   xpEngineDocRef,
 } from "@/lib/utils/xpEngineConfigStore";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * POST /api/admin/xp_engine/config/duplicate
- * Body: { adminUid: string }
  *
  * Copies the currently published config into config/xp_engine_draft,
  * overwriting any existing draft. Backs the "Duplicate Config" button, and
@@ -18,14 +18,9 @@ import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const adminUid: string | undefined = body?.adminUid;
-
-    if (!adminUid) {
-      return NextResponse.json(
-        { error: "adminUid is required" },
-        { status: 400 },
-      );
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const publishedSnap = await xpEngineDocRef(
@@ -43,7 +38,7 @@ export async function POST(req: NextRequest) {
     await xpEngineDocRef(XP_ENGINE_DRAFT_DOC_ID).set({
       ...published,
       published: false,
-      updated_by: adminUid,
+      updated_by: auth.uid,
       updated_at: FieldValue.serverTimestamp(),
     });
 

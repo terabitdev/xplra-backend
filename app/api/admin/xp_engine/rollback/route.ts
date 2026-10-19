@@ -10,10 +10,11 @@ import {
   xpEngineDocRef,
 } from "@/lib/utils/xpEngineConfigStore";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * POST /api/admin/xp_engine/rollback
- * Body: { adminUid: string }
+ * Requires Authorization: Bearer <admin ID token>.
  *
  * One-step-back rollback over the fixed 3-document model: swaps
  * config/xp_engine and config/xp_engine_version —
@@ -24,52 +25,62 @@ import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const adminUid: string | undefined = body?.adminUid;
-
-    if (!adminUid) {
-      return NextResponse.json({ error: "adminUid is required" }, { status: 400 });
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const publishedRef = xpEngineDocRef(XP_ENGINE_PUBLISHED_DOC_ID);
     const versionRef = xpEngineDocRef(XP_ENGINE_VERSION_DOC_ID);
     const draftRef = xpEngineDocRef(XP_ENGINE_DRAFT_DOC_ID);
 
-    const [publishedSnap, versionSnap] = await Promise.all([publishedRef.get(), versionRef.get()]);
+    // Same compare-and-set reasoning as publish: read + derive nextVersion +
+    // write must happen atomically, or two concurrent rollbacks can reuse a
+    // version number and one silently overwrites the other.
+    const txnResult = await adminDb.runTransaction(async (transaction) => {
+      const [publishedSnap, versionSnap] = await Promise.all([
+        transaction.get(publishedRef),
+        transaction.get(versionRef),
+      ]);
 
-    if (!versionSnap.exists) {
-      return NextResponse.json({ error: "No previous version to roll back to" }, { status: 404 });
-    }
-    if (!publishedSnap.exists) {
-      return NextResponse.json({ error: "No published config to roll back from" }, { status: 404 });
-    }
+      if (!versionSnap.exists) {
+        return { kind: "error" as const, status: 404, error: "No previous version to roll back to" };
+      }
+      if (!publishedSnap.exists) {
+        return { kind: "error" as const, status: 404, error: "No published config to roll back from" };
+      }
 
-    const currentPublished = publishedSnap.data() as XpEngineConfigDoc;
-    const backup = versionSnap.data() as XpEngineConfigDoc;
-    const nextVersion = currentPublished.version + 1;
+      const currentPublished = publishedSnap.data() as XpEngineConfigDoc;
+      const backup = versionSnap.data() as XpEngineConfigDoc;
+      const nextVersion = currentPublished.version + 1;
 
-    const batch = adminDb.batch();
+      // The config being replaced becomes the new backup slot.
+      transaction.set(versionRef, {
+        ...currentPublished,
+        backed_up_at: FieldValue.serverTimestamp(),
+      });
 
-    // The config being replaced becomes the new backup slot.
-    batch.set(versionRef, {
-      ...currentPublished,
-      backed_up_at: FieldValue.serverTimestamp(),
+      const restoredPublished = {
+        ...backup,
+        published: true,
+        version: nextVersion,
+        updated_by: auth.uid,
+        updated_at: FieldValue.serverTimestamp(),
+      };
+
+      transaction.set(publishedRef, restoredPublished);
+
+      // Reset the draft to mirror the restored published config.
+      transaction.set(draftRef, { ...restoredPublished, published: false });
+
+      return { kind: "ok" as const };
     });
 
-    const restoredPublished = {
-      ...backup,
-      published: true,
-      version: nextVersion,
-      updated_by: adminUid,
-      updated_at: FieldValue.serverTimestamp(),
-    };
+    if (txnResult.kind === "error") {
+      const { kind, status, ...rest } = txnResult;
+      return NextResponse.json(rest, { status });
+    }
 
-    batch.set(publishedRef, restoredPublished);
-
-    // Reset the draft to mirror the restored published config.
-    batch.set(draftRef, { ...restoredPublished, published: false });
-
-    await batch.commit();
     invalidatePublishedConfigCache();
 
     const [published, draft] = await Promise.all([

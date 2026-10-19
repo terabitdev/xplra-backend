@@ -178,6 +178,29 @@ function computeWarnings(config: XpEngineConfigDoc, ranges: NodeRange[], maxLeve
       `limits.daily_xp_cap_soft (${limits.daily_xp_cap_soft}) is greater than limits.daily_xp_cap_hard (${limits.daily_xp_cap_hard}).`
     );
   }
+  for (const [name, value] of [
+    ["limits.daily_xp_cap_soft", limits?.daily_xp_cap_soft],
+    ["limits.daily_xp_cap_hard", limits?.daily_xp_cap_hard],
+    ["limits.grant_rate_limit_per_min", limits?.grant_rate_limit_per_min],
+  ] as const) {
+    if (!isFiniteNumber(value) || value < 0) {
+      warnings.push(`${name} is missing or not a non-negative number (got ${JSON.stringify(value)}).`);
+    }
+  }
+  if (!isFiniteNumber(limits?.soft_cap_dampening) || limits.soft_cap_dampening < 0 || limits.soft_cap_dampening > 1) {
+    warnings.push(
+      `limits.soft_cap_dampening must be a number between 0 and 1 (got ${JSON.stringify(limits?.soft_cap_dampening)}).`
+    );
+  }
+  for (const [name, value] of [
+    ["limits.source_caps.event_checkin_per_day", limits?.source_caps?.event_checkin_per_day],
+    ["limits.source_caps.place_checkin_per_day", limits?.source_caps?.place_checkin_per_day],
+    ["limits.source_caps.promo_per_day", limits?.source_caps?.promo_per_day],
+  ] as const) {
+    if (!isFiniteNumber(value) || value < 0) {
+      warnings.push(`${name} is missing or not a non-negative number (got ${JSON.stringify(value)}).`);
+    }
+  }
 
   const membershipValues = Object.values(multipliers?.membership || {});
   const maxMembershipMultiplier = membershipValues.length ? Math.max(...membershipValues) : 0;

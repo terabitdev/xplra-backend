@@ -2,14 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { CreateXpLedgerRequest, XpLedgerEntry } from '@/lib/domain/models/xpLedger';
 import { FieldValue } from 'firebase-admin/firestore';
-import { canCompleteQuest, canEarnDailyXp, recordQuestCompletion, updateDailyXp } from '@/lib/utils/xpEnforcement';
+import {
+  buildQuestCompletionRecord,
+  canCompleteQuest,
+  canEarnDailyXp,
+  computeDailyXpUpdate,
+} from '@/lib/utils/xpEnforcement';
 import { loadPublishedConfigCached } from '@/lib/utils/xpEngineConfigStore';
 import { getLevelProgressFromXp } from '@/lib/utils/xpEngineCurve';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
+import { isFirestoreTimestamp } from '@/lib/utils/firestoreTimestamp';
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body: CreateXpLedgerRequest = await req.json();
-    const { uid, xpDelta, type, relatedEntityId, description, idempotencyKey, adminUid, metadata } = body;
+    const { uid, xpDelta, type, relatedEntityId, description, idempotencyKey, metadata } = body;
+    // Audit attribution always comes from the verified token, never the body.
+    const adminUid = auth.uid;
 
     // Validate required fields
     if (!uid || xpDelta === undefined || !type || !description || !idempotencyKey) {
@@ -19,143 +33,145 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for duplicate idempotency key
-    const existingEntry = await adminDb
-      .collection('xp_ledger')
-      .where('idempotencyKey', '==', idempotencyKey)
-      .limit(1)
-      .get();
+    // Level is always resolved from the published XP Engine curve (binary
+    // search against its threshold table), never a separate formula — see
+    // lib/utils/xpEngineCurve.ts. The daily cap also comes from here, not a
+    // hardcoded constant.
+    const xpEngineConfig = await loadPublishedConfigCached();
+    const dailyCap = xpEngineConfig?.limits?.daily_xp_cap_hard ?? Infinity;
 
-    if (!existingEntry.empty) {
-      return NextResponse.json(
-        { error: 'Duplicate transaction: idempotency key already exists', entry: existingEntry.docs[0].data() },
-        { status: 409 }
-      );
-    }
+    const entryId = `xp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const userRef = adminDb.collection('users').doc(uid);
+    const ledgerRef = adminDb.collection('xp_ledger').doc(entryId);
+    const duplicateQuery = adminDb.collection('xp_ledger').where('idempotencyKey', '==', idempotencyKey).limit(1);
 
-    // ===== XP ENFORCEMENT RULES =====
-    // Only enforce for positive XP (not admin adjustments that remove XP)
-    if (xpDelta > 0) {
-      // 1. Check daily XP cap
-      const dailyCapCheck = await canEarnDailyXp(uid, xpDelta);
-      if (!dailyCapCheck.canEarn) {
-        return NextResponse.json(
-          { error: dailyCapCheck.reason, remainingCap: dailyCapCheck.remainingCap },
-          { status: 429 }
-        );
+    // Everything below — the duplicate check, the enforcement checks, the
+    // balance read, and every write — runs inside one transaction. Without
+    // this, two concurrent grants can both read the same starting balance,
+    // both pass their checks, and the second write silently overwrites the
+    // first's XP instead of adding to it (Firestore retries a transaction
+    // automatically on write contention, so this is what actually makes
+    // concurrent distinct grants both survive).
+    const result = await adminDb.runTransaction(async (transaction) => {
+      const [duplicateSnap, userSnap] = await Promise.all([
+        transaction.get(duplicateQuery),
+        transaction.get(userRef),
+      ]);
+
+      if (!duplicateSnap.empty) {
+        return { kind: 'error' as const, status: 409, error: 'Duplicate transaction: idempotency key already exists', entry: duplicateSnap.docs[0].data() };
       }
 
-      // 2. Check quest cooldown (only for quest completions)
-      if (type === 'quest_complete' && relatedEntityId) {
-        // Get quest cooldown from metadata
-        const questCooldown = metadata?.cooldownSeconds || 0;
+      if (!userSnap.exists) {
+        return { kind: 'error' as const, status: 404, error: 'User not found' };
+      }
 
-        if (questCooldown > 0) {
-          const cooldownCheck = await canCompleteQuest(uid, relatedEntityId, questCooldown);
-          if (!cooldownCheck.canComplete) {
-            return NextResponse.json(
-              {
+      const userData = userSnap.data();
+      const currentXpTotal = userData?.xpTotal || 0;
+      const currentDailyXpEarned = userData?.dailyXpEarned || 0;
+      // lastDailyReset is written via FieldValue.serverTimestamp() below, so
+      // reading it back gives a Firestore Timestamp object, not a string —
+      // new Date(timestampObject) silently produces an Invalid Date, which
+      // made isDailyReset() always return true after the first grant each
+      // day, resetting dailyXpEarned on every subsequent grant instead of
+      // accumulating it.
+      const rawLastDailyReset = userData?.lastDailyReset;
+      const lastDailyReset = isFirestoreTimestamp(rawLastDailyReset)
+        ? rawLastDailyReset.toDate()
+        : rawLastDailyReset
+        ? new Date(rawLastDailyReset)
+        : null;
+
+      // ===== XP ENFORCEMENT RULES =====
+      // Only enforce for positive XP (not admin adjustments that remove XP)
+      if (xpDelta > 0) {
+        const dailyCapCheck = canEarnDailyXp(currentDailyXpEarned, lastDailyReset, xpDelta, dailyCap);
+        if (!dailyCapCheck.canEarn) {
+          return { kind: 'error' as const, status: 429, error: dailyCapCheck.reason, remainingCap: dailyCapCheck.remainingCap };
+        }
+
+        if (type === 'quest_complete' && relatedEntityId) {
+          const questCooldown = metadata?.cooldownSeconds || 0;
+          if (questCooldown > 0) {
+            const cooldownCheck = await canCompleteQuest(transaction, uid, relatedEntityId, questCooldown);
+            if (!cooldownCheck.canComplete) {
+              return {
+                kind: 'error' as const,
+                status: 429,
                 error: cooldownCheck.reason,
                 nextEligibleAt: cooldownCheck.nextEligibleAt,
-                lastCompletedAt: cooldownCheck.lastCompletedAt
-              },
-              { status: 429 }
-            );
+                lastCompletedAt: cooldownCheck.lastCompletedAt,
+              };
+            }
           }
         }
       }
-    }
 
-    // Get user's current XP total
-    const userRef = adminDb.collection('users').doc(uid);
-    const userDoc = await userRef.get();
+      const newXpTotal = currentXpTotal + xpDelta;
+      if (newXpTotal < 0) {
+        return {
+          kind: 'error' as const,
+          status: 400,
+          error: `Cannot apply ${xpDelta} XP: would result in negative balance (current: ${currentXpTotal})`,
+        };
+      }
 
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+      const progress = xpEngineConfig ? getLevelProgressFromXp(newXpTotal, xpEngineConfig) : null;
+      const newLevel = progress?.level ?? userData?.level ?? 1;
 
-    const userData = userDoc.data();
-    const currentXpTotal = userData?.xpTotal || 0;
-    const newXpTotal = currentXpTotal + xpDelta;
+      // Firestore rejects `undefined` field values outright — only include
+      // the optional fields when the caller actually provided them.
+      const entry: XpLedgerEntry = {
+        entryId,
+        uid,
+        xpDelta,
+        xpTotalAfter: newXpTotal,
+        type,
+        description,
+        idempotencyKey,
+        adminUid,
+        createdAt: new Date().toISOString(),
+        ...(relatedEntityId !== undefined ? { relatedEntityId } : {}),
+        ...(metadata !== undefined ? { metadata } : {}),
+        ...(xpEngineConfig ? { configVersion: xpEngineConfig.version } : {}),
+      };
 
-    // Prevent negative XP
-    if (newXpTotal < 0) {
-      return NextResponse.json(
-        { error: `Cannot apply ${xpDelta} XP: would result in negative balance (current: ${currentXpTotal})` },
-        { status: 400 }
-      );
-    }
+      const xpEarnedDelta = xpDelta > 0 ? xpDelta : 0; // Only count positive deltas
+      const { dailyXpEarned, wasReset } = computeDailyXpUpdate(currentDailyXpEarned, lastDailyReset, xpEarnedDelta);
 
-    // ===== CALCULATE LEVEL AND DAILY XP =====
-    // Level is always resolved from the published XP Engine curve (binary
-    // search against its threshold table), never a separate formula — see
-    // lib/utils/xpEngineCurve.ts. Falls back to leaving the level unchanged
-    // only if no published config exists at all, which should not happen in
-    // practice since the engine always has a published doc.
-    const xpEngineConfig = await loadPublishedConfigCached();
-    const progress = xpEngineConfig ? getLevelProgressFromXp(newXpTotal, xpEngineConfig) : null;
-    const newLevel = progress?.level ?? userData?.level ?? 1;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userUpdate: any = {
+        xpTotal: newXpTotal,
+        xpEarnedAllTime: FieldValue.increment(xpEarnedDelta),
+        level: newLevel,
+        dailyXpEarned,
+        lastXpUpdate: FieldValue.serverTimestamp(),
+      };
+      if (wasReset) {
+        userUpdate.lastDailyReset = FieldValue.serverTimestamp();
+      }
 
-    // Create ledger entry
-    const entryId = `xp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const entry: XpLedgerEntry = {
-      entryId,
-      uid,
-      xpDelta,
-      xpTotalAfter: newXpTotal,
-      type,
-      relatedEntityId,
-      description,
-      idempotencyKey,
-      adminUid,
-      metadata,
-      createdAt: new Date().toISOString(),
-      ...(xpEngineConfig ? { configVersion: xpEngineConfig.version } : {}),
-    };
+      transaction.update(userRef, userUpdate);
+      transaction.set(ledgerRef, { ...entry, createdAt: FieldValue.serverTimestamp() });
 
-    // Update daily XP counter
-    const { dailyXpEarned, wasReset } = await updateDailyXp(uid, xpDelta > 0 ? xpDelta : 0);
+      if (type === 'quest_complete' && relatedEntityId && xpDelta > 0) {
+        const questCooldown = metadata?.cooldownSeconds || 0;
+        const { completionId, data } = buildQuestCompletionRecord(uid, relatedEntityId, xpDelta, questCooldown);
+        transaction.set(adminDb.collection('user_quest_completions').doc(completionId), data);
+      }
 
-    // Batch write: update user XP and create ledger entry
-    const batch = adminDb.batch();
-
-    // Update user XP with level and daily tracking
-    const xpEarnedDelta = xpDelta > 0 ? xpDelta : 0; // Only count positive deltas
-    const userUpdate: any = {
-      xpTotal: newXpTotal,
-      xpEarnedAllTime: FieldValue.increment(xpEarnedDelta),
-      level: newLevel,
-      dailyXpEarned,
-      lastXpUpdate: FieldValue.serverTimestamp(),
-    };
-
-    // Update daily reset timestamp if it was reset
-    if (wasReset) {
-      userUpdate.lastDailyReset = FieldValue.serverTimestamp();
-    }
-
-    batch.update(userRef, userUpdate);
-
-    // Create ledger entry
-    const ledgerRef = adminDb.collection('xp_ledger').doc(entryId);
-    batch.set(ledgerRef, {
-      ...entry,
-      createdAt: FieldValue.serverTimestamp(),
+      return { kind: 'ok' as const, entry, newXpTotal };
     });
 
-    await batch.commit();
-
-    // ===== RECORD QUEST COMPLETION =====
-    // Record quest completion for cooldown tracking (only for quest completions)
-    if (type === 'quest_complete' && relatedEntityId && xpDelta > 0) {
-      const questCooldown = metadata?.cooldownSeconds || 0;
-      await recordQuestCompletion(uid, relatedEntityId, xpDelta, questCooldown);
+    if (result.kind === 'error') {
+      const { kind, status, ...rest } = result;
+      return NextResponse.json(rest, { status });
     }
 
     return NextResponse.json({
       success: true,
-      entry,
-      newXpTotal,
+      entry: result.entry,
+      newXpTotal: result.newXpTotal,
     });
   } catch (error: unknown) {
     console.error('Error creating XP ledger entry:', error);

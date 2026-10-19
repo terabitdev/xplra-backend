@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface AchievementDefinitionsState {
   definitions: AchievementDefinition[];
@@ -38,6 +39,7 @@ export const createAchievementDefinition = createAsyncThunk(
     try {
       const response = await fetch('/api/achievement-definitions/create', {
         method: 'POST',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -61,6 +63,7 @@ export const updateAchievementDefinition = createAsyncThunk(
     try {
       const response = await fetch(`/api/achievement-definitions/${id}`, {
         method: 'PATCH',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -82,7 +85,7 @@ export const deleteAchievementDefinition = createAsyncThunk(
   'achievementDefinitions/delete',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/achievement-definitions/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/achievement-definitions/${id}`, { method: 'DELETE', headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {

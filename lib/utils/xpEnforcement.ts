@@ -1,154 +1,120 @@
 /**
  * XP Enforcement Utilities
  * Quest cooldowns and daily XP caps
+ *
+ * All reads here accept a Firestore `Transaction` and use `transaction.get()`
+ * instead of a bare `.get()`. app/api/xp-ledger/create wraps the duplicate
+ * check, these checks, and the actual balance/ledger write in a single
+ * transaction — otherwise two concurrent grants can both read the same
+ * starting balance/daily-counter, both pass these checks, and the second
+ * write silently overwrites the first's XP instead of adding to it.
  */
 
 import { adminDb } from '../firebase-admin';
+import type { Transaction } from 'firebase-admin/firestore';
 import { CanCompleteQuestResponse } from '../domain/models/userQuestCompletion';
-import { DAILY_XP_CAP, isDailyReset } from './xpCalculations';
+import { isDailyReset } from './xpCalculations';
 
 /**
  * Check if user can complete a quest based on cooldown
  */
 export async function canCompleteQuest(
+  transaction: Transaction,
   uid: string,
   questId: string,
   cooldownSeconds: number
 ): Promise<CanCompleteQuestResponse> {
-  try {
-    // Query for latest completion of this quest by this user
-    const completionsRef = adminDb
-      .collection('user_quest_completions')
-      .where('uid', '==', uid)
-      .where('questId', '==', questId)
-      .orderBy('completedAt', 'desc')
-      .limit(1);
+  const completionsRef = adminDb
+    .collection('user_quest_completions')
+    .where('uid', '==', uid)
+    .where('questId', '==', questId)
+    .orderBy('completedAt', 'desc')
+    .limit(1);
 
-    const snapshot = await completionsRef.get();
+  const snapshot = await transaction.get(completionsRef);
 
-    if (snapshot.empty) {
-      // User has never completed this quest
-      return { canComplete: true };
-    }
+  if (snapshot.empty) {
+    // User has never completed this quest
+    return { canComplete: true };
+  }
 
-    const lastCompletion = snapshot.docs[0].data();
-    const lastCompletedAt = new Date(lastCompletion.completedAt);
-    const nextEligibleAt = new Date(lastCompletedAt.getTime() + cooldownSeconds * 1000);
-    const now = new Date();
+  const lastCompletion = snapshot.docs[0].data();
+  const lastCompletedAt = new Date(lastCompletion.completedAt);
+  const nextEligibleAt = new Date(lastCompletedAt.getTime() + cooldownSeconds * 1000);
+  const now = new Date();
 
-    if (now < nextEligibleAt) {
-      return {
-        canComplete: false,
-        reason: `Quest is on cooldown. Try again in ${Math.ceil((nextEligibleAt.getTime() - now.getTime()) / 1000)} seconds`,
-        nextEligibleAt: nextEligibleAt.toISOString(),
-        lastCompletedAt: lastCompletedAt.toISOString(),
-      };
-    }
-
+  if (now < nextEligibleAt) {
     return {
-      canComplete: true,
+      canComplete: false,
+      reason: `Quest is on cooldown. Try again in ${Math.ceil((nextEligibleAt.getTime() - now.getTime()) / 1000)} seconds`,
+      nextEligibleAt: nextEligibleAt.toISOString(),
       lastCompletedAt: lastCompletedAt.toISOString(),
     };
-  } catch (error) {
-    console.error('Error checking quest cooldown:', error);
-    throw error;
   }
+
+  return {
+    canComplete: true,
+    lastCompletedAt: lastCompletedAt.toISOString(),
+  };
 }
 
 /**
- * Check if user has reached daily XP cap
+ * Check if user has reached the daily XP cap. `dailyCap` must come from the
+ * published XP Engine config (limits.daily_xp_cap_hard) — this used to be a
+ * hardcoded 1000, completely disconnected from the admin-configured caps.
  */
-export async function canEarnDailyXp(
-  uid: string,
-  xpToEarn: number
-): Promise<{ canEarn: boolean; reason?: string; remainingCap?: number }> {
-  try {
-    // Get user's current daily XP
-    const userRef = adminDb.collection('users').doc(uid);
-    const userDoc = await userRef.get();
+export function canEarnDailyXp(
+  dailyXpEarned: number,
+  lastDailyReset: Date | null,
+  xpToEarn: number,
+  dailyCap: number
+): { canEarn: boolean; reason?: string; remainingCap?: number } {
+  const effectiveDailyXpEarned = isDailyReset(lastDailyReset) ? 0 : dailyXpEarned;
+  const remainingCap = dailyCap - effectiveDailyXpEarned;
 
-    if (!userDoc.exists) {
-      return { canEarn: false, reason: 'User not found' };
-    }
-
-    const userData = userDoc.data();
-    let dailyXpEarned = userData?.dailyXpEarned || 0;
-    const lastDailyReset = userData?.lastDailyReset ? new Date(userData.lastDailyReset) : null;
-
-    // Check if daily reset is needed
-    if (isDailyReset(lastDailyReset)) {
-      dailyXpEarned = 0; // Reset daily counter
-    }
-
-    const remainingCap = DAILY_XP_CAP - dailyXpEarned;
-
-    if (xpToEarn > remainingCap) {
-      return {
-        canEarn: false,
-        reason: `Daily XP cap reached. You can earn ${remainingCap} more XP today (max ${DAILY_XP_CAP} per day)`,
-        remainingCap,
-      };
-    }
-
+  if (xpToEarn > remainingCap) {
     return {
-      canEarn: true,
+      canEarn: false,
+      reason: `Daily XP cap reached. You can earn ${remainingCap} more XP today (max ${dailyCap} per day)`,
       remainingCap,
     };
-  } catch (error) {
-    console.error('Error checking daily XP cap:', error);
-    throw error;
   }
+
+  return { canEarn: true, remainingCap };
 }
 
 /**
- * Record quest completion
+ * Build the quest-completion record to write inside the same transaction as
+ * the grant, so a completion is never recorded without its XP (or vice
+ * versa).
  */
-export async function recordQuestCompletion(
-  uid: string,
-  questId: string,
-  xpEarned: number,
-  cooldownSeconds: number
-): Promise<void> {
+export function buildQuestCompletionRecord(uid: string, questId: string, xpEarned: number, cooldownSeconds: number) {
   const now = new Date();
   const nextEligibleAt = new Date(now.getTime() + cooldownSeconds * 1000);
   const completionId = `${uid}_${questId}_${now.getTime()}`;
-
-  await adminDb.collection('user_quest_completions').doc(completionId).set({
+  return {
     completionId,
-    uid,
-    questId,
-    completedAt: now.toISOString(),
-    xpEarned,
-    nextEligibleAt: nextEligibleAt.toISOString(),
-  });
+    data: {
+      completionId,
+      uid,
+      questId,
+      completedAt: now.toISOString(),
+      xpEarned,
+      nextEligibleAt: nextEligibleAt.toISOString(),
+    },
+  };
 }
 
 /**
- * Update user's daily XP counter
+ * Pure calculation of the new daily XP counter — callers already hold the
+ * current value from a transactional read.
  */
-export async function updateDailyXp(
-  uid: string,
+export function computeDailyXpUpdate(
+  dailyXpEarned: number,
+  lastDailyReset: Date | null,
   xpEarned: number
-): Promise<{ dailyXpEarned: number; wasReset: boolean }> {
-  const userRef = adminDb.collection('users').doc(uid);
-  const userDoc = await userRef.get();
-
-  if (!userDoc.exists) {
-    throw new Error('User not found');
-  }
-
-  const userData = userDoc.data();
-  let dailyXpEarned = userData?.dailyXpEarned || 0;
-  const lastDailyReset = userData?.lastDailyReset ? new Date(userData.lastDailyReset) : null;
-  const now = new Date();
-
-  // Check if daily reset is needed
+): { dailyXpEarned: number; wasReset: boolean } {
   const wasReset = isDailyReset(lastDailyReset);
-  if (wasReset) {
-    dailyXpEarned = 0;
-  }
-
-  dailyXpEarned += xpEarned;
-
-  return { dailyXpEarned, wasReset };
+  const base = wasReset ? 0 : dailyXpEarned;
+  return { dailyXpEarned: base + xpEarned, wasReset };
 }

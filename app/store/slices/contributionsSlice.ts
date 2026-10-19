@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Place } from '@/lib/domain/models/place';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export type ContributionTab = 'all' | 'pending' | 'approved' | 'rejected';
 
@@ -108,14 +109,16 @@ export const approveContribution = createAsyncThunk(
     try {
       const response = await fetch(`/api/contributions/${placeId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ contributionXp }),
       });
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to approve');
       }
-      return { placeId, contributionXp };
+      // Use the server's reported credited amount, not the requested one —
+      // they can legitimately differ (capped, zero, or unconfirmed grant).
+      return { placeId, contributionXp: data.contributionXp as number | null, requestedXp: contributionXp };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);
@@ -129,7 +132,7 @@ export const rejectContribution = createAsyncThunk(
     try {
       const response = await fetch(`/api/contributions/${placeId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ rejectionReason }),
       });
       const data = await response.json();
@@ -194,7 +197,11 @@ const contributionsSlice = createSlice({
         const { placeId, contributionXp } = action.payload;
         const idx = state.contributions.findIndex((c) => c.placeId === placeId);
         if (idx !== -1) {
-          state.contributions[idx] = { ...state.contributions[idx], status: 'approved', contributionXp };
+          state.contributions[idx] = {
+            ...state.contributions[idx],
+            status: 'approved',
+            contributionXp: contributionXp ?? undefined,
+          };
         }
       })
       .addCase(approveContribution.rejected, (state, action) => {
