@@ -1,19 +1,20 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { XpLedgerEntry, CreateXpLedgerRequest } from '@/lib/domain/models/xpLedger';
+import { XpLedgerEntry, UserXpSummary, GrantManualXpRequest } from '@/lib/domain/models/xpLedger';
+import { GrantManualXpResult } from '@/lib/utils/grantManualXp';
 import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface XpLedgerState {
   entries: XpLedgerEntry[];
-  userXpTotal: number;
-  userXpEarnedAllTime: number;
+  summary: UserXpSummary;
   loading: boolean;
   error: string | null;
 }
 
+const EMPTY_SUMMARY: UserXpSummary = { xp_total: 0, level: 0, node: null, xp_into_level: null, xp_to_next: null };
+
 const initialState: XpLedgerState = {
   entries: [],
-  userXpTotal: 0,
-  userXpEarnedAllTime: 0,
+  summary: EMPTY_SUMMARY,
   loading: false,
   error: null,
 };
@@ -21,20 +22,19 @@ const initialState: XpLedgerState = {
 // Async thunks
 export const fetchXpLedger = createAsyncThunk(
   'xpLedger/fetchByUid',
-  async ({ uid, limit, type }: { uid: string; limit?: number; type?: string }, { rejectWithValue }) => {
+  async ({ uid, limit }: { uid: string; limit?: number }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type', type);
 
-      const response = await fetch(`/api/xp-ledger/${uid}?${params.toString()}`);
+      const response = await fetch(`/api/xp-ledger/${uid}?${params.toString()}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to fetch XP ledger');
       }
 
-      return data;
+      return data as { entries: XpLedgerEntry[]; summary: UserXpSummary };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);
@@ -42,23 +42,23 @@ export const fetchXpLedger = createAsyncThunk(
   }
 );
 
-export const createXpLedgerEntry = createAsyncThunk(
-  'xpLedger/create',
-  async (entryData: CreateXpLedgerRequest, { rejectWithValue }) => {
+export const grantManualXp = createAsyncThunk(
+  'xpLedger/grantManual',
+  async (request: GrantManualXpRequest, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/xp-ledger/create', {
+      const response = await fetch('/api/xp-ledger/grant-manual', {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(entryData),
+        body: JSON.stringify(request),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        return rejectWithValue(data.error || 'Failed to create XP ledger entry');
+        return rejectWithValue(data.error || 'Failed to grant XP');
       }
 
-      return data;
+      return data as GrantManualXpResult;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       return rejectWithValue(errorMessage);
@@ -76,8 +76,7 @@ const xpLedgerSlice = createSlice({
     },
     clearEntries: (state) => {
       state.entries = [];
-      state.userXpTotal = 0;
-      state.userXpEarnedAllTime = 0;
+      state.summary = EMPTY_SUMMARY;
     },
   },
   extraReducers: (builder) => {
@@ -87,11 +86,10 @@ const xpLedgerSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchXpLedger.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(fetchXpLedger.fulfilled, (state, action: PayloadAction<{ entries: XpLedgerEntry[]; summary: UserXpSummary }>) => {
         state.loading = false;
         state.entries = action.payload.entries;
-        state.userXpTotal = action.payload.userXpTotal;
-        state.userXpEarnedAllTime = action.payload.userXpEarnedAllTime;
+        state.summary = action.payload.summary;
         state.error = null;
       })
       .addCase(fetchXpLedger.rejected, (state, action) => {
@@ -99,20 +97,24 @@ const xpLedgerSlice = createSlice({
         state.error = action.payload as string;
       });
 
-    // Create XP Ledger Entry
+    // Grant manual XP
     builder
-      .addCase(createXpLedgerEntry.pending, (state) => {
+      .addCase(grantManualXp.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createXpLedgerEntry.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(grantManualXp.fulfilled, (state, action: PayloadAction<GrantManualXpResult>) => {
         state.loading = false;
-        // Add new entry to the beginning of the list
-        state.entries = [action.payload.entry, ...state.entries];
-        state.userXpTotal = action.payload.newXpTotal;
+        state.summary = {
+          xp_total: action.payload.xp_total,
+          level: action.payload.level,
+          node: action.payload.node,
+          xp_into_level: action.payload.xp_into_level,
+          xp_to_next: action.payload.xp_to_next,
+        };
         state.error = null;
       })
-      .addCase(createXpLedgerEntry.rejected, (state, action) => {
+      .addCase(grantManualXp.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

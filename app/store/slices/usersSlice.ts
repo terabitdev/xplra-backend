@@ -12,11 +12,12 @@ export interface User {
   displayName?: string;
   photoURL?: string;
   type?: string;
-  xpTotal?: number;
-  xpEarnedAllTime?: number;
+  /** Written only by the game's Cloud Functions — the panel just displays these. */
+  xp_total?: number;
   level?: number;
-  dailyXpEarned?: number;
-  lastDailyReset?: string;
+  node?: number;
+  xp_into_level?: number;
+  xp_to_next?: number;
   lastXpUpdate?: string;
   createdAt?: string;
   badges?: UserBadge[];

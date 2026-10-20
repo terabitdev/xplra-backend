@@ -8,7 +8,15 @@ import Toaster from '../../components/ui/Toaster';
 import XpAdjustmentModal from '../../components/modals/XpAdjustmentModal';
 import { AppDispatch, RootState } from '../../store';
 import { fetchXpLedger, clearEntries } from '../../store/slices/xpLedgerSlice';
+import { GrantManualXpResult } from '@/lib/utils/grantManualXp';
 import { ArrowLeft, Add } from '@carbon/icons-react';
+
+const REWARD_STATE_MESSAGES: Record<GrantManualXpResult['reward_state'], (result: GrantManualXpResult) => string> = {
+  granted: (r) => `XP adjustment applied — ${r.xp_awarded} XP credited.`,
+  capped: (r) => `The daily limit was reached — only ${r.xp_awarded} of ${r.xp_requested} XP was credited.`,
+  none: () => 'No XP was credited for this adjustment.',
+  blocked: () => "This account is locked — nothing was credited.",
+};
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -16,23 +24,22 @@ export default function UserDetailPage() {
   const dispatch = useDispatch<AppDispatch>();
   const uid = params.uid as string;
 
-  const { entries, userXpTotal, userXpEarnedAllTime, loading, error } = useSelector(
+  const { entries, summary, loading, error } = useSelector(
     (state: RootState) => state.xpLedger
   );
 
   const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
-  const [filterType, setFilterType] = useState<string>('all');
   const [toast, setToast] = useState({ message: '', type: 'success' as 'success' | 'error', isVisible: false });
 
   useEffect(() => {
     if (uid) {
-      dispatch(fetchXpLedger({ uid, limit: 100, type: filterType === 'all' ? undefined : filterType }));
+      dispatch(fetchXpLedger({ uid, limit: 100 }));
     }
 
     return () => {
       dispatch(clearEntries());
     };
-  }, [uid, filterType, dispatch]);
+  }, [uid, dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -40,9 +47,10 @@ export default function UserDetailPage() {
     }
   }, [error]);
 
-  const handleAdjustmentSuccess = () => {
-    setToast({ message: 'XP adjustment applied successfully', type: 'success', isVisible: true });
-    dispatch(fetchXpLedger({ uid, limit: 100, type: filterType === 'all' ? undefined : filterType }));
+  const handleAdjustmentSuccess = (result: GrantManualXpResult) => {
+    const message = REWARD_STATE_MESSAGES[result.reward_state]?.(result) || 'XP adjustment applied.';
+    setToast({ message, type: result.reward_state === 'granted' ? 'success' : 'error', isVisible: true });
+    dispatch(fetchXpLedger({ uid, limit: 100 }));
   };
 
   const formatDate = (dateString?: string) => {
@@ -57,21 +65,12 @@ export default function UserDetailPage() {
     });
   };
 
-  const getTypeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      quest_complete: 'bg-blue-100 text-blue-700',
-      quest_first_completion_bonus: 'bg-purple-100 text-purple-700',
-      place_contribution_approved: 'bg-green-100 text-green-700',
-      daily_login: 'bg-yellow-100 text-yellow-700',
-      admin_adjustment: 'bg-orange-100 text-orange-700',
-      referral_bonus: 'bg-pink-100 text-pink-700',
-      achievement_unlock: 'bg-indigo-100 text-indigo-700',
-    };
-    return colors[type] || 'bg-gray-100 text-gray-700';
-  };
-
-  const getTypeLabel = (type: string) => {
-    return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  // The ledger's transaction type is whatever the game wrote (quest, achievement,
+  // daily login, admin adjustment, ...) — colored generically since the panel
+  // doesn't own that enum anymore.
+  const getTypeColor = (type?: string) => {
+    if (!type) return 'bg-gray-100 text-gray-700';
+    return type.toLowerCase() === 'admin adjustment' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
   };
 
   return (
@@ -103,32 +102,24 @@ export default function UserDetailPage() {
           </div>
         </div>
 
-        {/* XP Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        {/* XP Summary Cards — xp_total/level/node/xp_into_level/xp_to_next are
+            written only by the game's Cloud Functions; the panel just reads them. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-gray-500 text-sm font-medium">Current XP Total</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{userXpTotal.toLocaleString()}</p>
+            <p className="text-gray-500 text-sm font-medium">XP Total</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{summary.xp_total.toLocaleString()}</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-gray-500 text-sm font-medium">Total XP Earned</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{userXpEarnedAllTime.toLocaleString()}</p>
+            <p className="text-gray-500 text-sm font-medium">Level</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{summary.level.toLocaleString()}</p>
           </div>
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-lg text-sm">
-            {['all', 'quest_complete', 'place_contribution_approved', 'admin_adjustment', 'daily_login'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3 py-1.5 rounded-md transition-colors ${
-                  filterType === type ? 'bg-white shadow-sm font-medium' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {type === 'all' ? 'All' : getTypeLabel(type)}
-              </button>
-            ))}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-gray-500 text-sm font-medium">XP Into Level</p>
+            <p className="text-xl font-semibold text-gray-900 mt-1">{summary.xp_into_level?.toLocaleString() ?? '—'}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-gray-500 text-sm font-medium">XP To Next</p>
+            <p className="text-xl font-semibold text-gray-900 mt-1">{summary.xp_to_next?.toLocaleString() ?? '—'}</p>
           </div>
         </div>
 
@@ -155,41 +146,40 @@ export default function UserDetailPage() {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Description</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Reason</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Related Entity</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">XP Delta</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Balance After</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">XP Awarded</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {entries.map((entry) => (
-                      <tr key={entry.entryId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-500">{formatDate(entry.createdAt)}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(entry.type)}`}>
-                            {getTypeLabel(entry.type)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{entry.description}</td>
-                        <td className="px-4 py-3">
-                          {entry.relatedEntityId ? (
-                            <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              {entry.relatedEntityId}
+                    {entries.map((entry) => {
+                      const xpAwarded = entry.xp_awarded ?? entry.amount;
+                      return (
+                        <tr key={entry.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-500">{formatDate(entry.createdAt ?? undefined)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(entry.transactionType)}`}>
+                              {entry.transactionType || '—'}
                             </span>
-                          ) : (
-                            <span className="text-xs text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`text-sm font-semibold ${entry.xpDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {entry.xpDelta >= 0 ? '+' : ''}{entry.xpDelta.toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                          {entry.xpTotalAfter.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{entry.reason || '—'}</td>
+                          <td className="px-4 py-3">
+                            {entry.relatedEntityId ? (
+                              <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                {entry.relatedEntityId}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-sm font-semibold text-green-600">
+                              {typeof xpAwarded === 'number' ? `+${xpAwarded.toLocaleString()}` : '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -197,37 +187,34 @@ export default function UserDetailPage() {
 
             {/* Mobile Card View */}
             <div className="lg:hidden space-y-3">
-              {entries.map((entry) => (
-                <div key={entry.entryId} className="bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(entry.type)}`}>
-                      {getTypeLabel(entry.type)}
-                    </span>
-                    <span className={`text-lg font-bold ${entry.xpDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {entry.xpDelta >= 0 ? '+' : ''}{entry.xpDelta.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-gray-700 mb-2">{entry.description}</p>
-
-                  {entry.relatedEntityId && (
-                    <p className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block mb-2">
-                      {entry.relatedEntityId}
-                    </p>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t border-gray-100">
-                    <div>
-                      <span className="text-gray-400 text-xs block">Balance After</span>
-                      <span className="text-gray-900 font-medium">{entry.xpTotalAfter.toLocaleString()}</span>
+              {entries.map((entry) => {
+                const xpAwarded = entry.xp_awarded ?? entry.amount;
+                return (
+                  <div key={entry.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(entry.transactionType)}`}>
+                        {entry.transactionType || '—'}
+                      </span>
+                      <span className="text-lg font-bold text-green-600">
+                        {typeof xpAwarded === 'number' ? `+${xpAwarded.toLocaleString()}` : '—'}
+                      </span>
                     </div>
-                    <div>
+
+                    <p className="text-sm text-gray-700 mb-2">{entry.reason || '—'}</p>
+
+                    {entry.relatedEntityId && (
+                      <p className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block mb-2">
+                        {entry.relatedEntityId}
+                      </p>
+                    )}
+
+                    <div className="pt-2 border-t border-gray-100">
                       <span className="text-gray-400 text-xs block">Date</span>
-                      <span className="text-gray-700 text-xs">{formatDate(entry.createdAt)}</span>
+                      <span className="text-gray-700 text-xs">{formatDate(entry.createdAt ?? undefined)}</span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

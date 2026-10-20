@@ -1,79 +1,45 @@
 /**
- * XP Ledger Entry Model
- * Immutable transaction log for all XP changes
+ * XP model for the admin panel's "Adjust XP" feature.
+ *
+ * The panel no longer writes XP itself — the only write path is the game's
+ * grantManualXp Cloud Function (see lib/utils/grantManualXp.ts). History
+ * lives in the player's own users/{uid}/xp_ledger subcollection, which the
+ * panel only ever reads.
  */
 
-export type XpLedgerType =
-  | "quest_complete"
-  | "quest_first_completion_bonus"
-  | "place_contribution_approved"
-  | "daily_login"
-  | "admin_adjustment"
-  | "referral_bonus"
-  | "achievement_unlock";
+/** Request body the panel sends to POST /api/xp-ledger/grant-manual. */
+export interface GrantManualXpRequest {
+  uid: string;
+  amount: number;
+  reason: string;
+  requestId: string;
+  relatedEntityId?: string;
+}
 
+/**
+ * A ledger entry as read back from users/{uid}/xp_ledger. The game owns this
+ * document's shape; fields beyond `id`/`createdAt` are read defensively
+ * (optional) since the panel doesn't author this schema.
+ */
 export interface XpLedgerEntry {
-  /** Unique ledger entry ID */
-  entryId: string;
-
-  /** User who received/lost XP */
-  uid: string;
-
-  /** Amount of XP (positive or negative) */
-  xpDelta: number;
-
-  /** Running total after this transaction */
-  xpTotalAfter: number;
-
-  /** Type of transaction */
-  type: XpLedgerType;
-
-  /** Related entity ID (questId, placeId, etc.) */
+  id: string;
+  createdAt: string | null;
+  amount?: number;
+  xp_awarded?: number;
+  xp_requested?: number;
+  reason?: string;
+  transactionType?: string;
   relatedEntityId?: string;
-
-  /** Human-readable description */
-  description: string;
-
-  /** Idempotency key to prevent duplicates */
-  idempotencyKey: string;
-
-  /** Admin UID if manual adjustment */
-  adminUid?: string;
-
-  /** Additional metadata */
-  metadata?: Record<string, any>;
-
-  /** Timestamp */
-  createdAt?: string;
-
-  /** Published XP Engine config version this entry's level was computed against, if available. */
-  configVersion?: number;
+  requestId?: string;
+  createdBy?: string;
+  [key: string]: unknown;
 }
 
-/**
- * Request body for creating XP ledger entry
- */
-export interface CreateXpLedgerRequest {
-  uid: string;
-  xpDelta: number;
-  type: XpLedgerType;
-  relatedEntityId?: string;
-  description: string;
-  idempotencyKey: string;
-  adminUid?: string;
-  metadata?: Record<string, any>;
-}
-
-/**
- * User XP Summary (for user document)
- */
+/** The player XP fields the game owns and the panel only ever reads. */
 export interface UserXpSummary {
-  /** Current XP total */
-  xpTotal: number;
-
-  /** All-time XP earned (excludes negative adjustments) */
-  xpEarnedAllTime: number;
-
-  /** Last XP transaction timestamp */
-  lastXpUpdate?: string;
+  xp_total: number;
+  level: number;
+  node: number | null;
+  xp_into_level: number | null;
+  xp_to_next: number | null;
 }

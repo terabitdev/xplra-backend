@@ -155,7 +155,7 @@ export default function UsersPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-semibold text-indigo-600">{user.xpTotal?.toLocaleString() || 0}</span>
+                          <span className="text-sm font-semibold text-indigo-600">{user.xp_total?.toLocaleString() || 0}</span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(user.lastXpUpdate)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
@@ -215,7 +215,7 @@ export default function UsersPage() {
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <span className="text-gray-400 text-xs block">XP Total</span>
-                      <span className="font-semibold text-indigo-600">{user.xpTotal?.toLocaleString() || 0}</span>
+                      <span className="font-semibold text-indigo-600">{user.xp_total?.toLocaleString() || 0}</span>
                     </div>
                     <div>
                       <span className="text-gray-400 text-xs block">Last XP Update</span>
