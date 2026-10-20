@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export interface UserBadge {
   id: string;
@@ -80,7 +81,7 @@ export const fetchUsers = createAsyncThunk(
 
       if (fresh) queryParams.append('fresh', 'true');
 
-      const response = await fetch(`/api/users/list?${queryParams}`);
+      const response = await fetch(`/api/users/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {

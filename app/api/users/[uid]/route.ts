@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET(_req: Request, { params }: { params: { uid: string } }) {
+export async function GET(req: Request, { params }: { params: { uid: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const uid = params.uid;
     const snap = await adminDb.collection('users').doc(uid).get();
 

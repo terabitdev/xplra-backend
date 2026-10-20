@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Event } from '@/lib/domain/models/event';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 function computeWindowTimestamp(isoString: string, offsetMinutes: number): admin.firestore.Timestamp {
   const ms = new Date(isoString).getTime() + offsetMinutes * 60 * 1000;
@@ -11,6 +12,11 @@ function computeWindowTimestamp(isoString: string, offsetMinutes: number): admin
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json();
 
     // Validate: if placeId is null, geoOverride is required

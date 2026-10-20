@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Achievement } from '@/lib/domain/models/achievement';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface AchievementsState {
   achievements: Achievement[];
@@ -20,7 +21,7 @@ export const fetchAchievements = createAsyncThunk(
   'achievements/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/achievements');
+      const response = await fetch('/api/achievements', { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -38,7 +39,7 @@ export const fetchAchievementById = createAsyncThunk(
   'achievements/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/achievements/${id}`);
+      const response = await fetch(`/api/achievements/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -58,6 +59,7 @@ export const createAchievement = createAsyncThunk(
     try {
       const response = await fetch('/api/achievements', {
         method: 'POST',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -80,6 +82,7 @@ export const updateAchievement = createAsyncThunk(
     try {
       const response = await fetch(`/api/achievements/${id}`, {
         method: 'PATCH',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -102,6 +105,7 @@ export const deleteAchievement = createAsyncThunk(
     try {
       const response = await fetch(`/api/achievements/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

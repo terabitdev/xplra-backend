@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 // This handler reads no request data, so Next.js would otherwise cache it
 // as a static response at build time on Vercel — freezing the list at
@@ -8,8 +9,13 @@ import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition
 // request re-reads Firestore.
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const snapshot = await adminDb.collection('achievementDefinitions').orderBy('sort_order', 'asc').get();
 
     const definitions: AchievementDefinition[] = snapshot.docs.map((doc) => {

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Quest } from '@/lib/domain/models/quest';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface PaginationInfo {
   page: number;
@@ -59,7 +60,7 @@ export const fetchQuests = createAsyncThunk(
       });
       if (fresh) queryParams.append('fresh', 'true');
 
-      const response = await fetch(`/api/quests/list?${queryParams}`);
+      const response = await fetch(`/api/quests/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -78,7 +79,7 @@ export const fetchQuestById = createAsyncThunk(
   'quests/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/quests/${id}`);
+      const response = await fetch(`/api/quests/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -99,7 +100,7 @@ export const createQuest = createAsyncThunk(
     try {
       const response = await fetch('/api/quests/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(questData),
       });
 
@@ -123,7 +124,7 @@ export const updateQuest = createAsyncThunk(
     try {
       const response = await fetch(`/api/quests/${questData.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(questData),
       });
 
@@ -147,6 +148,7 @@ export const deleteQuest = createAsyncThunk(
     try {
       const response = await fetch(`/api/quests/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

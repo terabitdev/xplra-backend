@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AchievementDefinition } from "@/lib/domain/models/achievementDefinition";
 import DeleteDialog from "../ui/DeleteDialog";
+import { authHeaders } from "@/lib/utils/authHeaders";
 
 interface BadgeDetailModalProps {
   achievementId: string;
@@ -57,7 +58,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-export default function BadgeDetailModal({ achievementId, assignedAt, uid, adminUid, onClose, onRemoved }: BadgeDetailModalProps) {
+export default function BadgeDetailModal({ achievementId, assignedAt, uid, onClose, onRemoved }: BadgeDetailModalProps) {
   const [definition, setDefinition] = useState<AchievementDefinition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +70,8 @@ export default function BadgeDetailModal({ achievementId, assignedAt, uid, admin
     try {
       const res = await fetch(`/api/achievement-definitions/${achievementId}/assign`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, assign: false, adminUid }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ uid, assign: false }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to remove badge");
@@ -88,7 +89,7 @@ export default function BadgeDetailModal({ achievementId, assignedAt, uid, admin
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/achievement-definitions/${achievementId}`)
+    fetch(`/api/achievement-definitions/${achievementId}`, { headers: authHeaders() })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load achievement details");

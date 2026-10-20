@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { QuestCategory } from '@/lib/domain/models/questCategory';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 let categoriesCache: { data: QuestCategory[]; timestamp: number } | null = null;
 const CACHE_DURATION = 60 * 1000;
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const skipCache = searchParams.get('fresh') === 'true';
 

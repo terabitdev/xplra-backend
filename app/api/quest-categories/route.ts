@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json();
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';

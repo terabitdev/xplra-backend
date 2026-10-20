@@ -61,7 +61,7 @@ export default function XpEngineVersionHistoryPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/admin/xp_engine/config");
+      const res = await fetch("/api/admin/xp_engine/config", { headers: authHeaders() });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to load version backup");
       setData(json);

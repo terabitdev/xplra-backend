@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Adventure } from '@/lib/domain/models/adventures';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 // In-memory cache
 let adventuresCache: { data: Adventure[]; timestamp: number } | null = null;
@@ -9,6 +10,11 @@ const CACHE_DURATION = 60 * 1000; // 60 seconds
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const skipCache = searchParams.get('fresh') === 'true';
     const now = Date.now();
@@ -54,18 +60,16 @@ function invalidateAdventuresCache() {
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const adventureData = JSON.parse(formData.get('adventure') as string);
     const imageFile = formData.get('image') as File | null;
     const imageFiles = formData.getAll('featuredImages') as File[];
-    const adminId = adventureData.userId; // Admin ID from the form
-
-    if (!adminId) {
-      return NextResponse.json(
-        { error: 'Admin ID is required' },
-        { status: 400 }
-      );
-    }
+    const adminId = auth.uid; // The verified admin's own uid — never the form's userId
 
     let imageUrl = '';
     let featuredImages: string[] = [];

@@ -3,9 +3,15 @@ import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { Category } from '@/lib/domain/models/category';
 import { getCategoriesCache, setCategoriesCache, invalidateCategoriesCache } from '@/lib/cache/categoriesCache';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const skipCache = searchParams.get('fresh') === 'true';
     const rootsOnly = searchParams.get('roots') === 'true';
@@ -54,6 +60,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const categoryData = JSON.parse(formData.get('category') as string);
     const iconFile = formData.get('icon') as File | null;

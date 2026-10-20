@@ -18,7 +18,7 @@ export const fetchAchievementDefinitions = createAsyncThunk(
   'achievementDefinitions/fetchAll',
   async (_: void, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/achievement-definitions/list');
+      const response = await fetch('/api/achievement-definitions/list', { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { invalidateCategoriesCache } from '@/lib/cache/categoriesCache';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 interface SeedCategory {
   name: string;
@@ -135,8 +136,13 @@ function generateId() {
   return `cat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const snapshot = await adminDb.collection('adminCategories').get();
     if (snapshot.empty) {
       return NextResponse.json({ message: 'No categories to delete' });
@@ -159,8 +165,13 @@ export async function DELETE() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     // Check if categories already exist
     const existing = await adminDb.collection('adminCategories').limit(1).get();
     if (!existing.empty) {

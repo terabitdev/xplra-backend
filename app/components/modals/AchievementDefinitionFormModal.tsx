@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Close } from '@carbon/icons-react';
 import { AchievementDefinition, AchievementDefinitionInput } from '@/lib/domain/models/achievementDefinition';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface CategoryOption {
   id: string;
@@ -105,7 +106,7 @@ export default function AchievementDefinitionFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    fetch('/api/categories/list')
+    fetch('/api/categories/list', { headers: authHeaders() })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -121,7 +122,7 @@ export default function AchievementDefinitionFormModal({
 
   useEffect(() => {
     if (specificActionEventType === 'PLACE_VISITED' && places.length === 0) {
-      fetch('/api/places/list?limit=500&fresh=true')
+      fetch('/api/places/list?limit=500&fresh=true', { headers: authHeaders() })
         .then((res) => res.json())
         .then((data) => {
           const list = Array.isArray(data.data) ? data.data : [];
@@ -129,7 +130,7 @@ export default function AchievementDefinitionFormModal({
         })
         .catch(() => {});
     } else if (specificActionEventType === 'QUEST_COMPLETED' && quests.length === 0) {
-      fetch('/api/quests/list?limit=500&fresh=true')
+      fetch('/api/quests/list?limit=500&fresh=true', { headers: authHeaders() })
         .then((res) => res.json())
         .then((data) => {
           const list = Array.isArray(data.data) ? data.data : [];
@@ -137,7 +138,7 @@ export default function AchievementDefinitionFormModal({
         })
         .catch(() => {});
     } else if (specificActionEventType === 'EVENT_ATTENDED' && events.length === 0) {
-      fetch('/api/events/list?limit=500&fresh=true')
+      fetch('/api/events/list?limit=500&fresh=true', { headers: authHeaders() })
         .then((res) => res.json())
         .then((data) => {
           const list = Array.isArray(data.data) ? data.data : [];
@@ -153,7 +154,7 @@ export default function AchievementDefinitionFormModal({
 
   useEffect(() => {
     if (!questCategoryNeeded || questCategories.length > 0) return;
-    fetch('/api/quest-categories/list?fresh=true')
+    fetch('/api/quest-categories/list?fresh=true', { headers: authHeaders() })
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data.data) ? data.data : [];

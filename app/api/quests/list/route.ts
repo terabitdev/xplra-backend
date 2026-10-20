@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Quest, AutoStartTrigger } from '@/lib/domain/models/quest';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 let questsCache: { data: Quest[]; timestamp: number } | null = null;
 const CACHE_DURATION = 60 * 1000;
@@ -51,6 +52,11 @@ function parseContextPillSettings(raw: Record<string, unknown> | null | undefine
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);

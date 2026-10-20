@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 const GLOBAL_DEFAULT_ID = 'globalDefault';
 
@@ -34,8 +35,13 @@ const GLOBAL_DEFAULT_CONFIG = {
   auditLogLevel: 'basic',
 };
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const docRef = adminDb.collection('validationConfigs').doc(GLOBAL_DEFAULT_ID);
     const existing = await docRef.get();
 

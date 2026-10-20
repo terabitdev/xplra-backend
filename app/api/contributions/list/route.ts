@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Place } from '@/lib/domain/models/place';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 type Tab = 'all' | 'pending' | 'approved' | 'rejected';
 
@@ -64,6 +65,11 @@ function normalizeDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): Place {
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const tab = (searchParams.get('tab') || 'pending') as Tab;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));

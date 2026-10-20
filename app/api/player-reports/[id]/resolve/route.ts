@@ -7,6 +7,7 @@ import {
   USERS_COLLECTION,
 } from "@/lib/utils/playerReports";
 import { PlayerReportDecision } from "@/lib/domain/models/playerReport";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 interface DecisionEffect {
   status: "RESOLVED" | "DISMISSED";
@@ -49,7 +50,8 @@ const DECISION_EFFECTS: Record<PlayerReportDecision, DecisionEffect> = {
 
 /**
  * POST /api/player-reports/[id]/resolve
- * Body: { adminUid: string, decision: "DISMISS" | "WARN" | "SUSPEND" | "BAN", note?: string }
+ * Requires Authorization: Bearer <admin ID token>.
+ * Body: { decision: "DISMISS" | "WARN" | "SUSPEND" | "BAN", note?: string }
  *
  * A report count alone never triggers this automatically — every call here
  * is one admin's explicit judgment call on one report. WARN/SUSPEND/BAN
@@ -61,14 +63,16 @@ const DECISION_EFFECTS: Record<PlayerReportDecision, DecisionEffect> = {
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json().catch(() => ({}));
-    const adminUid: string | undefined = body?.adminUid;
+    const adminUid = auth.uid;
     const decision: PlayerReportDecision | undefined = body?.decision;
     const note: string = typeof body?.note === "string" ? body.note.trim() : "";
 
-    if (!adminUid) {
-      return NextResponse.json({ error: "adminUid is required" }, { status: 400 });
-    }
     if (!decision || !(decision in DECISION_EFFECTS)) {
       return NextResponse.json(
         { error: "decision must be one of DISMISS, WARN, SUSPEND, BAN" },

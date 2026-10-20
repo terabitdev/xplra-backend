@@ -3,9 +3,15 @@ import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Place } from '@/lib/domain/models/place';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const placeId = params.id;
 
     const placeDoc = await adminDb.collection('places').doc(placeId).get();
@@ -57,6 +63,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const placeId = params.id;
 
@@ -231,8 +242,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const placeId = params.id;
 
     const placeDocRef = adminDb.collection('places').doc(placeId);

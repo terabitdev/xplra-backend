@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Category } from '@/lib/domain/models/category';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface CategoriesState {
   categories: Category[];
@@ -24,7 +25,7 @@ export const fetchCategories = createAsyncThunk(
       if (params?.fresh) queryParams.set('fresh', 'true');
 
       const url = `/api/categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -42,7 +43,7 @@ export const fetchCategoryById = createAsyncThunk(
   'categories/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/categories/${id}`);
+      const response = await fetch(`/api/categories/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -62,6 +63,7 @@ export const createCategory = createAsyncThunk(
     try {
       const response = await fetch('/api/categories', {
         method: 'POST',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -84,6 +86,7 @@ export const updateCategory = createAsyncThunk(
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'PATCH',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -106,6 +109,7 @@ export const deleteCategory = createAsyncThunk(
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

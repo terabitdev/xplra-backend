@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { ValidationConfig } from '@/lib/domain/models/validationConfig';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 // In-memory cache
 let configsCache: { data: ValidationConfig[]; timestamp: number } | null = null;
@@ -8,6 +9,11 @@ const CACHE_DURATION = 60 * 1000; // 60 seconds
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const skipCache = searchParams.get('fresh') === 'true';
 

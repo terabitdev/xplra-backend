@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Achievement } from '@/lib/domain/models/achievement';
 import { ChevronLeft } from '@carbon/icons-react';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export default function AchievementFormPage() {
     const [achievement, setAchievement] = useState<Partial<Achievement>>({
@@ -26,7 +27,7 @@ export default function AchievementFormPage() {
         if (id !== 'create') {
             setDataLoading(true);
             const fetchAchievement = async () => {
-                const res = await fetch(`/api/achievements/${id}`);
+                const res = await fetch(`/api/achievements/${id}`, { headers: authHeaders() });
                 const data = await res.json();
                 setAchievement(data);
                 setDataLoading(false);
@@ -47,6 +48,7 @@ export default function AchievementFormPage() {
 
             const res = await fetch(url, {
                 method,
+                headers: authHeaders(),
                 body: formData,
             });
 

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export interface PlayerReportUserInfo {
   uid: string;
@@ -93,7 +94,7 @@ export const fetchPlayerReports = createAsyncThunk(
       });
       if (status && status !== 'all') queryParams.set('status', status);
 
-      const response = await fetch(`/api/player-reports/list?${queryParams}`);
+      const response = await fetch(`/api/player-reports/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {

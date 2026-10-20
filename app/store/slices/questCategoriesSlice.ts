@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { QuestCategory } from '@/lib/domain/models/questCategory';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface QuestCategoriesState {
   categories: QuestCategory[];
@@ -23,7 +24,7 @@ export const fetchQuestCategories = createAsyncThunk(
       if (params?.fresh) queryParams.set('fresh', 'true');
 
       const url = `/api/quest-categories/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -43,7 +44,7 @@ export const createQuestCategory = createAsyncThunk(
     try {
       const response = await fetch('/api/quest-categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(categoryData),
       });
 
@@ -66,7 +67,7 @@ export const updateQuestCategory = createAsyncThunk(
     try {
       const response = await fetch(`/api/quest-categories/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(categoryData),
       });
 
@@ -89,6 +90,7 @@ export const deleteQuestCategory = createAsyncThunk(
     try {
       const response = await fetch(`/api/quest-categories/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

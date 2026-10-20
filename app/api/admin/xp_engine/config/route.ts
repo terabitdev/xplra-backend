@@ -5,6 +5,7 @@ import {
   XP_ENGINE_VERSION_DOC_ID,
   loadConfigResponse,
 } from "@/lib/utils/xpEngineConfigStore";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * GET /api/admin/xp_engine/config
@@ -17,8 +18,13 @@ import {
  */
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const [published, draft, version] = await Promise.all([
       loadConfigResponse(XP_ENGINE_PUBLISHED_DOC_ID),
       loadConfigResponse(XP_ENGINE_DRAFT_DOC_ID),

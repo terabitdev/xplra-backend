@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
 import { reverseGeocode } from '@/lib/utils/geocoding';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
 
@@ -44,6 +45,11 @@ async function upsertQuestMeta(location: string, lat: number, lng: number): Prom
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json();
 
     // Validate required fields

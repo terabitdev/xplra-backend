@@ -5,8 +5,13 @@ import { AchievementDefinition } from '@/lib/domain/models/achievementDefinition
 import { uploadAchievementAsset } from '@/lib/utils/achievementAssets';
 import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const doc = await adminDb.collection('achievementDefinitions').doc(params.id).get();
 
     if (!doc.exists) {

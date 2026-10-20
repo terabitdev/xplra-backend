@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export interface QuestReport {
   id: string;
@@ -66,7 +67,7 @@ export const fetchQuestReports = createAsyncThunk(
         limit: limit.toString(),
       });
 
-      const response = await fetch(`/api/quest-reports/list?${queryParams}`);
+      const response = await fetch(`/api/quest-reports/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {

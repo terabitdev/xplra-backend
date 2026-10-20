@@ -26,6 +26,7 @@ import { fetchCategories } from '../store/slices/categoriesSlice';
 import { fetchValidationConfigs } from '../store/slices/validationConfigsSlice';
 import { updatePlace } from '../store/slices/placesSlice';
 import { Place } from '@/lib/domain/models/place';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 const ITEMS_PER_PAGE = 12;
 const BANNER_DISMISSED_KEY = 'contributions.banner.dismissed';
@@ -63,7 +64,7 @@ export default function ContributionsPage() {
 
   const refreshCounts = useCallback(() => {
     dispatch(fetchContributionCounts());
-    fetch('/api/places/count?source=user_contribution&status=approved')
+    fetch('/api/places/count?source=user_contribution&status=approved', { headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : { count: 0 }))
       .then((d) => setNeedsCompletionCount(d.count || 0))
       .catch(() => setNeedsCompletionCount(0));

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Event } from '@/lib/domain/models/event';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface PaginationInfo {
   page: number;
@@ -58,7 +59,7 @@ export const fetchEvents = createAsyncThunk(
       });
       if (fresh) queryParams.append('fresh', 'true');
 
-      const response = await fetch(`/api/events/list?${queryParams}`);
+      const response = await fetch(`/api/events/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -77,7 +78,7 @@ export const fetchEventById = createAsyncThunk(
   'events/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/events/${id}`);
+      const response = await fetch(`/api/events/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -98,7 +99,7 @@ export const createEvent = createAsyncThunk(
     try {
       const response = await fetch('/api/events/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(eventData),
       });
 
@@ -122,7 +123,7 @@ export const updateEvent = createAsyncThunk(
     try {
       const response = await fetch(`/api/events/${eventData.eventId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(eventData),
       });
 
@@ -146,6 +147,7 @@ export const deleteEvent = createAsyncThunk(
     try {
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Event } from '@/lib/domain/models/event';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 function computeWindowTimestamp(isoString: string, offsetMinutes: number): admin.firestore.Timestamp {
   const ms = new Date(isoString).getTime() + offsetMinutes * 60 * 1000;
@@ -28,8 +29,13 @@ function geopointToGeo(geoField: unknown) {
   };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const eventDoc = await adminDb.collection('events').doc(params.id).get();
 
     if (!eventDoc.exists) {
@@ -69,6 +75,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const eventId = params.id;
     const body = await req.json();
 
@@ -183,8 +194,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const eventDocRef = adminDb.collection('events').doc(params.id);
     const eventDoc = await eventDocRef.get();
 

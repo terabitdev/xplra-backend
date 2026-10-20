@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { ValidationConfig } from '@/lib/domain/models/validationConfig';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface ValidationConfigsState {
   configs: ValidationConfig[];
@@ -23,7 +24,7 @@ export const fetchValidationConfigs = createAsyncThunk(
       if (params?.fresh) queryParams.set('fresh', 'true');
 
       const url = `/api/validation-configs/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -41,7 +42,7 @@ export const fetchValidationConfigById = createAsyncThunk(
   'validationConfigs/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/validation-configs/${id}`);
+      const response = await fetch(`/api/validation-configs/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -61,7 +62,7 @@ export const createValidationConfig = createAsyncThunk(
     try {
       const response = await fetch('/api/validation-configs/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(configData),
       });
 
@@ -84,7 +85,7 @@ export const updateValidationConfig = createAsyncThunk(
     try {
       const response = await fetch(`/api/validation-configs/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(configData),
       });
 
@@ -107,6 +108,7 @@ export const deleteValidationConfig = createAsyncThunk(
     try {
       const response = await fetch(`/api/validation-configs/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

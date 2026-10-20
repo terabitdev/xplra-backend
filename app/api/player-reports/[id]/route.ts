@@ -7,18 +7,25 @@ import {
   USER_REPORTS_COLLECTION,
 } from "@/lib/utils/playerReports";
 import { PlayerReportDetail, ReportHistoryEntry } from "@/lib/domain/models/playerReport";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
  * GET /api/player-reports/[id]
+ * Requires Authorization: Bearer <admin ID token>.
  * The report itself, plus everything the spec calls "relevant platform
  * context" that's actually available today:
  *   - reportHistory: other reports against the same reported player
  *   - moderationHistory: past warnings/suspensions/bans against that player
  */
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const reportRef = adminDb.collection(USER_REPORTS_COLLECTION).doc(params.id);
     const reportSnap = await reportRef.get();
 

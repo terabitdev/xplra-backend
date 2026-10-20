@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/achievement-definitions/[id]/assign
- * body: { uid: string, assign: boolean, adminUid?: string }
+ * Requires Authorization: Bearer <admin ID token>.
+ * body: { uid: string, assign: boolean }
  *
  * Manually grants or revokes this achievement for a player. Writes to
  * `playerAchievements` (doc id `${achievementDefinitionId}_${uid}`), the
@@ -14,7 +16,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { uid, assign, adminUid } = await req.json();
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const { uid, assign } = await req.json();
     if (!uid || typeof assign !== 'boolean') {
       return NextResponse.json({ error: 'uid and assign are required' }, { status: 400 });
     }
@@ -32,7 +39,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         achievementDefinitionId: params.id,
         uid,
         source: 'manual',
-        assignedBy: adminUid || '',
+        assignedBy: auth.uid,
         assignedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } else {

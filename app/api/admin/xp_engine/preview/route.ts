@@ -7,6 +7,7 @@ import {
   xpEngineDocRef,
 } from "@/lib/utils/xpEngineConfigStore";
 import { XpEngineConfigDoc } from "@/lib/domain/models/xpEngineConfig";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 function hasCurveShape(value: unknown): value is XpEngineConfigDoc {
   const v = value as Partial<XpEngineConfigDoc> | null | undefined;
@@ -24,6 +25,11 @@ function hasCurveShape(value: unknown): value is XpEngineConfigDoc {
  */
 export async function POST(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json().catch(() => ({}));
     const source: string | undefined = body?.source;
     const step: number | undefined = body?.step;

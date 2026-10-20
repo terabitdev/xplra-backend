@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { ChevronDown } from 'lucide-react';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface DailyGrowth {
   day: number;
@@ -75,7 +76,7 @@ export default function UserGrowthGraph() {
             });
 
             try {
-              const response = await fetch(`/api/users/growth?${params}`);
+              const response = await fetch(`/api/users/growth?${params}`, { headers: authHeaders() });
               const data: GrowthData = await response.json();
 
               if (response.ok) {

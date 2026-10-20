@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 const APPROVED_TAB_STATUSES = ['approved', 'active', 'hidden'];
 
@@ -14,8 +15,13 @@ async function countFor(filter: 'all' | 'pending' | 'approved' | 'rejected'): Pr
   return snap.data().count;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const [all, pending, approved, rejected] = await Promise.all([
       countFor('all'),
       countFor('pending'),

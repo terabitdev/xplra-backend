@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Adventure } from '@/lib/domain/models/adventures';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const adventureId = params.id;
 
     // Search through all adminAdventures documents to find the adventure
@@ -35,19 +41,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const adventureData = JSON.parse(formData.get('adventure') as string);
     const imageFile = formData.get('image') as File | null;
     const imageFiles = formData.getAll('featuredImages') as File[];
     const adventureId = params.id;
-    const adminId = adventureData.userId;
-
-    if (!adminId) {
-      return NextResponse.json(
-        { error: 'Admin ID is required' },
-        { status: 400 }
-      );
-    }
 
     let imageUrl = adventureData.imageUrl || '';
     let featuredImages = adventureData.featuredImages || [];
@@ -84,24 +87,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       featuredImages = await Promise.all(uploadPromises);
     }
 
-    // Get admin's adventure document
-    const adminAdventureDocRef = adminDb.collection('adminAdventures').doc(adminId);
-    const adminAdventureDoc = await adminAdventureDocRef.get();
+    // Any admin can edit any adventure from this shared panel, so the owning
+    // document is found by searching for the adventure id (same approach as
+    // GET/DELETE below) rather than trusting a doc-id/admin-id read from the
+    // submitted form — that field was never verified against who is actually
+    // signed in.
+    const adminAdventuresSnapshot = await adminDb.collection('adminAdventures').get();
+    let adminAdventureDocRef: FirebaseFirestore.DocumentReference | null = null;
+    let adventures: Adventure[] = [];
+    let adventureIndex = -1;
 
-    if (!adminAdventureDoc.exists) {
-      return NextResponse.json(
-        { error: 'Admin adventure document not found' },
-        { status: 404 }
-      );
+    for (const doc of adminAdventuresSnapshot.docs) {
+      const data = doc.data();
+      const docAdventures: Adventure[] = data.adventures || [];
+      const idx = docAdventures.findIndex((a: Adventure) => a.id === adventureId);
+      if (idx !== -1) {
+        adminAdventureDocRef = doc.ref;
+        adventures = docAdventures;
+        adventureIndex = idx;
+        break;
+      }
     }
 
-    const data = adminAdventureDoc.data();
-    const adventures = data?.adventures || [];
-
-    // Find and update the adventure in the array
-    const adventureIndex = adventures.findIndex((a: Adventure) => a.id === adventureId);
-
-    if (adventureIndex === -1) {
+    if (!adminAdventureDocRef || adventureIndex === -1) {
       return NextResponse.json(
         { error: 'Adventure not found' },
         { status: 404 }
@@ -145,8 +153,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const adventureId = params.id;
 
     // Find the admin document containing this adventure

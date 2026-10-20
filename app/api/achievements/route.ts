@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Achievement } from '@/lib/domain/models/achievement';
 import admin from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     // Get all admin achievement documents
     const adminAchievementsSnapshot = await adminDb.collection('adminAchievements').get();
 
@@ -33,16 +39,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const achievementData = JSON.parse(formData.get('achievement') as string);
-    const adminId = achievementData.userId; // Admin ID from the form
-
-    if (!adminId) {
-      return NextResponse.json(
-        { error: 'Admin ID is required' },
-        { status: 400 }
-      );
-    }
+    const adminId = auth.uid; // The verified admin's own uid — never the form's userId
 
     // Generate unique achievement ID
     const achievementId = `achievement_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

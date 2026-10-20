@@ -1,16 +1,23 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/achievement-definitions/[id]/users
+ * Requires Authorization: Bearer <admin ID token>.
  *
  * Lists all players so an admin can manually assign this achievement to one.
  * Cross-references `playerAchievements` to mark which users already have it.
  */
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const defDoc = await adminDb.collection('achievementDefinitions').doc(params.id).get();
     if (!defDoc.exists) {
       return NextResponse.json({ error: 'Achievement definition not found' }, { status: 404 });

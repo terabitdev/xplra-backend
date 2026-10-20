@@ -4,6 +4,7 @@ import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
 import { reverseGeocode } from '@/lib/utils/geocoding';
 import { Quest, AutoStartTrigger } from '@/lib/domain/models/quest';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 const VALID_TYPES = ['checkin', 'dwell', 'accrual', 'qrCode', 'codePhrase'] as const;
 
@@ -80,8 +81,13 @@ async function upsertQuestMeta(location: string, lat: number, lng: number): Prom
   );
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const questDoc = await adminDb.collection('questCatalogue').doc(params.id).get();
     if (!questDoc.exists) {
       return NextResponse.json({ error: 'Quest not found' }, { status: 404 });
@@ -121,6 +127,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await req.json();
     const questId = params.id;
 
@@ -271,8 +282,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const questDocRef = adminDb.collection('questCatalogue').doc(params.id);
     const questDoc = await questDocRef.get();
     if (!questDoc.exists) {

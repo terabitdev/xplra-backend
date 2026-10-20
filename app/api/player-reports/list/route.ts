@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { loadUserInfoMap, toPlayerReport, USER_REPORTS_COLLECTION } from "@/lib/utils/playerReports";
 import { PlayerReport } from "@/lib/domain/models/playerReport";
+import { verifyAdminRequest } from "@/lib/utils/requireAdmin";
 
 /**
  * GET /api/player-reports/list?page=1&limit=20&status=OPEN
+ * Requires Authorization: Bearer <admin ID token>.
  * Same source collection as /api/user-reports/list (user_reports), but this
  * is the moderation-facing list: supports a status filter and carries the
  * resolution fields the Player Reports detail view needs.
  */
 export async function GET(req: NextRequest) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);

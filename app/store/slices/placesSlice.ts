@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Place } from '@/lib/domain/models/place';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface PaginationInfo {
   page: number;
@@ -64,7 +65,7 @@ export const fetchPlaces = createAsyncThunk(
       if (statuses && statuses.length > 0) queryParams.append('statuses', statuses.join(','));
       if (fresh) queryParams.append('fresh', 'true');
 
-      const response = await fetch(`/api/places/list?${queryParams}`);
+      const response = await fetch(`/api/places/list?${queryParams}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -83,7 +84,7 @@ export const fetchPlaceById = createAsyncThunk(
   'places/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/places/${id}`);
+      const response = await fetch(`/api/places/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -112,6 +113,7 @@ export const createPlace = createAsyncThunk(
 
       const response = await fetch('/api/places/create', {
         method: 'POST',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -143,6 +145,7 @@ export const updatePlace = createAsyncThunk(
 
       const response = await fetch(`/api/places/${placeData.placeId}`, {
         method: 'PATCH',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -166,6 +169,7 @@ export const deletePlace = createAsyncThunk(
     try {
       const response = await fetch(`/api/places/${placeId}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import admin from '@/lib/firebase-admin';
 import { invalidateCategoriesCache } from '@/lib/cache/categoriesCache';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const categoryId = params.id;
     const doc = await adminDb.collection('adminCategories').doc(categoryId).get();
 
@@ -33,6 +39,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
     const categoryData = JSON.parse(formData.get('category') as string);
     const iconFile = formData.get('icon') as File | null;
@@ -155,8 +166,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const categoryId = params.id;
 
     const docRef = adminDb.collection('adminCategories').doc(categoryId);

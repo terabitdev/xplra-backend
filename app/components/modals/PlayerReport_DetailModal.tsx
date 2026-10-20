@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Close, Warning, PauseOutline, MisuseOutline, CloseOutline } from '@carbon/icons-react';
 import { useAppSelector } from '@/app/store/hooks';
 import Toaster from '@/app/components/ui/Toaster';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface PlayerReportUserInfo {
   uid: string;
@@ -186,7 +187,7 @@ export default function PlayerReport_DetailModal({ isOpen, onClose, reportId, on
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/player-reports/${reportId}`);
+      const res = await fetch(`/api/player-reports/${reportId}`, { headers: authHeaders() });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to load report');
       setDetail(json);
@@ -224,8 +225,8 @@ export default function PlayerReport_DetailModal({ isOpen, onClose, reportId, on
     try {
       const res = await fetch(`/api/player-reports/${detail.report.id}/resolve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUid, decision: activeDecision, note: note.trim() }),
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ decision: activeDecision, note: note.trim() }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to resolve report');

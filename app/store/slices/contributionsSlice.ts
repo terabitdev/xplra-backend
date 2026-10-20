@@ -73,7 +73,7 @@ export const fetchContributions = createAsyncThunk(
         page: page.toString(),
         limit: limit.toString(),
       });
-      const response = await fetch(`/api/contributions/list?${qs}`);
+      const response = await fetch(`/api/contributions/list?${qs}`, { headers: authHeaders() });
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to fetch contributions');
@@ -90,7 +90,7 @@ export const fetchContributionCounts = createAsyncThunk(
   'contributions/fetchCounts',
   async (_: void, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/contributions/counts');
+      const response = await fetch('/api/contributions/counts', { headers: authHeaders() });
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to load counts');

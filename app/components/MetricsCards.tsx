@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/store/hooks';
 import { fetchQuests } from '@/app/store/slices/questsSlice';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface MetricCardProps {
   title: string;
@@ -58,8 +59,8 @@ export default function MetricsCards() {
     let cancelled = false;
     setCountsLoading(true);
     Promise.all([
-      fetch('/api/places/count').then(r => r.ok ? r.json() : { count: 0 }),
-      fetch('/api/events/count').then(r => r.ok ? r.json() : { count: 0 }),
+      fetch('/api/places/count', { headers: authHeaders() }).then(r => r.ok ? r.json() : { count: 0 }),
+      fetch('/api/events/count', { headers: authHeaders() }).then(r => r.ok ? r.json() : { count: 0 }),
     ])
       .then(([placesRes, eventsRes]) => {
         if (cancelled) return;

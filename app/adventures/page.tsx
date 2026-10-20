@@ -12,6 +12,7 @@ import Toaster from '../components/ui/Toaster';
 import Image from 'next/image';
 import { useSearch } from '../contexts/SearchContext';
 import AdventuresListFilter from '../components/filters/AdventuresListFilter';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export default function AdventuresPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -56,7 +57,7 @@ export default function AdventuresPage() {
 
     useEffect(() => {
         const fetchCategories = async () => {
-            const res = await fetch('/api/categories');
+            const res = await fetch('/api/categories', { headers: authHeaders() });
             const data = await res.json();
             setCategories(data);
         };

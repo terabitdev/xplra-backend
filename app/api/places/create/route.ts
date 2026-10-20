@@ -3,9 +3,15 @@ import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import { Place } from '@/lib/domain/models/place';
 import admin from '@/lib/firebase-admin';
 import ngeohash from 'ngeohash';
+import { verifyAdminRequest } from '@/lib/utils/requireAdmin';
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const formData = await req.formData();
 
     // Extract place data from FormData

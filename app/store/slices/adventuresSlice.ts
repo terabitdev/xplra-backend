@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Adventure } from '@/lib/domain/models/adventures';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 interface AdventuresState {
   adventures: Adventure[];
@@ -20,7 +21,7 @@ export const fetchAdventures = createAsyncThunk(
   'adventures/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/adventures');
+      const response = await fetch('/api/adventures', { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -38,7 +39,7 @@ export const fetchAdventureById = createAsyncThunk(
   'adventures/fetchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/adventures/${id}`);
+      const response = await fetch(`/api/adventures/${id}`, { headers: authHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -58,6 +59,7 @@ export const createAdventure = createAsyncThunk(
     try {
       const response = await fetch('/api/adventures', {
         method: 'POST',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -80,6 +82,7 @@ export const updateAdventure = createAsyncThunk(
     try {
       const response = await fetch(`/api/adventures/${id}`, {
         method: 'PATCH',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -102,6 +105,7 @@ export const deleteAdventure = createAsyncThunk(
     try {
       const response = await fetch(`/api/adventures/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       const data = await response.json();

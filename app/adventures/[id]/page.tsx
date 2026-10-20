@@ -6,6 +6,7 @@ import { Adventure } from '@/lib/domain/models/adventures';
 import { ChevronLeft } from '@carbon/icons-react';
 import Image from 'next/image';
 import { Category } from '@/lib/domain/models/category';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 export default function AdventureFormPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -36,7 +37,7 @@ export default function AdventureFormPage() {
 
     useEffect(() => {
         const fetchCategories = async () => {
-            const res = await fetch('/api/categories');
+            const res = await fetch('/api/categories', { headers: authHeaders() });
             const data = await res.json();
             setCategories(data);
         };
@@ -47,7 +48,7 @@ export default function AdventureFormPage() {
         if (id !== 'create') {
             setDataLoading(true);
             const fetchAdventure = async () => {
-                const res = await fetch(`/api/adventures/${id}`);
+                const res = await fetch(`/api/adventures/${id}`, { headers: authHeaders() });
                 const data = await res.json();
                 setAdventure(data);
                 setImagePreview(data.imageUrl);
@@ -107,6 +108,7 @@ export default function AdventureFormPage() {
 
             const response = await fetch(url, {
                 method,
+                headers: authHeaders(),
                 body: formData,
             });
 

@@ -7,6 +7,7 @@ import { Category } from '@/lib/domain/models/category';
 import StatusBadge from './StatusBadge';
 import ImageCarousel from './ImageCarousel';
 import StaticMapPreview from './StaticMapPreview';
+import { authHeaders } from '@/lib/utils/authHeaders';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -64,7 +65,7 @@ export default function ContributionDetailsDialog({
     }
     let cancelled = false;
     setSubmitterLoading(true);
-    fetch(`/api/users/${contribution.userId}`)
+    fetch(`/api/users/${contribution.userId}`, { headers: authHeaders() })
       .then(async (r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!cancelled) setSubmitter(data);
